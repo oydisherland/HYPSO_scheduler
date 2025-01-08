@@ -1,0 +1,197 @@
+MÅ gjøres ila prosjektoppgave
+
+DONE - Lage et mock-script som plukker ut noen av targetsene forde det ikke er sikt 
+DONE - Finne ut hvordan det er beste å måle kvaliteten på optimaliseringen..
+        - Se på verdien til objective funksjonene
+        - Se på kjøretiden til algoritmen 
+DONE - Lage en oversikt over hvilke targets som skal tas bilde av og når, etter optimaliseringen 
+DONE - Gjøre optimaliseringen med hypso2 som kan ta 40 bilder over 1 dag
+
+Bør gjøres for å fikse kodekvalitet
+
+DONE - Eliminere linjer fra updated_targets som ikke inneholder noen mulige mål
+- Sette en maksgrense for hor stor updatedTargets listen kna være, dersom den er lenger enn dette selv etter 
+eliminering fra cloudcover sjekken 
+- Referansetiden settes ved at man finner capturen med tidligst tid
+
+Må gjøres til Master
+
+- Lage en scheduler til prosesseringstiden
+- Lage en faktisk ekstrahering av cloudcover data som kan brukes for å eliminere target løsninger
+- Flette løsningen inni github kodebasen på et vis 
+
+gamle verdier fra capture times csv:
+Target,Capture_time,Time_elapsed,Discretization,Cap_per_time,Weight,ReferenceTime
+ingdalen,53,133.913405208,30,0,2690,2024-11-24T09:00:00.0
+frohavet,1341,133.913405208,30,0,2700,2024-11-24T09:00:00.0
+lakeanoya,55,133.913405208,30,0,2670,2024-11-24T09:00:00.0
+stjordal,3061,133.913405208,30,0,2661,2024-11-24T09:00:00.0
+buvika,1342,133.913405208,30,0,2710,2024-11-24T09:00:00.0
+frohavetsouth,240,133.913405208,30,0,2630,2024-11-24T09:00:00.0
+frohavetwest,1344,133.913405208,30,0,2640,2024-11-24T09:00:00.0
+frohavetnorth,3060,133.913405208,30,0,2650,2024-11-24T09:00:00.0
+trondheimnorth,54,133.913405208,30,0,2709,2024-11-24T09:00:00.0
+trondheim,1343,133.913405208,30,0,2720,2024-11-24T09:00:00.0
+ingdalen,239,1402.963350667,30,5,2690,2024-11-24T09:00:00.0
+frohavet,4163,1402.963350667,30,5,2700,2024-11-24T09:00:00.0
+vancouver,4009,1402.963350667,30,5,2570,2024-11-24T09:00:00.0
+buvika,1342,1402.963350667,30,5,2710,2024-11-24T09:00:00.0
+griegesperanza,1188,1402.963350667,30,5,2620,2024-11-24T09:00:00.0
+grieghammerfest,48,1402.963350667,30,5,2480,2024-11-24T09:00:00.0
+griegclio,2463,1402.963350667,30,5,2610,2024-11-24T09:00:00.0
+griegloppa,1158,1402.963350667,30,5,2490,2024-11-24T09:00:00.0
+trondheimnorth,54,1402.963350667,30,5,2709,2024-11-24T09:00:00.0
+trondheim,3061,1402.963350667,30,5,2720,2024-11-24T09:00:00.0
+
+
+gamle verdier fra results
+NrOf_targets,NrOf_captures,Time_elapsed,Discretization,Cap_per_time
+295,250,498.273364375,30,0
+295,418,310.92612825,30,0
+127,250,176.04382975,30,0
+122,250,197.528483833,30,0
+123,250,743.8171275,30,1
+128,250,1364.67034975,30,2
+114,250,1402.963350667,30,5
+
+
+
+
+
+
+dahlak,16.00,40.38,60,1,1170,25,wide,0,"['', '', '', '', '', '', '']","['', '', '', '', '', '', '']"
+djibouti,11.70,42.96,60,1,1160,20,wide,0,"['', '', '', '', '', '', '']","['', '', '', '', '', '', '']"
+kilmia,12.22,52.19,60,1,1150,20,quaternion,0,"[datetime.datetime(2024, 11, 24, 18, 23, 29, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 24, 18, 23, 27, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
+palkstrait,9.5774,79.6805,60,1,1149,30,wide,0,"[datetime.datetime(2024, 11, 25, 4, 29, 18, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 25, 16, 19, 22, tzinfo=datetime.timezone.utc), '', '', '', '', '']","[datetime.datetime(2024, 11, 25, 4, 28, 35, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 25, 16, 18, 45, tzinfo=datetime.timezone.utc), '', '', '', '', '']"
+gulfofmartaban,16.5178,96.9891,60,1,1148,30,wide,0,"[datetime.datetime(2024, 11, 24, 15, 16, 29, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 24, 15, 16, 48, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
+gulfofkhamphat,21.5714,72.4023,60,1,1147,30,wide,0,"[datetime.datetime(2024, 11, 24, 16, 51, 49, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 24, 16, 52, 8, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
+lakewinnipegosis,52.31,-99.85,60,1,1146,30,wide,0,"[datetime.datetime(2024, 11, 24, 17, 19, 24, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 25, 3, 57, 58, tzinfo=datetime.timezone.utc), '', '', '', '', '']","[datetime.datetime(2024, 11, 24, 17, 19, 27, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 25, 3, 58, 15, tzinfo=datetime.timezone.utc), '', '', '', '', '']"
+bayoffundy,45.2926,-65.0934,60,1,1145,30,wide,0,"[datetime.datetime(2024, 11, 26, 1, 52, 18, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 26, 1, 52, 14, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
+stlorancedelta,47.4304,-70.1920,60,1,1144,30,wide,0,"[datetime.datetime(2024, 11, 25, 15, 16, 56, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 26, 1, 52, 56, tzinfo=datetime.timezone.utc), '', '', '', '', '']","[datetime.datetime(2024, 11, 25, 15, 16, 39, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 26, 1, 53, 6, tzinfo=datetime.timezone.utc), '', '', '', '', '']"
+mauritaniacoast,19.3841,-16.6380,60,1,1143,30,wide,0,"[datetime.datetime(2024, 11, 24, 11, 12, 2, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 24, 11, 12, 16, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
+singapore,0.9424,103.7946,60,1,1142,30,wide,0,"[datetime.datetime(2024, 11, 25, 2, 56, 56, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 25, 2, 57, 15, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
+hangzhoubay,30.4683,121.9408,60,1,1141,30,wide,0,"[datetime.datetime(2024, 11, 25, 13, 16, 47, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 25, 13, 16, 18, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
+penzhinabay,61.4680,163.4429,60,1,1140,30,wide,0,"[datetime.datetime(2024, 11, 24, 23, 33, 36, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 25, 10, 16, 31, tzinfo=datetime.timezone.utc), '', '', '', '', '']","[datetime.datetime(2024, 11, 24, 23, 32, 55, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 25, 10, 16, 34, tzinfo=datetime.timezone.utc), '', '', '', '', '']"
+lakesarygamysh,41.8962,57.4080,60,1,1139,30,wide,0,"['', '', '', '', '', '', '']","['', '', '', '', '', '', '']"
+aralsea,45.0728,58.4987,60,1,1138,30,wide,0,"['', '', '', '', '', '', '']","['', '', '', '', '', '', '']"
+straightoftartary,52.6629,141.5666,60,1,1137,30,wide,0,"[datetime.datetime(2024, 11, 25, 1, 9, 17, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 25, 11, 48, 6, tzinfo=datetime.timezone.utc), '', '', '', '', '']","[datetime.datetime(2024, 11, 25, 1, 9, 34, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 25, 11, 48, 27, tzinfo=datetime.timezone.utc), '', '', '', '', '']"
+hawkebay,-39.3982,177.1833,60,1,1136,30,wide,0,"[datetime.datetime(2024, 11, 24, 10, 19, 58, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 24, 10, 20, 10, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
+arafurasea,-6.9741,138.4289,60,1,1135,30,wide,0,"['', '', '', '', '', '', '']","['', '', '', '', '', '', '']"
+timaru,-44.6329,171.2546,60,1,1134,30,wide,0,"[datetime.datetime(2024, 11, 25, 21, 56, 57, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 25, 21, 57, 19, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
+lakeellesmere,-43.7833,172.4539,60,1,1133,30,wide,0,"[datetime.datetime(2024, 11, 25, 21, 56, 42, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 25, 21, 57, 2, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
+pegasusbay,-43.3330,172.9192,60,1,1132,30,wide,0,"[datetime.datetime(2024, 11, 25, 21, 56, 36, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 25, 21, 56, 52, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
+bankspeninsula,-43.7666,172.9738,60,1,1131,30,wide,0,"[datetime.datetime(2024, 11, 25, 21, 56, 43, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 25, 21, 56, 58, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
+lakewinnipeg,53.06,-98.06,60,1,1130,30,wide,0,"[datetime.datetime(2024, 11, 25, 3, 58, 23, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 25, 16, 49, 43, tzinfo=datetime.timezone.utc), '', '', '', '', '']","[datetime.datetime(2024, 11, 25, 3, 58, 6, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 25, 16, 49, 23, tzinfo=datetime.timezone.utc), '', '', '', '', '']"
+lakeqinghai,36.87,100.17,60,1,1120,30,wide,0,"[datetime.datetime(2024, 11, 25, 14, 51, 56, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 25, 14, 52, 13, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
+capetown,-34.24,18.29,60,1,1110,30,wide,0,"[datetime.datetime(2024, 11, 24, 8, 18, 3, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 25, 20, 49, 39, tzinfo=datetime.timezone.utc), '', '', '', '', '']","[datetime.datetime(2024, 11, 24, 8, 18, 27, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 25, 20, 49, 29, tzinfo=datetime.timezone.utc), '', '', '', '', '']"
+losangeles,33.60,-118.39,60,1,1100,30,quaternion,0,"[datetime.datetime(2024, 11, 25, 5, 27, 2, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 25, 5, 27, 21, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
+bluenile,11.18,35.12,60,1,1090,25,wide,0,"[datetime.datetime(2024, 11, 25, 7, 36, 17, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 25, 19, 27, 12, tzinfo=datetime.timezone.utc), '', '', '', '', '']","[datetime.datetime(2024, 11, 25, 7, 36, 36, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 25, 19, 27, 30, tzinfo=datetime.timezone.utc), '', '', '', '', '']"
+capedyer,66.63,-60.99,60,1,1080,25,wide,0,"[datetime.datetime(2024, 11, 25, 0, 53, 49, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 25, 15, 11, 32, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 26, 0, 24, 29, tzinfo=datetime.timezone.utc), '', '', '', '']","[datetime.datetime(2024, 11, 25, 0, 54, 7, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 25, 15, 11, 50, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 26, 0, 24, 11, tzinfo=datetime.timezone.utc), '', '', '', '']"
+ladyfranklin,62.91,-63.68,60,1,1070,25,wide,0,"[datetime.datetime(2024, 11, 25, 0, 53, 10, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 25, 15, 12, 34, tzinfo=datetime.timezone.utc), '', '', '', '', '']","[datetime.datetime(2024, 11, 25, 0, 53, 9, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 25, 15, 12, 49, tzinfo=datetime.timezone.utc), '', '', '', '', '']"
+satoaluk,56.47,-60.84,60,1,1060,25,wide,0,"['', '', '', '', '', '', '']","['', '', '', '', '', '', '']"
+nuuk,63.92,-52.48,60,1,1050,25,wide,0,"[datetime.datetime(2024, 11, 24, 14, 8, 28, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 26, 0, 23, 10, tzinfo=datetime.timezone.utc), '', '', '', '', '']","[datetime.datetime(2024, 11, 24, 14, 8, 33, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 26, 0, 23, 31, tzinfo=datetime.timezone.utc), '', '', '', '', '']"
+lakeUpemba,-8.64,26.40,60,1,1040,30,wide,0,"['', '', '', '', '', '', '']","['', '', '', '', '', '', '']"
+labradornorth,66.37,-58.22,60,1,1030,30,wide,0,"[datetime.datetime(2024, 11, 25, 0, 53, 50, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 25, 15, 11, 41, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 26, 0, 24, 4, tzinfo=datetime.timezone.utc), '', '', '', '']","[datetime.datetime(2024, 11, 25, 0, 53, 48, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 25, 15, 11, 36, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 26, 0, 24, 15, tzinfo=datetime.timezone.utc), '', '', '', '']"
+labradorcentral,60.97,-57.04,60,1,1020,30,wide,0,"[datetime.datetime(2024, 11, 25, 0, 52, 17, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 25, 0, 52, 34, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
+labradorsouth,55.33,-54.27,60,1,1010,30,wide,0,"[datetime.datetime(2024, 11, 24, 14, 10, 33, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 25, 0, 50, 46, tzinfo=datetime.timezone.utc), '', '', '', '', '']","[datetime.datetime(2024, 11, 24, 14, 10, 53, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 25, 0, 51, 4, tzinfo=datetime.timezone.utc), '', '', '', '', '']"
+kremenchutskeReservoir,49.2239,32.8172,50,3,1000,30,wide,0,"[datetime.datetime(2024, 11, 24, 7, 56, 32, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 24, 7, 56, 28, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
+labradorwest,60.99,-63.80,60,1,990,30,wide,0,"[datetime.datetime(2024, 11, 25, 15, 13, 8, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 25, 15, 13, 12, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
+labradoreast,56.27,-49.34,60,1,980,30,wide,0,"[datetime.datetime(2024, 11, 24, 14, 10, 37, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 25, 13, 40, 43, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 26, 0, 21, 10, tzinfo=datetime.timezone.utc), '', '', '', '']","[datetime.datetime(2024, 11, 24, 14, 9, 56, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 25, 13, 40, 38, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 26, 0, 21, 29, tzinfo=datetime.timezone.utc), '', '', '', '']"
+lakebalkhash,46.14,74.22,60,1,970,30,wide,0,"[datetime.datetime(2024, 11, 25, 16, 28, 23, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 26, 5, 23, 10, tzinfo=datetime.timezone.utc), '', '', '', '', '']","[datetime.datetime(2024, 11, 25, 16, 28, 40, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 26, 5, 23, 29, tzinfo=datetime.timezone.utc), '', '', '', '', '']"
+tasmania,-40.69,148.27,60,1,960,30,wide,0,"[datetime.datetime(2024, 11, 25, 23, 29, 58, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 25, 23, 30, 16, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
+marlborough,-41.44,174.24,60,1,950,30,wide,0,"[datetime.datetime(2024, 11, 25, 21, 56, 9, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 25, 21, 56, 16, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
+limerick,52.68,-8.85,60,1,940,25,wide,0,"[datetime.datetime(2024, 11, 24, 11, 3, 16, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 24, 21, 42, 11, tzinfo=datetime.timezone.utc), '', '', '', '', '']","[datetime.datetime(2024, 11, 24, 11, 3, 36, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 24, 21, 42, 28, tzinfo=datetime.timezone.utc), '', '', '', '', '']"
+trollgasfield,56.49,3.50,60,1,930,25,wide,0,"[datetime.datetime(2024, 11, 25, 10, 32, 20, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 25, 10, 32, 27, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
+clairoilfield,60.79,-2.32,60,1,920,25,wide,0,"[datetime.datetime(2024, 11, 24, 11, 1, 2, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 25, 21, 14, 19, tzinfo=datetime.timezone.utc), '', '', '', '', '']","[datetime.datetime(2024, 11, 24, 11, 1, 17, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 25, 21, 14, 36, tzinfo=datetime.timezone.utc), '', '', '', '', '']"
+saltlake,41.15,-112.56,60,1,910,20,wide,0,"[datetime.datetime(2024, 11, 26, 4, 59, 6, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 26, 4, 59, 24, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
+kuwait,29.61,48.54,60,1,900,20,wide,0,"[datetime.datetime(2024, 11, 24, 18, 28, 1, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 26, 7, 1, 35, tzinfo=datetime.timezone.utc), '', '', '', '', '']","[datetime.datetime(2024, 11, 24, 18, 28, 2, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 26, 7, 1, 35, tzinfo=datetime.timezone.utc), '', '', '', '', '']"
+gqeberha,-34.11,25.67,60,1,890,25,wide,0,"[datetime.datetime(2024, 11, 25, 7, 48, 8, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 25, 7, 48, 29, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
+durban,-29.92,31.06,60,1,880,25,wide,0,"['', '', '', '', '', '', '']","['', '', '', '', '', '', '']"
+saldanha,-33.09,17.93,60,1,870,25,wide,0,"[datetime.datetime(2024, 11, 24, 8, 17, 48, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 25, 20, 50, 1, tzinfo=datetime.timezone.utc), '', '', '', '', '']","[datetime.datetime(2024, 11, 24, 8, 18, 7, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 25, 20, 49, 46, tzinfo=datetime.timezone.utc), '', '', '', '', '']"
+ilescrozet,-46.48,51.83,60,1,860,25,wide,0,"[datetime.datetime(2024, 11, 26, 5, 47, 34, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 26, 5, 47, 49, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
+princeedward,-46.91,37.74,60,1,850,25,wide,0,"[datetime.datetime(2024, 11, 24, 19, 42, 7, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 24, 19, 42, 5, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
+falklands,-51.79,-59.49,60,1,840,25,wide,0,"[datetime.datetime(2024, 11, 24, 13, 4, 52, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 24, 13, 5, 5, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
+xaafuun,10.45,51.45,60,1,830,20,quaternion,0,"[datetime.datetime(2024, 11, 24, 18, 22, 54, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 24, 18, 23, 12, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
+kalleesa,12.55,54.53,60,1,820,20,quaternion,0,"['', '', '', '', '', '', '']","['', '', '', '', '', '', '']"
+warsheikh,2.29,45.80,60,1,810,20,wide,0,"['', '', '', '', '', '', '']","['', '', '', '', '', '', '']"
+mogadishu,2.00,45.31,60,1,800,20,wide,0,"['', '', '', '', '', '', '']","['', '', '', '', '', '', '']"
+bajuni,-0.91,42.15,60,1,790,20,wide,0,"['', '', '', '', '', '', '']","['', '', '', '', '', '', '']"
+lamu,-2.21,41.09,60,1,780,20,wide,0,"['', '', '', '', '', '', '']","['', '', '', '', '', '', '']"
+watamu,-3.41,40.00,60,1,770,20,wide,0,"['', '', '', '', '', '', '']","['', '', '', '', '', '', '']"
+mombasa,-4.08,39.70,60,1,760,20,wide,0,"[datetime.datetime(2024, 11, 25, 19, 23, 26, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 25, 19, 23, 7, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
+oslo,59.88,10.83,50,2,2510,35,wide,0,"[datetime.datetime(2024, 11, 24, 20, 9, 50, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 24, 20, 10, 38, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
+kiwani,-5.17,39.72,60,1,750,20,wide,0,"[datetime.datetime(2024, 11, 25, 19, 23, 4, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 25, 19, 22, 55, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
+zanzibar,-6.15,39.34,60,1,740,20,wide,0,"[datetime.datetime(2024, 11, 25, 19, 22, 42, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 25, 19, 22, 50, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
+mafia,-7.62,39.62,60,1,730,20,wide,0,"[datetime.datetime(2024, 11, 25, 19, 22, 19, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 25, 19, 22, 27, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
+kilwa,-8.99,39.54,60,1,720,20,wide,0,"[datetime.datetime(2024, 11, 25, 19, 21, 55, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 25, 19, 22, 10, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
+ruvuma,-10.41,40.50,60,1,710,20,wide,0,"[datetime.datetime(2024, 11, 25, 19, 21, 38, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 25, 19, 21, 39, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
+mayotte,-12.80,45.15,60,1,700,20,wide,0,"['', '', '', '', '', '', '']","['', '', '', '', '', '', '']"
+ifaho,-15.80,50.36,60,1,690,20,wide,0,"['', '', '', '', '', '', '']","['', '', '', '', '', '', '']"
+miramar,-23.84,35.57,60,1,680,20,quaternion,0,"[datetime.datetime(2024, 11, 24, 19, 47, 57, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 24, 19, 48, 7, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
+maputo,-25.99,32.99,60,1,670,20,wide,0,"[datetime.datetime(2024, 11, 24, 19, 47, 34, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 24, 19, 47, 39, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
+aaland,60.16,20.16,60,1,660,40,wide,0,"[datetime.datetime(2024, 11, 24, 9, 27, 11, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 25, 19, 40, 11, tzinfo=datetime.timezone.utc), '', '', '', '', '']","[datetime.datetime(2024, 11, 24, 9, 27, 32, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 25, 19, 40, 31, tzinfo=datetime.timezone.utc), '', '', '', '', '']"
+petersburg,59.93,30.36,60,1,650,40,wide,0,"[datetime.datetime(2024, 11, 25, 8, 57, 29, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 25, 8, 57, 18, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
+turku,60.25,22.07,60,1,640,40,wide,0,"[datetime.datetime(2024, 11, 24, 9, 27, 12, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 25, 8, 57, 52, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 25, 19, 40, 10, tzinfo=datetime.timezone.utc), '', '', '', '']","[datetime.datetime(2024, 11, 24, 9, 27, 20, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 25, 8, 57, 23, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 25, 19, 40, 24, tzinfo=datetime.timezone.utc), '', '', '', '']"
+saaremaa,58.42,22.64,60,1,630,40,wide,0,"[datetime.datetime(2024, 11, 25, 8, 58, 2, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 25, 19, 39, 40, tzinfo=datetime.timezone.utc), '', '', '', '', '']","[datetime.datetime(2024, 11, 25, 8, 58, 6, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 25, 19, 39, 56, tzinfo=datetime.timezone.utc), '', '', '', '', '']"
+bermuda,32.38,-64.77,60,1,620,30,wide,0,"[datetime.datetime(2024, 11, 26, 1, 48, 51, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 26, 1, 49, 8, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
+bahamas,25.02,-77.35,60,1,610,30,wide,0,"[datetime.datetime(2024, 11, 25, 15, 22, 48, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 25, 15, 22, 41, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
+galapagos,-0.63,-90.37,60,1,600,30,wide,0,"[datetime.datetime(2024, 11, 24, 15, 59, 23, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 24, 15, 59, 21, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
+sthelena,-15.97,-5.71,60,1,590,30,wide,0,"[datetime.datetime(2024, 11, 25, 22, 28, 8, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 25, 22, 28, 17, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
+ascension,-7.94,-14.37,60,1,580,30,wide,0,"[datetime.datetime(2024, 11, 24, 23, 0, 14, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 25, 10, 49, 17, tzinfo=datetime.timezone.utc), '', '', '', '', '']","[datetime.datetime(2024, 11, 24, 23, 0, 11, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 25, 10, 49, 29, tzinfo=datetime.timezone.utc), '', '', '', '', '']"
+tristandacunha,-37.11,-12.28,60,1,570,30,wide,0,"[datetime.datetime(2024, 11, 24, 22, 52, 53, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 24, 22, 52, 34, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
+easter,-27.14,-109.35,60,1,560,30,wide,0,"['', '', '', '', '', '', '']","['', '', '', '', '', '', '']"
+lakebeysehir,37.77,31.52,60,1,550,30,wide,0,"[datetime.datetime(2024, 11, 24, 7, 59, 30, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 25, 19, 34, 36, tzinfo=datetime.timezone.utc), '', '', '', '', '']","[datetime.datetime(2024, 11, 24, 7, 59, 24, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 25, 19, 33, 57, tzinfo=datetime.timezone.utc), '', '', '', '', '']"
+lakeegirdir,38.04,30.88,60,1,540,30,wide,0,"[datetime.datetime(2024, 11, 25, 19, 34, 23, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 25, 19, 34, 17, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
+lakeurmia,37.70,45.39,60,1,530,30,wide,0,"[datetime.datetime(2024, 11, 24, 18, 30, 4, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 24, 18, 30, 22, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
+gulfofcampeche,19.91,-92.10,60,1,520,25,wide,0,"[datetime.datetime(2024, 11, 25, 3, 49, 26, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 25, 3, 49, 46, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
+chesapeake,37.79,-76.10,60,1,510,25,wide,0,"[datetime.datetime(2024, 11, 25, 15, 19, 19, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 25, 15, 19, 38, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
+delaware,39.00,-75.15,60,1,500,25,wide,0,"[datetime.datetime(2024, 11, 25, 2, 20, 41, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 25, 15, 18, 58, tzinfo=datetime.timezone.utc), '', '', '', '', '']","[datetime.datetime(2024, 11, 25, 2, 20, 44, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 25, 15, 19, 16, tzinfo=datetime.timezone.utc), '', '', '', '', '']"
+baltimore,38.90,-76.39,60,1,490,25,wide,0,"[datetime.datetime(2024, 11, 25, 15, 19, 3, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 25, 15, 19, 21, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
+princewilliam,60.61,-147.16,60,1,480,25,wide,0,"[datetime.datetime(2024, 11, 24, 20, 25, 16, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 26, 6, 38, 28, tzinfo=datetime.timezone.utc), '', '', '', '', '']","[datetime.datetime(2024, 11, 24, 20, 25, 31, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 26, 6, 38, 41, tzinfo=datetime.timezone.utc), '', '', '', '', '']"
+kotzbue,66.88,-162.62,60,1,470,25,wide,0,"[datetime.datetime(2024, 11, 24, 7, 39, 48, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 24, 21, 57, 27, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 25, 7, 10, 32, tzinfo=datetime.timezone.utc), '', '', '', '']","[datetime.datetime(2024, 11, 24, 7, 40, 14, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 24, 21, 57, 50, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 25, 7, 10, 13, tzinfo=datetime.timezone.utc), '', '', '', '']"
+barbados,13.16,-59.55,60,1,460,20,wide,0,"[datetime.datetime(2024, 11, 25, 13, 51, 55, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 26, 1, 43, 44, tzinfo=datetime.timezone.utc), '', '', '', '', '']","[datetime.datetime(2024, 11, 25, 13, 52, 4, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 26, 1, 44, 4, tzinfo=datetime.timezone.utc), '', '', '', '', '']"
+mauritius,-20.45,57.55,60,1,450,25,wide,0,"[datetime.datetime(2024, 11, 24, 18, 14, 48, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 24, 18, 15, 7, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
+capescott,50.85,-128.22,60,1,440,25,wide,0,"[datetime.datetime(2024, 11, 24, 18, 53, 54, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 24, 18, 54, 6, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
+iesjavri,69.65,24.18,60,1,430,25,wide,0,"[datetime.datetime(2024, 11, 24, 9, 24, 45, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 24, 18, 38, 54, tzinfo=datetime.timezone.utc), '', '', '', '', '']","[datetime.datetime(2024, 11, 24, 9, 25, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 24, 18, 39, 5, tzinfo=datetime.timezone.utc), '', '', '', '', '']"
+nanga,-25.57,113.40,60,1,420,20,wide,0,"[datetime.datetime(2024, 11, 25, 14, 35, 33, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 25, 14, 35, 49, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
+chad,13.12,14.52,60,1,410,20,wide,0,"['', '', '', '', '', '', '']","['', '', '', '', '', '', '']"
+adelaide,-34.95,138.20,60,1,400,20,wide,0,"[datetime.datetime(2024, 11, 25, 12, 59, 4, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 25, 12, 59, 26, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
+wollaston,-55.73,-67.47,60,1,390,25,wide,0,"[datetime.datetime(2024, 11, 26, 2, 59, 39, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 26, 2, 59, 58, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
+manatiales,-52.48,-68.59,60,1,380,20,wide,0,"[datetime.datetime(2024, 11, 26, 3, 0, 30, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 26, 3, 0, 50, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
+chapala,20.24,-103.07,60,1,370,20,wide,0,"[datetime.datetime(2024, 11, 25, 16, 57, 55, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 25, 16, 58, 11, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
+hooghly,21.85,88.06,60,1,360,20,wide,0,"['', '', '', '', '', '', '']","['', '', '', '', '', '', '']"
+sittwe,20.13,92.81,60,1,350,20,wide,0,"[datetime.datetime(2024, 11, 26, 3, 56, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 26, 3, 56, 11, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
+tharthar,33.87,43.32,60,1,340,20,wide,0,"[datetime.datetime(2024, 11, 24, 18, 29, 27, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 24, 18, 29, 15, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
+kutch,22.59,68.96,60,1,330,20,wide,0,"[datetime.datetime(2024, 11, 26, 5, 29, 20, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 26, 5, 29, 39, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
+magellan,-53.24,-70.69,60,1,320,20,wide,0,"[datetime.datetime(2024, 11, 25, 14, 9, 27, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 26, 3, 0, 39, tzinfo=datetime.timezone.utc), '', '', '', '', '']","[datetime.datetime(2024, 11, 25, 14, 9, 6, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 26, 3, 0, 26, tzinfo=datetime.timezone.utc), '', '', '', '', '']"
+kampala,0.18,32.60,60,1,310,20,wide,0,"[datetime.datetime(2024, 11, 25, 7, 39, 11, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 25, 7, 39, 28, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
+mumbai,18.88,72.80,60,1,300,20,wide,0,"[datetime.datetime(2024, 11, 24, 16, 51, 6, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 24, 16, 51, 27, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
+cocibolca,11.56,-85.41,60,1,290,20,wide,0,"['', '', '', '', '', '', '']","['', '', '', '', '', '', '']"
+mobile,30.28,-87.99,60,1,280,25,wide,0,"[datetime.datetime(2024, 11, 24, 15, 51, 38, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 26, 3, 22, 20, tzinfo=datetime.timezone.utc), '', '', '', '', '']","[datetime.datetime(2024, 11, 24, 15, 51, 17, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 26, 3, 22, 35, tzinfo=datetime.timezone.utc), '', '', '', '', '']"
+neworleans,29.78,-90.16,60,1,270,25,wide,0,"['', '', '', '', '', '', '']","['', '', '', '', '', '', '']"
+galveston,29.25,-94.77,60,1,260,20,wide,0,"[datetime.datetime(2024, 11, 25, 3, 51, 56, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 25, 3, 52, 14, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
+funchal,32.75,-17.03,60,1,250,20,wide,0,"[datetime.datetime(2024, 11, 24, 11, 9, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 25, 22, 40, 53, tzinfo=datetime.timezone.utc), '', '', '', '', '']","[datetime.datetime(2024, 11, 24, 11, 8, 37, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 25, 22, 41, 13, tzinfo=datetime.timezone.utc), '', '', '', '', '']"
+panama,9.12,-79.69,60,1,240,20,wide,0,"['', '', '', '', '', '', '']","['', '', '', '', '', '', '']"
+corpuschristi,27.72,-97.13,60,1,230,20,wide,0,"['', '', '', '', '', '', '']","['', '', '', '', '', '', '']"
+puertodeseado,-47.77,-65.76,60,1,220,20,wide,0,"['', '', '', '', '', '', '']","['', '', '', '', '', '', '']"
+portauprince,18.63,-72.50,60,1,210,25,wide,0,"['', '', '', '', '', '', '']","['', '', '', '', '', '', '']"
+lakevolta,7.28,0.11,60,1,200,20,wide,0,"['', '', '', '', '', '', '']","['', '', '', '', '', '', '']"
+yangon,16.46,96.35,60,1,190,20,wide,0,"[datetime.datetime(2024, 11, 24, 15, 16, 29, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 24, 15, 16, 49, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
+toliara,-23.54,43.69,60,1,180,20,wide,0,"[datetime.datetime(2024, 11, 25, 19, 18, 15, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 25, 19, 18, 5, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
+jaffna,9.45,80.31,60,1,170,20,wide,0,"[datetime.datetime(2024, 11, 25, 4, 28, 58, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 25, 16, 19, tzinfo=datetime.timezone.utc), '', '', '', '', '']","[datetime.datetime(2024, 11, 25, 4, 28, 56, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 25, 16, 18, 59, tzinfo=datetime.timezone.utc), '', '', '', '', '']"
+nile,23.33,32.93,60,1,160,20,wide,0,"[datetime.datetime(2024, 11, 25, 19, 30, 23, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 25, 19, 30, 40, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
+tripoli,32.95,13.20,60,1,150,20,wide,0,"['', '', '', '', '', '', '']","['', '', '', '', '', '', '']"
+mariamadre,21.63,-106.59,60,1,140,20,wide,0,"[datetime.datetime(2024, 11, 26, 4, 54, 6, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 26, 4, 54, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
+turkana,4.13,36.04,60,1,130,20,wide,0,"[datetime.datetime(2024, 11, 25, 7, 38, 23, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 25, 19, 25, 22, tzinfo=datetime.timezone.utc), '', '', '', '', '']","[datetime.datetime(2024, 11, 25, 7, 37, 57, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 25, 19, 25, 42, tzinfo=datetime.timezone.utc), '', '', '', '', '']"
+nemuro,43.46,145.66,60,1,120,25,wide,0,"[datetime.datetime(2024, 11, 25, 11, 45, 40, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 26, 0, 41, 50, tzinfo=datetime.timezone.utc), '', '', '', '', '']","[datetime.datetime(2024, 11, 25, 11, 45, 55, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 26, 0, 42, 4, tzinfo=datetime.timezone.utc), '', '', '', '', '']"
+sapporo,43.26,141.25,60,1,110,25,wide,0,"[datetime.datetime(2024, 11, 26, 0, 42, 31, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 26, 0, 41, 50, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
+baikal,53.39,108.01,60,1,100,25,wide,0,"[datetime.datetime(2024, 11, 24, 13, 52, 21, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 24, 13, 52, 34, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
+kyiv,50.45,30.56,60,1,90,25,wide,0,"['', '', '', '', '', '', '']","['', '', '', '', '', '', '']"
+atuona,-9.78,-139.10,60,1,80,25,wide,0,"[datetime.datetime(2024, 11, 24, 7, 19, 38, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 24, 19, 9, 53, tzinfo=datetime.timezone.utc), '', '', '', '', '']","[datetime.datetime(2024, 11, 24, 7, 19, 40, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 24, 19, 9, 48, tzinfo=datetime.timezone.utc), '', '', '', '', '']"
+montenegro,42.26,18.78,60,1,70,25,quaternion,0,"[datetime.datetime(2024, 11, 24, 20, 5, 22, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 25, 9, 2, 7, tzinfo=datetime.timezone.utc), '', '', '', '', '']","[datetime.datetime(2024, 11, 24, 20, 5, 38, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 25, 9, 2, 27, tzinfo=datetime.timezone.utc), '', '', '', '', '']"
+tunis,36.92,10.37,60,1,60,25,wide,0,"[datetime.datetime(2024, 11, 24, 9, 33, 24, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 24, 9, 33, 47, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
+sitka,56.97,-135.53,60,1,50,25,wide,0,"[datetime.datetime(2024, 11, 25, 19, 56, 29, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 25, 19, 55, 57, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
+haida,54.39,-132.41,60,1,40,25,quaternion,0,"['', '', '', '', '', '', '']","['', '', '', '', '', '', '']"
+kinshasa,-4.29,15.28,60,5,30,20,wide,0,"[datetime.datetime(2024, 11, 25, 20, 57, 11, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 25, 20, 57, 22, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
+malabo,8.69,3.51,60,5,20,20,wide,0,"[datetime.datetime(2024, 11, 24, 9, 40, 50, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 24, 21, 30, 32, tzinfo=datetime.timezone.utc), '', '', '', '', '']","[datetime.datetime(2024, 11, 24, 9, 41, 10, tzinfo=datetime.timezone.utc), datetime.datetime(2024, 11, 24, 21, 30, 51, tzinfo=datetime.timezone.utc), '', '', '', '', '']"
+santarem,-2.2,-54.7,60,5,10,20,wide,0,"[datetime.datetime(2024, 11, 26, 1, 39, 56, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']","[datetime.datetime(2024, 11, 26, 1, 39, 39, tzinfo=datetime.timezone.utc), '', '', '', '', '', '']"
