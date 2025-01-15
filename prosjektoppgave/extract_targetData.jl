@@ -169,7 +169,7 @@ function extract_Targetdata()
     # Create an array of relative start times for each target. Each time is relative to earliest possible capture
     relative_StartTimes = []
     # Reference time for the relative start times, make this become the earliest possible capture time
-    reference_StartTime = DateTime(2024, 11, 24, 9, 0, 0)  
+    reference_StartTime = DateTime(2025, 1, 15, 10, 0, 0)  
     for i in eachindex(startTimes)  
 
         relativeStartTimes_i = []

@@ -15,8 +15,8 @@ timewindow_days = 2
 nrOfTargets = 1:length(allStartTimes)
 big_M = 180000
 nrOfTimeSteps = 1:length(allStartTimes[1])
-cap_per_time = 4
-maxCap = 40
+cap_per_time = 1
+maxCap = 7
 
 println("Time discretization = 20 sec, give ", length(allStartTimes[1]), " number of timesteps" )
 
