@@ -116,7 +116,7 @@ targets_file_path = 'HYPSO_scheduler/prosjektoppgave/targets.csv'
 
 updated_targets = getTargetPasses(capture_time, timewindow_days, targets_file_path, hypso_tle_url, tle_path)
  #Write the updated targets to a new csv file
-updated_targets_hearder = ['name', 'longitude', 'latitude', 'minElevation', 
+updated_targets_hearder = ['name', 'latitude', 'longitude, 'minElevation', 
                         'maxCloudCover', 'priority', 'exposure', 'capture_mode', 
                         'default_capture_mode', 'start_times', 'end_times']
 updated_targets_df = pd.DataFrame(updated_targets, columns=updated_targets_hearder)
