@@ -25,6 +25,8 @@ def get_cloudData(lat: float, lon: float, start_time, end_time) -> dict:
 
     :param lat: Latitude of the location
     :param lon: Longitude of the location
+    :param start_time: Start time of the time horizon
+    :param end_time: End time of the time horizon
     :return: Cloud data as a dict
     """
 
@@ -48,10 +50,4 @@ def get_cloudData(lat: float, lon: float, start_time, end_time) -> dict:
 
     return cloud_data
 
-#define the start time and end time of the time horizon
-time_now = datetime.now(timezone.utc) 
-end_of_time_horizon = time_now + timedelta(hours=50) #time horizon is 48h starting 2h from now
 
-cloud_data = get_cloudData(63.50,10.39, time_now, end_of_time_horizon)
-for key in cloud_data:
-    print(key, cloud_data[key])

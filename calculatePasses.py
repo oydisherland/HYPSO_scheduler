@@ -65,6 +65,7 @@ def getTargetPasses(capture_time_seconds: int, timewindow: int, targets_file_pat
     
                 if time_diff > 300:
                     print("Time difference between start and end time: ", time_diff, ", the times are omitted")
+                    print("Start time: ", target_startTimes[i], ", End time: ", target_endTimes[i])
                     target_startTimes.remove(i)
                     target_endTimes.remove(i)
             except IndexError as e:
@@ -83,21 +84,5 @@ def getTargetPasses(capture_time_seconds: int, timewindow: int, targets_file_pat
     max_length_2 = max(len(target[-1]) for target in updated_targets)
     if(max_length_2 != max_length):
         print("ERROR: max length start time: ", max_length, ", max length end time: ", max_length_2)
-
-    # Fill the smaller lists with empty elements to match the maximum length
-    for target in updated_targets:
-        start_times = target[-2]
-        end_times = target[-1]
-        while len(start_times) < max_length:
-            start_times.append("")
-        while len(end_times) < max_length:
-            end_times.append("")
-        # Update the target with the new start_times and end_times lists
-        target[-2] = start_times
-        target[-1] = end_times
    
     return updated_targets
-
-
-
-

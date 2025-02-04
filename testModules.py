@@ -8,9 +8,9 @@ def test_get_cloudData():
     end_of_time_horizon = time_now + datetime.timedelta(hours=50) #time horizon is 48h starting 2h from now
     cloud_data = get_cloudData(63.50,10.39, time_now, end_of_time_horizon)
     assert cloud_data != None
+    for key in cloud_data:
+        print(key, cloud_data[key])
     
-
-
 test_get_cloudData()
 
 """
