@@ -137,7 +137,7 @@ def destroyOperator(otList: list, destroyNumber: int, destroyType: DestroyType):
         
     return otListsorted, removedTargetsIdList
 
-def repairOperator(ttwList: list, otList: list,  unfeasibleTargetsIdList: list, repairType: RepairType, schedulingParameters: SP):
+def repairOperator(ttwList: list, otList: list, unfeasibleTargetsIdList: list, repairType: RepairType, schedulingParameters: SP, oh: OH):
     """
     repairType:
     - random
@@ -161,7 +161,7 @@ def repairOperator(ttwList: list, otList: list,  unfeasibleTargetsIdList: list, 
         return 0
     
     #Find an observation task schedule
-    otList, objectiveValuesList = RHGA(ttwListRepaired, otList, unfeasibleTargetsIdList, schedulingParameters)
+    otList, objectiveValuesList = RHGA(ttwListRepaired, otList, unfeasibleTargetsIdList, schedulingParameters, oh)
 
     return ttwListRepaired, otList, objectiveValuesList
 
@@ -174,7 +174,7 @@ def testThisShit():
     #ttws = randomSort(ttws)
     otList = []
 
-    otList, objectiveValuesList = RHGA(ttws, otList, schedulingParameters)
+    otList, objectiveValuesList = RHGA(ttws, otList, schedulingParameters, oh)
     for ov in objectiveValuesList:
         print(f"Objective value original: {ov}, scheduled targets: {len(otList)}")
 

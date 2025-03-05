@@ -8,7 +8,6 @@ import copy
 import matplotlib.pyplot as plt
 import math
 
-
 from scheduling_model import OH, GT, TW, TTW, OT ,SP
 from get_target_passes import getModelInput
 from operators import repairOperator, destroyOperator, RepairType, DestroyType, testThisShit
@@ -20,9 +19,10 @@ class ProblemState:
     # TODO add attributes that encode a solution to the problem instance
 
     ###
-    def __init__(self, otList, ttwList, destructionRate, schedulingParameters, maxSizeTabooBank):
+    def __init__(self, otList, ttwList, oh, destructionRate, schedulingParameters, maxSizeTabooBank):
         self.otList = otList
         self.ttwList = ttwList
+        self.oh = oh
         self.destructionRate = destructionRate
         self.schedulingParameters = schedulingParameters
         self.tabooBank = []
@@ -47,13 +47,13 @@ class ProblemState:
         return None
 
 
-def initial_state(schedulingParameters: SP, ttwList: list, destructionRate: float, maxSizeTabooBank: int) -> ProblemState:
+def initial_state(schedulingParameters: SP, ttwList: list, oh: OH, destructionRate: float, maxSizeTabooBank: int) -> ProblemState:
     # TODO implement a function that returns an initial solution
     ### ttwsGreedy, _ , objectiveValuesList
     otList = []
     tabooBank = []
-    ttwListResorted, otList, objectiveVal = repairOperator(ttwList, otList, tabooBank, RepairType.RANDOM, schedulingParameters)
-    state = ProblemState(otList, ttwListResorted, destructionRate, schedulingParameters, maxSizeTabooBank)
+    ttwListResorted, otList, objectiveVal = repairOperator(ttwList, otList, tabooBank, RepairType.RANDOM, schedulingParameters, oh)
+    state = ProblemState(otList, ttwListResorted, oh, destructionRate, schedulingParameters, maxSizeTabooBank)
     state.maxObjective = objectiveVal[0]
     return state
     ###
@@ -86,7 +86,7 @@ def repairRandom(current: ProblemState, rng: rnd.Generator) -> ProblemState:
     ### 
     repaired = copy.deepcopy(current)
     
-    repaired.ttwList, repaired.otList, objectiveVal = repairOperator(repaired.ttwList, repaired.otList, repaired.tabooBank, RepairType.RANDOM, repaired.schedulingParameters)
+    repaired.ttwList, repaired.otList, objectiveVal = repairOperator(repaired.ttwList, repaired.otList, repaired.tabooBank, RepairType.RANDOM, repaired.schedulingParameters, repaired.oh)
     if objectiveVal[0] > repaired.maxObjective:
         repaired.maxObjective = objectiveVal[0]
     return repaired
@@ -97,22 +97,22 @@ def repairGreedy(current: ProblemState, rng: rnd.Generator) -> ProblemState:
     ### 
     repaired = copy.deepcopy(current)
 
-    repaired.ttwList, repaired.otList, objectiveVal = repairOperator(repaired.ttwList, repaired.otList, repaired.tabooBank, RepairType.GREEDY, repaired.schedulingParameters)
+    repaired.ttwList, repaired.otList, objectiveVal = repairOperator(repaired.ttwList, repaired.otList, repaired.tabooBank, RepairType.GREEDY, repaired.schedulingParameters, repaired.oh)
     if objectiveVal[0] > repaired.maxObjective:
         repaired.maxObjective = objectiveVal[0]
     return repaired
     ###
 
 # Function to run ALNS algorithm
-def run_alns(schedulingParameters: SP, ttwList: list, destructionRate: float, maxSizeTabooBank: int):
+def run_alns(schedulingParameters: SP, ttwList: list, oh: OH, destructionRate: float, maxSizeTabooBank: int):
     # Create the initial solution
-    init_sol = initial_state(schedulingParameters, ttwList, destructionRate, maxSizeTabooBank)
+    init_sol = initial_state(schedulingParameters, ttwList, oh, destructionRate, maxSizeTabooBank)
     print(f"Initial solution objective is {init_sol.maxObjective}.")
 
     # Run the greedy algorithm 
     otListEmpty = []
     newTabooBank = []
-    _, _, objectiveValGreedy = repairOperator(init_sol.ttwList.copy() , otListEmpty, newTabooBank, RepairType.GREEDY, SP(20, 60, 90))
+    _, _, objectiveValGreedy = repairOperator(init_sol.ttwList.copy() , otListEmpty, newTabooBank, RepairType.GREEDY, SP(20, 60, 90), init_sol.oh)
     print(f"Greedy solution objective is {objectiveValGreedy[0]}.")
 
     # Create ALNS and add one or more destroy and repair operators
@@ -137,15 +137,18 @@ def run_alns(schedulingParameters: SP, ttwList: list, destructionRate: float, ma
     # plt.show()
     print()
 
-
+oh, ttwList = getModelInput(50, 2, 2, 1)
+for ttw in ttwList:
+    print(f"Target {ttw.GT.id} has {len(ttw.TWs)} time windows")
 # Run ALNS multiple times
 for i in range(3):
     print(f"Run {i+1}:")
 
     schedulingParameters = SP(20, 60, 90)
-    _, ttwList = getModelInput(50, 2, 2, 30)
+    oh, ttwList = getModelInput(50, 2, 2, 1)
+    print(f"numbers of targets to schoose from {len(ttwList)}")
 
-    run_alns(schedulingParameters, ttwList, destructionRate = 0.1, maxSizeTabooBank = 5)
+    run_alns(schedulingParameters, ttwList, oh, destructionRate = 0.1, maxSizeTabooBank = 5)
     print("--------------------------------------------------------------")
 
 

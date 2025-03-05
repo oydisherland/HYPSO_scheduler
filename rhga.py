@@ -1,19 +1,19 @@
-from objective_functions import objectiveFunctionPriority
+from objective_functions import objectiveFunctionPriority, objectiveFunctionImageQuality
 from scheduling_model import OH, GT, TW, TTW, OT ,SP
 import random
 
 
-
-""" Random Heuristic Greedy Algorithm """
-def RHGA(ttwList: list, otList: list, unfeasibleTargetsIdList: list, schedulingParameters: SP, randomtwDistrobution = True):
+def RHGA(ttwList: list, otList: list, unfeasibleTargetsIdList: list, schedulingParameters: SP, oh: OH, randomtwDistrobution = True):
     """
+    Random Heuristic Greedy Algorithm:
     1. Encode GT and TW data
     2. Select a target in the order of the list (algorithm is prioritizing targets earlier in the list)
     3. See if target can be included in a feasible schedule
     4. Calculate the objective value(s)
 
-    DecicionVariable
-     - ot.start     : floating variable indication what time during the corresponding time window the observation starts, size = number of observation tasks
+    Output:
+    - otList: scheduled observation tasks
+    - objectiveValues: objective values [priority, image quality]
     """
 
     # Loop through the targets
@@ -65,6 +65,7 @@ def RHGA(ttwList: list, otList: list, unfeasibleTargetsIdList: list, schedulingP
     
     objectiveValues = []
     objectiveValues.append(objectiveFunctionPriority(otList))
+    objectiveValues.append(objectiveFunctionImageQuality(otList, oh))
 
     return otList, objectiveValues
 

@@ -6,8 +6,10 @@ from satellite_positioning_calculations import findSatelliteTaregtPasses
 from scheduling_model import OH, GT, TW, TTW
 
 
-""" Make sure that the indexing of startTime and endTime list correspond to the same time window """
+
 def removeSingleTimepassElement(startTimes: list, endTimes: list, firstType: int, lastType: int):       
+    """ Makes sure that the indexing of startTime and endTime list correspond to the same time window """
+
     adjustmentString = [
         "No adjustment needed", # adjustmentNr = 0
         "Last element of startTimes and first element of endTimes are removed", # adjustmentNr = 1
@@ -25,8 +27,12 @@ def removeSingleTimepassElement(startTimes: list, endTimes: list, firstType: int
     
     return startTimes, endTimes, ajustmentNr, adjustmentString[ajustmentNr]
         
-""" Get a list of all ground targets with the corresponding time windows for capturing """
+
 def getAllTargetPasses(captureTimeSeconds: int, startTimeOH: datetime.datetime, endTimeOH: datetime.datetime, targetsFilePath: str, hypsoNr: int) -> list:# captureTimeSeconds: int, timewindow: int, startTimeDelay: int, targetsFilePath: str, hypsoNr: int) -> list:
+    """ Get the timewindows for each time the satellte passes the targets
+    Output:
+    - List of targetPassesData: [id, lat, long, elevation, priority, [startTimes], [endTimes]]
+    """
 
     # Read data from targets.csv into the array targets
     targets_df = pd.read_csv(targetsFilePath)
@@ -96,8 +102,8 @@ def getAllTargetPasses(captureTimeSeconds: int, startTimeOH: datetime.datetime, 
     return allTargetPasses
 
 
-""" Remove targets that are obscured by clouds """
 def removeCloudObscuredTargets(allTargetPasses: list, startTimeOH: int, endTimeOH: int)-> list:
+    """ Remove targets that are obscured by clouds """
 
     targetPassesWithoutClouds = []
 
@@ -130,9 +136,13 @@ def removeCloudObscuredTargets(allTargetPasses: list, startTimeOH: int, endTimeO
     
     return targetPassesWithoutClouds
 
-""" Put the ground target passes data into objects defined in scheduling_model.py
-    Example usage: oh, ttwList = getModelInput(50, 2, 2, 1) """
+
 def getModelInput( captureTime: int, ohDurationInDays: int, ohDelayInHours: int, hypsoNr: int):
+    """ Put the targetpasses-data into objects defined in scheduling_model.py
+    Output:
+    - oh: OH object
+    - ttwList: list of TTW objects
+    """
 
     #Define the OH - Optimalization Horizon
     startTimeOH = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=ohDelayInHours)
@@ -153,7 +163,8 @@ def getModelInput( captureTime: int, ohDurationInDays: int, ohDelayInHours: int,
         utcStart = startTimeOH,
         utcEnd = endTimeOH,
         durationInDays=ohDurationInDays,
-        delayInHours=ohDelayInHours
+        delayInHours=ohDelayInHours,
+        hypsoNr = hypsoNr
     )
     
     # Create objects from the ground targets data
@@ -187,13 +198,13 @@ def getModelInput( captureTime: int, ohDurationInDays: int, ohDelayInHours: int,
     
     return oh, ttwList
 
-""" Print the input data for the model """
+
 def printModelInput():
+    """ Print the input data for the model """
+
     oh, ttws = getModelInput(50, 2, 2, 1)
     print("Observation Horizon:", oh.utcStart, oh.utcEnd, "\nDuration and delay:", oh.durationInDays, oh.delayInHours)
     for ttw in ttws:
         print(ttw.GT.id)
         for tw in ttw.TWs:
             print(tw.start, tw.end)
-
-printModelInput()

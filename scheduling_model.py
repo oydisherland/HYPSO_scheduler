@@ -5,7 +5,7 @@ dataclass could be used if flexibility is needed
 """
 
 #Observation Horizon
-OH = namedtuple("OH", ["utcStart", "utcEnd", "durationInDays", "delayInHours"])
+OH = namedtuple("OH", ["utcStart", "utcEnd", "durationInDays", "delayInHours", "hypsoNr"])
 
 #Ground target
 GT = namedtuple("GT", ["id", "lat", "long", "priority", "idealIllumination"])

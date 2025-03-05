@@ -21,8 +21,13 @@ def createSatelliteObject(HYPSOnr: int) -> skf.EarthSatellite:
     
 
 def findSatelliteTaregtPasses(targetLat: float, targetLong: float, targetElevation: float, startTime: datetime.datetime, endTime: datetime.datetime, hypsoNr: int) -> list:
-    # The skyfield API function to create an "EarthSatellite" object.
-    skfH1 = createSatelliteObject(hypsoNr)
+    """ Find the passes of a satellite over a target location within a given time window
+    Output:
+    - List of tuples: (datetime, 'rise'/'culminate'/'set')
+    """
+    
+    # Create a skyfield "EarthSatellite" object..
+    skfSat = createSatelliteObject(hypsoNr)
 
     # 'wgs84' refers to the system used to define latitude and longitude coordinates
     target_location = skf.wgs84.latlon(float(targetLong) * skf.N, float(targetLat) * skf.E, 100.0)
@@ -33,7 +38,7 @@ def findSatelliteTaregtPasses(targetLat: float, targetLong: float, targetElevati
     t1 = ts.utc(endTime.year, endTime.month, endTime.day, endTime.hour, endTime.minute, endTime.second)
 
     # Find events where the satellite is within elevation of the target within the time window
-    timestamps, events = skfH1.find_events(target_location, t0, t1, altitude_degrees=targetElevation)
+    timestamps, events = skfSat.find_events(target_location, t0, t1, altitude_degrees=targetElevation)
 
     # Process the events
     passes = []
@@ -43,51 +48,75 @@ def findSatelliteTaregtPasses(targetLat: float, targetLong: float, targetElevati
 
     return passes
 
-startTimeDelay = 0
-long = 10.39
-lat = 63.50
-elevation = 10
 
-# The skyfield API function to create an "EarthSatellite" object.
-skfH1 = createSatelliteObject(1)
+def findSatelliteTargetElevation(targetLat: float, targetLong: float, time: datetime.datetime, hypsoNr: int) -> float:
+    """ Find the elevation of the satellite at a target location at a given time
+    Output:
+    - Elevation in degrees
+    """
+    # Create a skyfield "EarthSatellite" object.
+    skfSat = createSatelliteObject(hypsoNr)
 
-# 'wgs84' refers to the system used to define latitude and longitude coordinates
-target_location = skf.wgs84.latlon(float(long) * skf.N, float(lat) * skf.E, 100.0)
+    # 'wgs84' refers to the system used to define latitude and longitude coordinates
+    target_location = skf.wgs84.latlon(float(targetLong) * skf.N, float(targetLat) * skf.E, 100.0)
+
+    # Convert the utc time to skyfield time type
+    ts = skf.load.timescale()
+    t = ts.utc(time.year, time.month, time.day, time.hour, time.minute, time.second)
+
+    # Find the elevation of the satellite at the target location at time t
+    difference = skfSat - target_location
+    topocentric = difference.at(t)
+    elevation, _, _ = topocentric.altaz()
+
+    return elevation.degrees
+
+def testFunkPrintSomeSHit():
+
+    startTimeDelay = 0
+    long = 10.39
+    lat = 63.50
+    elevation = 10
+
+    # The skyfield API function to create an "EarthSatellite" object.
+    skfH1 = createSatelliteObject(1)
+
+    # 'wgs84' refers to the system used to define latitude and longitude coordinates
+    target_location = skf.wgs84.latlon(float(long) * skf.N, float(lat) * skf.E, 100.0)
 
 
-# Timestamps also require a skyfield type
-ts = skf.load.timescale()
-t0 = ts.now() + datetime.timedelta(hours=startTimeDelay)
-timewindow = datetime.timedelta(hours=10)
-time = t0 + timewindow
+    # Timestamps also require a skyfield type
+    ts = skf.load.timescale()
+    t0 = ts.now() + datetime.timedelta(hours=startTimeDelay)
+    timewindow = datetime.timedelta(hours=10)
+    time = t0 + timewindow
 
-difference = skfH1 - target_location
+    difference = skfH1 - target_location
 
 
-#Find events where the satellite is within elevation of the target within the timewindow
-timestamps, types = skfH1.find_events(target_location, t0, t0 + timewindow, altitude_degrees=float(elevation))
-print(len(timestamps))
+    #Find events where the satellite is within elevation of the target within the timewindow
+    timestamps, types = skfH1.find_events(target_location, t0, t0 + timewindow, altitude_degrees=float(elevation))
+    print(len(timestamps))
 
-# Check elevation at different times 
-t = timestamps[0]
-topocentric = difference.at(t)
-alt, az, distance = topocentric.altaz()
-print(alt.degrees)
-t = timestamps[1]
-topocentric = difference.at(t)
-alt, az, distance = topocentric.altaz()
-print(alt.degrees)
-t = timestamps[2]
-topocentric = difference.at(t)
-alt, az, distance = topocentric.altaz()
-# print(alt.degrees)
-# print(timestamps[0].utc_datetime())
-# print(timestamps[1].utc_datetime())
-# print(timestamps[2].utc_datetime())
+    # Check elevation at different times 
+    t = timestamps[0]
+    topocentric = difference.at(t)
+    alt, az, distance = topocentric.altaz()
+    print(alt.degrees)
+    t = timestamps[1]
+    topocentric = difference.at(t)
+    alt, az, distance = topocentric.altaz()
+    print(alt.degrees)
+    t = timestamps[2]
+    topocentric = difference.at(t)
+    alt, az, distance = topocentric.altaz()
+    print(alt.degrees)
+    print(timestamps[0].utc_datetime())
+    print(timestamps[1].utc_datetime())
+    print(timestamps[2].utc_datetime())
 
-# startTime = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=startTimeDelay)
+    startTime = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=startTimeDelay)
 
-# passes = findSatelliteTaregtPasses(lat, long, elevation, startTime, startTime + timewindow, hypsoNr=1)
-# print(len(passes))
-        
-        
+    passes = findSatelliteTaregtPasses(lat, long, elevation, startTime, startTime + timewindow, hypsoNr=1)
+    print(len(passes))
+                 
