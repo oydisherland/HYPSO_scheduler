@@ -1,8 +1,8 @@
 import datetime
 import pandas as pd
 
-from extractCloudData import get_cloudData
-from calculatePasses import getTargetPasses
+from HYPSO_scheduler.oldStuff.extractCloudData import get_cloudData
+from HYPSO_scheduler.oldStuff.calculatePasses import getTargetPasses
 
 
 # Parameters related to the scheduling

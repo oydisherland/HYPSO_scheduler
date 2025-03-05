@@ -1,5 +1,5 @@
 import datetime
-from extractCloudData import get_cloudData
+from HYPSO_scheduler.oldStuff.extractCloudData import get_cloudData
 
 
 def test_get_cloudData():

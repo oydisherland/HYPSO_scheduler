@@ -1,4 +1,5 @@
 import random
+import copy
 from enum import Enum
 from rhga import RHGA
 from get_target_passes import getModelInput
@@ -103,86 +104,118 @@ def congestionSort(ttwList: list):
 
 #### Destroy operator
 
-def destroyOperator(ttwList: list, destroyNumber: int, destroyType: int):
+def destroyOperator(otList: list, destroyNumber: int, destroyType: DestroyType):
     """
     destroyType:
-    - 0 = random
-    - 1 = greedy   
-    - 2 = energySaving
-    - 3 = congestion
+    - random
+    - greedy   
+    - energySaving
+    - congestion
     """
-    ttwListDestroyed =  []
+    removedTargetsIdList = []
+
+    #Ceck if otList is empty
+    if not otList:
+        return otList, removedTargetsIdList
 
     #Sort list based on destroyType
-    if destroyType == 0:
-        ttwListDestroyed = randomSort(ttwList)
-    elif destroyType == 1:
-        ttwListDestroyed = greedySort(ttwList)
-    elif destroyType == 2:
-        ttwListDestroyed = energySavingSort(ttwList)
-    elif destroyType == 3:
-        ttwListDestroyed = congestionSort(ttwList)
+    if destroyType == DestroyType.RANDOM:
+        otListsorted = randomSort(otList)
+    elif destroyType == DestroyType.GREEDY:
+        otListsorted = greedySort(otList)
+    elif destroyType == DestroyType.ENERGY_SAVING:
+        otListsorted = energySavingSort(otList)
+    elif destroyType == DestroyType.CONGESTION:
+        otListsorted = congestionSort(otList)
     else:
         print("Destroy type not found")
         return 0
-    
+
     #Remove elements at end of list 
     for _ in range(destroyNumber):
-        ttwListDestroyed.pop(-1)
+        removedTargetsIdList.append(otListsorted.pop(-1).GT.id)
         
-    return ttwListDestroyed
+    return otListsorted, removedTargetsIdList
 
-def repairOperator(ttwList: list, repairType: int, schedulingParameters: SP):
+def repairOperator(ttwList: list, otList: list,  unfeasibleTargetsIdList: list, repairType: RepairType, schedulingParameters: SP):
     """
     repairType:
-    - 0 = random
-    - 1 = greedy   
-    - 2 = smallTW
-    - 3 = congestion
+    - random
+    - greedy   
+    - smallTW
+    - congestion
     """
     ttwListRepaired =  []
 
     #Sort list based on repairType
-    if repairType == 0:
+    if repairType == RepairType.RANDOM:
         ttwListRepaired = randomSort(ttwList)
-    elif repairType == 1:
+    elif repairType == RepairType.GREEDY:
         ttwListRepaired = greedySort(ttwList)
-    elif repairType == 2:
+    elif repairType == RepairType.SMALL_TW:
         ttwListRepaired = smallTWSort(ttwList)
-    elif repairType == 3:
+    elif repairType == RepairType.CONGESTION:
         ttwListRepaired = congestionSort(ttwList)
     else:
         print("Repair type not found")
         return 0
     
     #Find an observation task schedule
-    otList, objectiveValuesList = RHGA(ttwListRepaired, schedulingParameters)
+    otList, objectiveValuesList = RHGA(ttwListRepaired, otList, unfeasibleTargetsIdList, schedulingParameters)
 
     return ttwListRepaired, otList, objectiveValuesList
 
 
+def testThisShit():
 
-schedulingParameters = SP(20, 60, 90)
+    schedulingParameters = SP(20, 60, 90)
 
-oh, ttws = getModelInput(50, 2, 2, 30)
+    oh, ttws = getModelInput(50, 2, 2, 30)
+    #ttws = randomSort(ttws)
+    otList = []
 
-otList, objectiveValuesList = RHGA(ttws, schedulingParameters)
-for ov in objectiveValuesList:
-    print("Objective value original: ", ov)
+    otList, objectiveValuesList = RHGA(ttws, otList, schedulingParameters)
+    for ov in objectiveValuesList:
+        print(f"Objective value original: {ov}, scheduled targets: {len(otList)}")
 
-ttwsGreedy, _ , objectiveValuesList = repairOperator(ttws, 1, schedulingParameters)
-for ov in objectiveValuesList:
-    print("Objective value greedy: ", ov)
+    otList, tabooBank = destroyOperator(otList, 3, DestroyType.RANDOM)
+    print(f"After destruction: scheduled targets: {len(otList)} and removed targets: {len(tabooBank)}")
 
-ttwsGreedy, _ , objectiveValuesList = repairOperator(ttwsGreedy, 1, schedulingParameters)
-for ov in objectiveValuesList:
-    print("Objective value greedy: ", ov)
+    otList2 = otList.copy()
 
-ttwsRandom = destroyOperator(ttwsGreedy, 8, 0)
+    ttws, otListRandom, objectiveValuesList = repairOperator(ttws, otList, RepairType.RANDOM, schedulingParameters)
+    for ov in objectiveValuesList:
+        print(f"Objective value after Random repair: {ov}, scheduled targets: {len(otListRandom)}")
 
-ttwsGreedy, _ , objectiveValuesList = repairOperator(ttwsRandom, 1, schedulingParameters)
-for ov in objectiveValuesList:
-    print("Objective value greedy: ", ov)
+    ttws, otListGreedy, objectiveValuesList = repairOperator(ttws, otList2, RepairType.GREEDY, schedulingParameters)
+    for ov in objectiveValuesList:
+        print(f"Objective value after Greedy repair: {ov}, scheduled targets: {len(otListGreedy)}")
+
+    otList, tabooBank = destroyOperator(otListRandom, 3, DestroyType.GREEDY)
+    print(f"After greedy destruction of random repair list: scheduled targets: {len(otList)} and removed targets: {len(tabooBank)}")
+    otList2 = otList.copy()
+
+    ttws, otListGreedy, objectiveValuesList = repairOperator(ttws, otList, RepairType.GREEDY, schedulingParameters)
+    for ov in objectiveValuesList:
+        print(f"Objective value after Greedy repair: {ov}, scheduled targets: {len(otListGreedy)}")
+
+    ttws, otListRandom, objectiveValuesList = repairOperator(ttws, otList2, RepairType.RANDOM, schedulingParameters)
+    for ov in objectiveValuesList:
+        print(f"Objective value after Random repair: {ov}, scheduled targets: {len(otListRandom)}")
 
 
 
+
+# schedulingParameters = SP(20, 60, 90)
+
+# oh, ttws = getModelInput(50, 2, 2, 30)
+
+# ot1 = OT(ttws[0].GT, 0, 0)
+# ot2 = OT(ttws[1].GT, 0, 0)
+
+# ufeasibleList = []
+
+# if ttws[0].GT.id in ufeasibleList:
+#     print("yes")
+# else:
+#     print("no")

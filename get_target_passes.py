@@ -1,13 +1,13 @@
 import datetime 
 import pandas as pd
-import skyfield.api as skf
 
 from extract_cloud_data import getCloudData
+from satellite_positioning_calculations import findSatelliteTaregtPasses
 from scheduling_model import OH, GT, TW, TTW
 
 
 """ Make sure that the indexing of startTime and endTime list correspond to the same time window """
-def removeSingleTimePassElement(startTimes: list, endTimes: list, firstType: int, lastType: int):       
+def removeSingleTimepassElement(startTimes: list, endTimes: list, firstType: int, lastType: int):       
     adjustmentString = [
         "No adjustment needed", # adjustmentNr = 0
         "Last element of startTimes and first element of endTimes are removed", # adjustmentNr = 1
@@ -26,14 +26,7 @@ def removeSingleTimePassElement(startTimes: list, endTimes: list, firstType: int
     return startTimes, endTimes, ajustmentNr, adjustmentString[ajustmentNr]
         
 """ Get a list of all ground targets with the corresponding time windows for capturing """
-def getAllTargetPasses(captureTimeSeconds: int, timewindow: int, startTimeDelay: int, targetsFilePath: str, tleUrl: str, tleFilePath: str) -> list:
-
-    # The skyfield API function to create an "EarthSatellite" object.
-    skfH1 = skf.load.tle_file(tleUrl, filename=tleFilePath, reload=False)[0]
-
-    # Timestamps also require a skyfield type
-    ts = skf.load.timescale()
-    t0 = ts.now() + datetime.timedelta(hours=startTimeDelay)
+def getAllTargetPasses(captureTimeSeconds: int, startTimeOH: datetime.datetime, endTimeOH: datetime.datetime, targetsFilePath: str, hypsoNr: int) -> list:# captureTimeSeconds: int, timewindow: int, startTimeDelay: int, targetsFilePath: str, hypsoNr: int) -> list:
 
     # Read data from targets.csv into the array targets
     targets_df = pd.read_csv(targetsFilePath)
@@ -51,29 +44,25 @@ def getAllTargetPasses(captureTimeSeconds: int, timewindow: int, startTimeDelay:
         # Add the target priority as an element of the target data list
         priotity = len(targets) - index
         target.append(priotity)
+   
+        # Find the time windows when satellite is passing the targets. Each element in pass is a tuple : [utc_time, type('rise', 'culiminate', 'set')]
+        passes = findSatelliteTaregtPasses(latitude, longitude, float(elevation), startTimeOH, endTimeOH, hypsoNr)
 
-        # 'wgs84' refers to the system used to define latitude and longitude coordinates
-        target_location = skf.wgs84.latlon(float(longitude) * skf.N, float(latitude) * skf.E, 100.0)
-
-        #Find events where the satellite is within elevation of the target within the timewindow
-        timestamps, types = skfH1.find_events(target_location, t0, t0 + timewindow, altitude_degrees=float(elevation))
-        
-        # Skip iteration if no timestamps are found
-        if not timestamps:
+        # Skip iteration if no passes are found
+        if not passes:
             continue
 
         #For each target pass, find start time and end time
         startTimes = []
         endTimes = []
-        for i in range(len(timestamps)):
-            if types[i] == 0:
-                startTimes.append(timestamps[i].utc_datetime().replace(microsecond=0))
-            if types[i] == 2:
-                utc_endtime = timestamps[i].utc_datetime().replace(microsecond=0)
-                endTimes.append(utc_endtime)
+        for i in range(len(passes)):
+            if passes[i][1] == 'rise':
+                startTimes.append(passes[i][0])
+            if passes[i][1] == 'set':
+                endTimes.append(passes[i][0])
 
         #Remove startTime or endTime if the corresponding pass is not complete
-        startTimes, endTimes, ajustmentNeeded, message = removeSingleTimePassElement(startTimes, endTimes, types[0], types[-1])
+        startTimes, endTimes, ajustmentNeeded, message = removeSingleTimepassElement(startTimes, endTimes, passes[0][1], passes[-1][1])
         if ajustmentNeeded != 0:
             print(message)
 
@@ -108,7 +97,7 @@ def getAllTargetPasses(captureTimeSeconds: int, timewindow: int, startTimeDelay:
 
 
 """ Remove targets that are obscured by clouds """
-def removeCloudObscuredTargets(allTargetPasses: list, ohDurationInDays: int, ohDelayInHours: int, delta_t: datetime.timedelta)-> list:
+def removeCloudObscuredTargets(allTargetPasses: list, startTimeOH: int, endTimeOH: int)-> list:
 
     targetPassesWithoutClouds = []
 
@@ -121,9 +110,7 @@ def removeCloudObscuredTargets(allTargetPasses: list, ohDurationInDays: int, ohD
         maxCloudCoverage = target[4]
 
         # Get the cloud data for the target in the given OH
-        startOfOH = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=ohDelayInHours)
-        endOfOH = startOfOH + datetime.timedelta(days=ohDurationInDays) + datetime.timedelta(hours=ohDelayInHours)
-        cloudData = getCloudData(latitude,longitude, startOfOH, endOfOH)
+        cloudData = getCloudData(latitude,longitude, startTimeOH, endTimeOH)
         assert cloudData != None
 
         # Remove observation windows when the cloud coverage is too high
@@ -144,24 +131,27 @@ def removeCloudObscuredTargets(allTargetPasses: list, ohDurationInDays: int, ohD
     return targetPassesWithoutClouds
 
 """ Put the ground target passes data into objects defined in scheduling_model.py
-    Example usage: oh, ttws = getModelInput(50, 2, 2, 30) """
-def getModelInput( captureTime: int, ohDurationInDays: int, ohDelayInHours: int, delta_t: int):
+    Example usage: oh, ttwList = getModelInput(50, 2, 2, 1) """
+def getModelInput( captureTime: int, ohDurationInDays: int, ohDelayInHours: int, hypsoNr: int):
 
-    # HYPSO 1 data from TLE file
-    hypsoTleUrl = 'https://celestrak.org/NORAD/elements/gp.php?CATNR=51053&FORMAT=TLE'
-    tlePath = 'HYPSO_data/HYPSO-1_TLE.txt'
-    targetsFilePath = 'HYPSO_data/targets.csv'
+    #Define the OH - Optimalization Horizon
+    startTimeOH = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=ohDelayInHours)
+    endTimeOH = startTimeOH + datetime.timedelta(hours=ohDurationInDays)
+
+    # Path to the file containing the ground targets data
+    targetsFilePath = 'HYPSO_scheduler/HYPSO_data/targets.csv'
 
     # Get the target passes
-    allTargetPasses = getAllTargetPasses(captureTime, ohDurationInDays, ohDelayInHours, targetsFilePath, hypsoTleUrl, tlePath)
+    allTargetPasses = getAllTargetPasses(captureTime, startTimeOH, endTimeOH, targetsFilePath, hypsoNr)
 
     # Remove targets that are obscured by clouds
-    cloudlessTargetpasses = removeCloudObscuredTargets(allTargetPasses, ohDurationInDays, ohDelayInHours, datetime.timedelta(seconds=delta_t))
+    #cloudlessTargetpasses = removeCloudObscuredTargets(allTargetPasses, startTimeOH, endTimeOH)
+    cloudlessTargetpasses = allTargetPasses
 
     # Create Optimalization Horizon object
     oh = OH(
-        utcStart = datetime.datetime.now(datetime.timezone.utc)+ datetime.timedelta(hours=ohDelayInHours),
-        utcEnd = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=ohDurationInDays) + datetime.timedelta(hours=ohDelayInHours),
+        utcStart = startTimeOH,
+        utcEnd = endTimeOH,
         durationInDays=ohDurationInDays,
         delayInHours=ohDelayInHours
     )
@@ -199,10 +189,11 @@ def getModelInput( captureTime: int, ohDurationInDays: int, ohDelayInHours: int,
 
 """ Print the input data for the model """
 def printModelInput():
-    oh, ttws = getModelInput(50, 2, 2, 30)
+    oh, ttws = getModelInput(50, 2, 2, 1)
     print("Observation Horizon:", oh.utcStart, oh.utcEnd, "\nDuration and delay:", oh.durationInDays, oh.delayInHours)
     for ttw in ttws:
         print(ttw.GT.id)
         for tw in ttw.TWs:
             print(tw.start, tw.end)
 
+printModelInput()
