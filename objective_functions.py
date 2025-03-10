@@ -20,15 +20,21 @@ def objectiveFunctionImageQuality(otList:list, oh: OH) -> int:
     """
     elevationAverage = 0
     maxElivation = 90
-    
+
     # For each observation task, calculate the image quality score based on the elevation of the satellite
     for ot in otList:
-        captureTimeMiddel = (ot.start + ot.end) / 2
+        captureTimeMiddel = ot.start + (ot.end - ot.start) / 2
         utcTime = oh.utcStart + datetime.timedelta(seconds=captureTimeMiddel)
         
-        elevation = findSatelliteTargetElevation(ot.GT.lat, ot.GT.long, utcTime, oh.hypsoNr)
-        elevationAverage += elevation/len(otList)
+        elevation = findSatelliteTargetElevation(float(ot.GT.lat), float(ot.GT.long), utcTime, oh.hypsoNr)
+        if elevation < 0:
+            # This should not happen
+            print(f"Elevation value: {elevation} for {ot.GT.id} at {utcTime}")
+            elevation = 0
+            
+        elevationAverage += elevation
 
+    elevationAverage = elevationAverage / len(otList)
     # Make sure the angle is within the limits of 0 to 90 degrees
     if elevationAverage < 0:
         elevationAverage = 0

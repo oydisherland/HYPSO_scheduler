@@ -2,12 +2,12 @@ import datetime
 import pandas as pd
 
 from extract_cloud_data import getCloudData
-from satellite_positioning_calculations import findSatelliteTaregtPasses
+from satellite_positioning_calculations import findSatelliteTargetPasses
 from scheduling_model import OH, GT, TW, TTW
 
 
 
-def removeSingleTimepassElement(startTimes: list, endTimes: list, firstType: int, lastType: int):       
+def removeSingleTimepassElement(startTimes: list, endTimes: list, firstType: str, lastType: str):       
     """ Makes sure that the indexing of startTime and endTime list correspond to the same time window """
 
     adjustmentString = [
@@ -18,10 +18,10 @@ def removeSingleTimepassElement(startTimes: list, endTimes: list, firstType: int
     ]
     ajustmentNr = 0
 
-    if lastType == 0 or lastType == 1:
+    if lastType == 'rise' or lastType == 'culminate':
         startTimes.pop(-1)
         ajustmentNr = -1
-    if firstType == 2 or firstType == 1:
+    if firstType == 'set' or firstType == 'culminate':
         endTimes.pop(0)
         ajustmentNr = ajustmentNr + 2 
     
@@ -52,8 +52,8 @@ def getAllTargetPasses(captureTimeSeconds: int, startTimeOH: datetime.datetime, 
         target.append(priotity)
    
         # Find the time windows when satellite is passing the targets. Each element in pass is a tuple : [utc_time, type('rise', 'culiminate', 'set')]
-        passes = findSatelliteTaregtPasses(latitude, longitude, float(elevation), startTimeOH, endTimeOH, hypsoNr)
-
+        passes = findSatelliteTargetPasses(float(latitude), float(longitude), float(elevation), startTimeOH, endTimeOH, hypsoNr)
+        
         # Skip iteration if no passes are found
         if not passes:
             continue
@@ -146,14 +146,14 @@ def getModelInput( captureTime: int, ohDurationInDays: int, ohDelayInHours: int,
 
     #Define the OH - Optimalization Horizon
     startTimeOH = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=ohDelayInHours)
-    endTimeOH = startTimeOH + datetime.timedelta(hours=ohDurationInDays)
+    endTimeOH = startTimeOH + datetime.timedelta(days=ohDurationInDays)
 
     # Path to the file containing the ground targets data
     targetsFilePath = 'HYPSO_scheduler/HYPSO_data/targets.csv'
 
     # Get the target passes
     allTargetPasses = getAllTargetPasses(captureTime, startTimeOH, endTimeOH, targetsFilePath, hypsoNr)
-
+    
     # Remove targets that are obscured by clouds
     #cloudlessTargetpasses = removeCloudObscuredTargets(allTargetPasses, startTimeOH, endTimeOH)
     cloudlessTargetpasses = allTargetPasses

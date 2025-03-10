@@ -47,10 +47,9 @@ def RHGA(ttwList: list, otList: list, unfeasibleTargetsIdList: list, schedulingP
                 if ot.start > newObeservationStart + bufferTime or ot.start + bufferTime < newObeservationStart:
                     # No collision with current ot, continue to check next ot
                     continue
-                elif ot.start + bufferTime > tw.end:
-                    # The the target can be observed after the current ot
+                elif ot.start + bufferTime*2 < tw.end:
+                    # The the target can be observed after the current ot, continue to check the next ot with updated newObeservationStart
                     newObeservationStart = ot.start + bufferTime
-                    # Continue to check the next ot with updated newObeservationStart
                     continue
                 else:
                     # Collision is inevitable, check the next time window

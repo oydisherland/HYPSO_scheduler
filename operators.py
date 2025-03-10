@@ -5,6 +5,8 @@ from rhga import RHGA
 from get_target_passes import getModelInput
 from scheduling_model import OH, GT, TW, TTW, OT ,SP
 
+import datetime
+
 class DestroyType(Enum):
     RANDOM = 0
     GREEDY = 1
@@ -166,56 +168,13 @@ def repairOperator(ttwList: list, otList: list, unfeasibleTargetsIdList: list, r
     return ttwListRepaired, otList, objectiveValuesList
 
 
-def testThisShit():
-
-    schedulingParameters = SP(20, 60, 90)
-
-    oh, ttws = getModelInput(50, 2, 2, 30)
-    #ttws = randomSort(ttws)
-    otList = []
-
-    otList, objectiveValuesList = RHGA(ttws, otList, schedulingParameters, oh)
-    for ov in objectiveValuesList:
-        print(f"Objective value original: {ov}, scheduled targets: {len(otList)}")
-
-    otList, tabooBank = destroyOperator(otList, 3, DestroyType.RANDOM)
-    print(f"After destruction: scheduled targets: {len(otList)} and removed targets: {len(tabooBank)}")
-
-    otList2 = otList.copy()
-
-    ttws, otListRandom, objectiveValuesList = repairOperator(ttws, otList, RepairType.RANDOM, schedulingParameters)
-    for ov in objectiveValuesList:
-        print(f"Objective value after Random repair: {ov}, scheduled targets: {len(otListRandom)}")
-
-    ttws, otListGreedy, objectiveValuesList = repairOperator(ttws, otList2, RepairType.GREEDY, schedulingParameters)
-    for ov in objectiveValuesList:
-        print(f"Objective value after Greedy repair: {ov}, scheduled targets: {len(otListGreedy)}")
-
-    otList, tabooBank = destroyOperator(otListRandom, 3, DestroyType.GREEDY)
-    print(f"After greedy destruction of random repair list: scheduled targets: {len(otList)} and removed targets: {len(tabooBank)}")
-    otList2 = otList.copy()
-
-    ttws, otListGreedy, objectiveValuesList = repairOperator(ttws, otList, RepairType.GREEDY, schedulingParameters)
-    for ov in objectiveValuesList:
-        print(f"Objective value after Greedy repair: {ov}, scheduled targets: {len(otListGreedy)}")
-
-    ttws, otListRandom, objectiveValuesList = repairOperator(ttws, otList2, RepairType.RANDOM, schedulingParameters)
-    for ov in objectiveValuesList:
-        print(f"Objective value after Random repair: {ov}, scheduled targets: {len(otListRandom)}")
 
 
+schedulingParameters = SP(20, 60, 90)
 
+oh, ttws = getModelInput(50, 2, 2, 1)
+otList = []
+unfeasibleTargetsIdList = []
+otList, objectiveValuesList = RHGA(ttws, otList, unfeasibleTargetsIdList, schedulingParameters, oh)
 
-# schedulingParameters = SP(20, 60, 90)
-
-# oh, ttws = getModelInput(50, 2, 2, 30)
-
-# ot1 = OT(ttws[0].GT, 0, 0)
-# ot2 = OT(ttws[1].GT, 0, 0)
-
-# ufeasibleList = []
-
-# if ttws[0].GT.id in ufeasibleList:
-#     print("yes")
-# else:
-#     print("no")
+print("Objective values:", objectiveValuesList[0], objectiveValuesList[1], "and length of schedulled target list is:", len(otList))

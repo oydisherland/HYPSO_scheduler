@@ -10,7 +10,7 @@ import math
 
 from scheduling_model import OH, GT, TW, TTW, OT ,SP
 from get_target_passes import getModelInput
-from operators import repairOperator, destroyOperator, RepairType, DestroyType, testThisShit
+from operators import repairOperator, destroyOperator, RepairType, DestroyType
 
 
 
@@ -27,7 +27,7 @@ class ProblemState:
         self.schedulingParameters = schedulingParameters
         self.tabooBank = []
         self.maxSizeTabooBank = maxSizeTabooBank
-        self.maxObjective = 0
+        self.maxObjective = [0, 0]
     ###
 
     def objective(self) -> float:
@@ -52,9 +52,9 @@ def initial_state(schedulingParameters: SP, ttwList: list, oh: OH, destructionRa
     ### ttwsGreedy, _ , objectiveValuesList
     otList = []
     tabooBank = []
-    ttwListResorted, otList, objectiveVal = repairOperator(ttwList, otList, tabooBank, RepairType.RANDOM, schedulingParameters, oh)
+    ttwListResorted, otList, objectiveValues = repairOperator(ttwList, otList, tabooBank, RepairType.RANDOM, schedulingParameters, oh)
     state = ProblemState(otList, ttwListResorted, oh, destructionRate, schedulingParameters, maxSizeTabooBank)
-    state.maxObjective = objectiveVal[0]
+    state.maxObjective = objectiveValues
     return state
     ###
 
@@ -86,9 +86,11 @@ def repairRandom(current: ProblemState, rng: rnd.Generator) -> ProblemState:
     ### 
     repaired = copy.deepcopy(current)
     
-    repaired.ttwList, repaired.otList, objectiveVal = repairOperator(repaired.ttwList, repaired.otList, repaired.tabooBank, RepairType.RANDOM, repaired.schedulingParameters, repaired.oh)
-    if objectiveVal[0] > repaired.maxObjective:
-        repaired.maxObjective = objectiveVal[0]
+    repaired.ttwList, repaired.otList, objectiveValues = repairOperator(repaired.ttwList, repaired.otList, repaired.tabooBank, RepairType.RANDOM, repaired.schedulingParameters, repaired.oh)
+    if objectiveValues[0] > repaired.maxObjective[0]:
+        repaired.maxObjective[0] = objectiveValues[0]
+    if objectiveValues[1] > repaired.maxObjective[1]:
+        repaired.maxObjective[0] = objectiveValues[1]
     return repaired
     ###
 
@@ -97,9 +99,11 @@ def repairGreedy(current: ProblemState, rng: rnd.Generator) -> ProblemState:
     ### 
     repaired = copy.deepcopy(current)
 
-    repaired.ttwList, repaired.otList, objectiveVal = repairOperator(repaired.ttwList, repaired.otList, repaired.tabooBank, RepairType.GREEDY, repaired.schedulingParameters, repaired.oh)
-    if objectiveVal[0] > repaired.maxObjective:
-        repaired.maxObjective = objectiveVal[0]
+    repaired.ttwList, repaired.otList, objectiveValues = repairOperator(repaired.ttwList, repaired.otList, repaired.tabooBank, RepairType.GREEDY, repaired.schedulingParameters, repaired.oh)
+    if objectiveValues[0] > repaired.maxObjective[0]:
+        repaired.maxObjective[0] = objectiveValues[0]
+    if objectiveValues[1] > repaired.maxObjective[1]:
+        repaired.maxObjective[0] = objectiveValues[1]
     return repaired
     ###
 
@@ -107,13 +111,13 @@ def repairGreedy(current: ProblemState, rng: rnd.Generator) -> ProblemState:
 def run_alns(schedulingParameters: SP, ttwList: list, oh: OH, destructionRate: float, maxSizeTabooBank: int):
     # Create the initial solution
     init_sol = initial_state(schedulingParameters, ttwList, oh, destructionRate, maxSizeTabooBank)
-    print(f"Initial solution objective is {init_sol.maxObjective}.")
+    print(f"Initial solution objective is {init_sol.maxObjective[0]} and {init_sol.maxObjective[1]}.")
 
     # Run the greedy algorithm 
     otListEmpty = []
     newTabooBank = []
     _, _, objectiveValGreedy = repairOperator(init_sol.ttwList.copy() , otListEmpty, newTabooBank, RepairType.GREEDY, SP(20, 60, 90), init_sol.oh)
-    print(f"Greedy solution objective is {objectiveValGreedy[0]}.")
+    print(f"Greedy solution objective is {objectiveValGreedy[0]} and {objectiveValGreedy[1]}.")
 
     # Create ALNS and add one or more destroy and repair operators
     alns = ALNS.ALNS()  # Initialize without a random seed
@@ -125,21 +129,18 @@ def run_alns(schedulingParameters: SP, ttwList: list, oh: OH, destructionRate: f
     # Configure ALNS
     select = RandomSelect(num_destroy=2, num_repair=2)  # see alns.select for others
     accept = HillClimbing()  # see alns.accept for others
-    stop = NoImprovement(1000)  # Create a new MaxRuntime instance for each run
+    stop = NoImprovement(500)  # Create a new MaxRuntime instance for each run
 
     # Run the ALNS algorithm
     result = alns.iterate(init_sol, select, accept, stop)
 
     # Retrieve the final solution
     best = result.best_state
-    print(f"Best heuristic solution objective is {best.maxObjective}.")
+    print(f"Best heuristic solution objective is {best.maxObjective[0]} and {best.maxObjective[1]}.")
     # result.plot_objectives()
     # plt.show()
     print()
 
-oh, ttwList = getModelInput(50, 2, 2, 1)
-for ttw in ttwList:
-    print(f"Target {ttw.GT.id} has {len(ttw.TWs)} time windows")
 # Run ALNS multiple times
 for i in range(3):
     print(f"Run {i+1}:")
