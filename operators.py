@@ -1,11 +1,10 @@
 import random
-import copy
 from enum import Enum
+
 from rhga import RHGA
 from get_target_passes import getModelInput
-from scheduling_model import OH, GT, TW, TTW, OT ,SP
+from scheduling_model import OH,SP, OT
 
-import datetime
 
 class DestroyType(Enum):
     RANDOM = 0
@@ -106,7 +105,7 @@ def congestionSort(ttwList: list):
 
 #### Destroy operator
 
-def destroyOperator(otList: list, destroyNumber: int, destroyType: DestroyType):
+def destroyOperator(otList: list, ttwList: list, destroyNumber: int, destroyType: DestroyType):
     """
     destroyType:
     - random
@@ -120,6 +119,9 @@ def destroyOperator(otList: list, destroyNumber: int, destroyType: DestroyType):
     if not otList:
         return otList, removedTargetsIdList
 
+    if len(ttwList) == 0:
+        print("ttwList is empty")
+
     #Sort list based on destroyType
     if destroyType == DestroyType.RANDOM:
         otListsorted = randomSort(otList)
@@ -128,7 +130,14 @@ def destroyOperator(otList: list, destroyNumber: int, destroyType: DestroyType):
     elif destroyType == DestroyType.ENERGY_SAVING:
         otListsorted = energySavingSort(otList)
     elif destroyType == DestroyType.CONGESTION:
-        otListsorted = congestionSort(otList)
+        ttwList = congestionSort(ttwList.copy())
+        otListsorted = []
+        for ttw in ttwList:         
+            for ot in otList:   
+                if ot.GT.id == ttw.GT.id:
+                    otListsorted.append(ot)
+                    break
+
     else:
         print("Destroy type not found")
         return 0
@@ -168,13 +177,16 @@ def repairOperator(ttwList: list, otList: list, unfeasibleTargetsIdList: list, r
     return ttwListRepaired, otList, objectiveValuesList
 
 
+# Test the functions
+# oh, ttwList = getModelInput(50, 2, 2, 1)
+# otList = []
+# sp = SP(40,50,60)
+# ttwList, otList, objectiveVals = repairOperator(ttwList, otList, [], RepairType.RANDOM, sp, oh)
+# print(objectiveVals)
+ 
+# otList, unfesaibleTargs = destroyOperator(otList, ttwList, 7, DestroyType.CONGESTION)
+# print(len(otList))
 
-
-schedulingParameters = SP(20, 60, 90)
-
-oh, ttws = getModelInput(50, 2, 2, 1)
-otList = []
-unfeasibleTargetsIdList = []
-otList, objectiveValuesList = RHGA(ttws, otList, unfeasibleTargetsIdList, schedulingParameters, oh)
-
-print("Objective values:", objectiveValuesList[0], objectiveValuesList[1], "and length of schedulled target list is:", len(otList))
+# ttwList, otList, objectiveVals = repairOperator(ttwList, otList, unfesaibleTargs, RepairType.CONGESTION, sp, oh)
+# print(objectiveVals)
+# print(len(otList))
