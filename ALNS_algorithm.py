@@ -8,7 +8,6 @@ import copy
 import matplotlib.pyplot as plt
 
 from scheduling_model import OH ,SP
-from get_target_passes import getModelInput
 from operators import repairOperator, destroyOperator, RepairType, DestroyType
 
 class ProblemState:
@@ -21,12 +20,14 @@ class ProblemState:
         self.tabooBank = []
         self.maxSizeTabooBank = maxSizeTabooBank
         self.maxObjective = [0, 0]
+        self.imageQuality = 0
 
     def objective(self) -> float:
         sum = 0
         for ot in self.otList:
             sum += ot.GT.priority
             #Negating the sum since the alns solves the minimization problem
+        sum += self.imageQuality
         return -sum
 
     def get_context(self):
@@ -102,7 +103,7 @@ def repairRandom(current: ProblemState, rng: rnd.Generator) -> ProblemState:
         RepairType.RANDOM, 
         repaired.schedulingParameters, 
         repaired.oh)
-    
+    repaired.imageQuality = objectiveValues[1]
     if objectiveValues[0] > repaired.maxObjective[0]:
         repaired.maxObjective[0] = objectiveValues[0]
     if objectiveValues[1] > repaired.maxObjective[1]:
@@ -120,12 +121,30 @@ def repairGreedy(current: ProblemState, rng: rnd.Generator) -> ProblemState:
         repaired.schedulingParameters, 
         repaired.oh)
     
+    repaired.imageQuality = objectiveValues[1]
     if objectiveValues[0] > repaired.maxObjective[0]:
         repaired.maxObjective[0] = objectiveValues[0]
     if objectiveValues[1] > repaired.maxObjective[1]:
         repaired.maxObjective[1] = objectiveValues[1]
     return repaired
 
+def repairSmallTW(current: ProblemState, rng: rnd.Generator) -> ProblemState:
+    repaired = copy.deepcopy(current)
+
+    repaired.ttwList, repaired.otList, objectiveValues = repairOperator(
+        repaired.ttwList, 
+        repaired.otList, 
+        repaired.tabooBank, 
+        RepairType.SMALL_TW, 
+        repaired.schedulingParameters, 
+        repaired.oh)
+    
+    repaired.imageQuality = objectiveValues[1]
+    if objectiveValues[0] > repaired.maxObjective[0]:
+        repaired.maxObjective[0] = objectiveValues[0]
+    if objectiveValues[1] > repaired.maxObjective[1]:
+        repaired.maxObjective[1] = objectiveValues[1]
+    return repaired
 
 def repairCongestion(current: ProblemState, rng: rnd.Generator) -> ProblemState:
     repaired = copy.deepcopy(current)
@@ -138,6 +157,7 @@ def repairCongestion(current: ProblemState, rng: rnd.Generator) -> ProblemState:
         repaired.schedulingParameters, 
         repaired.oh)
     
+    repaired.imageQuality = objectiveValues[1]
     if objectiveValues[0] > repaired.maxObjective[0]:
         repaired.maxObjective[0] = objectiveValues[0]
     if objectiveValues[1] > repaired.maxObjective[1]:
@@ -157,16 +177,17 @@ def runALNS(schedulingParameters: SP, ttwList: list, oh: OH, destructionRate: fl
     print(f"Greedy solution objective is {objectiveValGreedy[0]} and {objectiveValGreedy[1]}.")
 
     # Create ALNS and add one or more destroy and repair operators
-    alns = ALNS.ALNS()  # Initialize without a random seed
+    alns =  ALNS() # ALNS.ALNS()  # Initialize without a random seed
     alns.add_destroy_operator(destroyRandom)
     alns.add_destroy_operator(destroyGreedy)
     alns.add_destroy_operator(destroyCongestion)
     alns.add_repair_operator(repairRandom)
     alns.add_repair_operator(repairGreedy)
+    alns.add_repair_operator(repairSmallTW)
     alns.add_repair_operator(repairCongestion)
    
     # Configure ALNS
-    select = RandomSelect(num_destroy=3, num_repair=3)  # see alns.select for others
+    select = RandomSelect(num_destroy=3, num_repair=4)  # see alns.select for others
     accept = HillClimbing()  # see alns.accept for others
     stop = NoImprovement(100)  # Create a new MaxRuntime instance for each run MaxRuntime(20)#
 
@@ -181,15 +202,5 @@ def runALNS(schedulingParameters: SP, ttwList: list, oh: OH, destructionRate: fl
     # print()
     return result
 
-# Run ALNS multiple times
-# for i in range(1):
-#     print(f"Run {i+1}:")
-
-#     schedulingParameters = SP(20, 60, 90)
-#     oh, ttwList = getModelInput(50, 2, 2, 1)
-#     print(f"numbers of targets to choose from {len(ttwList)}")
-
-#     runALNS(schedulingParameters, ttwList, oh, destructionRate = 0.1, maxSizeTabooBank = 20)
-#     print("--------------------------------------------------------------")
 
 

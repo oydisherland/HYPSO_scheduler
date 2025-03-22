@@ -9,8 +9,7 @@ from scheduling_model import OH,SP, OT
 class DestroyType(Enum):
     RANDOM = 0
     GREEDY = 1
-    ENERGY_SAVING = 2
-    CONGESTION = 3
+    CONGESTION = 2
 
 class RepairType(Enum):
     RANDOM = 0
@@ -62,11 +61,6 @@ def smallTWSort(ttwList: list):
 
     return ttwListSorted
 
-def energySavingSort(ttwList: list):
-    energySavingList = []
-
-    #Calculate
-    return energySavingList
 
 """ Sort target list so gt with little congestion are first"""
 def congestionSort(ttwList: list):
@@ -110,7 +104,6 @@ def destroyOperator(otList: list, ttwList: list, destroyNumber: int, destroyType
     destroyType:
     - random
     - greedy   
-    - energySaving
     - congestion
     """
     removedTargetsIdList = []
@@ -127,8 +120,6 @@ def destroyOperator(otList: list, ttwList: list, destroyNumber: int, destroyType
         otListsorted = randomSort(otList)
     elif destroyType == DestroyType.GREEDY:
         otListsorted = greedySort(otList)
-    elif destroyType == DestroyType.ENERGY_SAVING:
-        otListsorted = energySavingSort(otList)
     elif destroyType == DestroyType.CONGESTION:
         ttwList = congestionSort(ttwList.copy())
         otListsorted = []
