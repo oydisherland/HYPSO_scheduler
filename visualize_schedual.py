@@ -33,10 +33,11 @@ schedulingParameters = SP(20, 60, 90)
 oh, ttwList = getModelInput(50, 2, 2, 1)
 print(f"numbers of targets to choose from {len(ttwList)}")
 
-result = runALNS(schedulingParameters, ttwList, oh, destructionRate = 0.3, maxSizeTabooBank = 20)
+result, init_sol = runALNS(schedulingParameters, ttwList, oh, destructionRate = 0.3, maxSizeTabooBank = 20)
 
 best = result.best_state
 print(f"Best heuristic solution objective is {best.maxObjective[0]} and {best.maxObjective[1]}.")
 
 schedual = best.otList
+printSchedual(init_sol.otList)
 printSchedual(schedual)

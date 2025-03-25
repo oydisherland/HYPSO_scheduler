@@ -155,7 +155,7 @@ def repairOperator(ttwList: list, otList: list, unfeasibleTargetsIdList: list, r
     elif repairType == RepairType.GREEDY:
         ttwListRepaired = greedySort(ttwList)
     elif repairType == RepairType.SMALL_TW:
-        ttwListRepaired = smallTWSort(ttwList)
+        ttwListRepaired = smallTWSort(ttwList.copy())
     elif repairType == RepairType.CONGESTION:
         ttwListRepaired = congestionSort(ttwList)
     else:

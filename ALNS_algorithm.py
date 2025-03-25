@@ -168,16 +168,16 @@ def repairCongestion(current: ProblemState, rng: rnd.Generator) -> ProblemState:
 def runALNS(schedulingParameters: SP, ttwList: list, oh: OH, destructionRate: float, maxSizeTabooBank: int):
     # Create the initial solution
     init_sol = initial_state(schedulingParameters, ttwList, oh, destructionRate, maxSizeTabooBank)
-    print(f"Initial solution objective is {init_sol.maxObjective[0]} and {init_sol.maxObjective[1]}.")
+    #print(f"Initial solution objective is {init_sol.maxObjective[0]} and {init_sol.maxObjective[1]}.")
 
     # Run the greedy algorithm 
     otListEmpty = []
     newTabooBank = []
     _, _, objectiveValGreedy = repairOperator(init_sol.ttwList.copy() , otListEmpty, newTabooBank, RepairType.GREEDY, SP(20, 60, 90), init_sol.oh)
-    print(f"Greedy solution objective is {objectiveValGreedy[0]} and {objectiveValGreedy[1]}.")
+    #print(f"Greedy solution objective is {objectiveValGreedy[0]} and {objectiveValGreedy[1]}.")
 
     # Create ALNS and add one or more destroy and repair operators
-    alns =  ALNS() # ALNS.ALNS()  # Initialize without a random seed
+    alns = ALNS.ALNS() # ALNS() # Initialize without a random seed
     alns.add_destroy_operator(destroyRandom)
     alns.add_destroy_operator(destroyGreedy)
     alns.add_destroy_operator(destroyCongestion)
@@ -200,7 +200,7 @@ def runALNS(schedulingParameters: SP, ttwList: list, oh: OH, destructionRate: fl
     # result.plot_objectives()
     # plt.show()
     # print()
-    return result
+    return result, init_sol
 
 
 
