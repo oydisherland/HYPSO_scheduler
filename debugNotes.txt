@@ -1,0 +1,3 @@
+Skips rise when calculating passes
+
+Start time OH: 2025-04-01 16:47:49.990785+00:00 End time OH: 2025-04-03 16:47:49.990785+00:00

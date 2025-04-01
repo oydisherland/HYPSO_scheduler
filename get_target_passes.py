@@ -99,6 +99,9 @@ def getAllTargetPasses(captureTimeSeconds: int, startTimeOH: datetime.datetime, 
 
         # Check that number of start times is equal number of end times
         if len(startTimes) != len(endTimes):
+            print(f"len passes: {len(passes)}, firstpass: {passes[0][1]}, lastpass: {passes[-1][1]}, len startTimes: {len(startTimes)}, len endTimes: {len(endTimes)}")
+            for p in passes:
+                print(p)
             raise ValueError("The length of start times and end times are not equal")
         
         # Skip iteration if the pass was removed
@@ -158,7 +161,7 @@ def getModelInput( captureTime: int, ohDurationInDays: int, ohDelayInHours: int,
     #Define the OH - Optimalization Horizon
     startTimeOH = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=ohDelayInHours)
     endTimeOH = startTimeOH + datetime.timedelta(days=ohDurationInDays)
-
+    print("Start time OH:", startTimeOH, "End time OH:", endTimeOH)
     # Path to the file containing the ground targets data
     targetsFilePath = 'HYPSO_scheduler/HYPSO_data/targets.csv'
 
