@@ -75,15 +75,18 @@ def getAllTargetPasses(captureTimeSeconds: int, startTimeOH: datetime.datetime, 
         # Check if the time window is too short (not enough time to capture) or too long (likely not belonging to the same pass)
         #One pass typically takes 50-150 seconds, thus bigger time differences than 500 second can be omitted
         largeTimeDifferenc = []
+        twMaxSeconds = 500
         for i in range(len(startTimes)):
             
             try: 
                 time_diff = (endTimes[i] - startTimes[i]).total_seconds()
-                if time_diff < captureTimeSeconds and time_diff > 300:
+                if time_diff < captureTimeSeconds and time_diff > twMaxSeconds: 
+                    # TW too short or too long
                     startTimes.pop(i)
                     endTimes.pop(i)
 
-                if time_diff > 500:
+                if time_diff > twMaxSeconds:
+                    # TW too long
                     largeTimeDifferenc.append((startTimes[i], endTimes[i], target[0]))
 
             except IndexError as e:
@@ -93,6 +96,14 @@ def getAllTargetPasses(captureTimeSeconds: int, startTimeOH: datetime.datetime, 
         if len(largeTimeDifferenc) > 0:
             for instance in largeTimeDifferenc:
                 print("Time differences that are too long: ", instance)
+
+        # Check that number of start times is equal number of end times
+        if len(startTimes) != len(endTimes):
+            raise ValueError("The length of start times and end times are not equal")
+        
+        # Skip iteration if the pass was removed
+        if len(startTimes) == 0:
+            continue
 
         #Add the list of start times and end times to the target info list
         target.append(startTimes)

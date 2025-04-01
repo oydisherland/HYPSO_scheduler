@@ -40,8 +40,5 @@ def objectiveFunctionImageQuality(otList:list, oh: OH) -> int:
         elevationAverage = 0
     elif elevationAverage > maxElivation:
         elevationAverage = maxElivation
-    
-    # Normalize the image quality score to be between 0 and 100
-    imageQualityScore = (elevationAverage / maxElivation) * 100
 
-    return imageQualityScore
+    return elevationAverage

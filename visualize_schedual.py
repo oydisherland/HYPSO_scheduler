@@ -1,4 +1,4 @@
-from ALNS_algorithm import runALNS
+from ALNS_algorithm import runALNS, createInitialSolution
 from get_target_passes import getModelInput
 from scheduling_model import SP, OH
 import matplotlib.pyplot as plt
@@ -29,15 +29,17 @@ def printSchedual(schedual):
     plt.show()
 
 
-schedulingParameters = SP(20, 60, 90)
-oh, ttwList = getModelInput(50, 2, 2, 1)
-print(f"numbers of targets to choose from {len(ttwList)}")
+# schedulingParameters = SP(20, 60, 90)
+# oh, ttwList = getModelInput(50, 2, 2, 1)
+# print(f"numbers of targets to choose from {len(ttwList)}")
 
-result, init_sol = runALNS(schedulingParameters, ttwList, oh, destructionRate = 0.3, maxSizeTabooBank = 20)
+# init_sol = createInitialSolution(ttwList, schedulingParameters, oh, destructionRate=0.3, maxSizeTabooBank=20)
 
-best = result.best_state
-print(f"Best heuristic solution objective is {best.maxObjective[0]} and {best.maxObjective[1]}.")
+# result, init_sol = runALNS(init_sol.otList, init_sol.ttwList, schedulingParameters, oh, destructionRate = 0.3, maxSizeTabooBank = 20)
 
-schedual = best.otList
-printSchedual(init_sol.otList)
-printSchedual(schedual)
+# best = result.best_state
+# print(f"Best heuristic solution objective is {best.maxObjective[0]} and {best.maxObjective[1]}.")
+
+# schedual = best.otList
+# printSchedual(init_sol.otList)
+# printSchedual(schedual)

@@ -37,8 +37,7 @@ class ProblemState:
         return None
 
 
-def initial_state(schedulingParameters: SP, ttwList: list, oh: OH, destructionRate: float, maxSizeTabooBank: int) -> ProblemState:
-    otList = []
+def initial_state(otList: list, ttwList: list, schedulingParameters: SP, oh: OH, destructionRate: float, maxSizeTabooBank: int) -> ProblemState:
     tabooBank = []
     ttwListResorted, otList, objectiveValues = repairOperator(
         ttwList, 
@@ -164,17 +163,20 @@ def repairCongestion(current: ProblemState, rng: rnd.Generator) -> ProblemState:
         repaired.maxObjective[1] = objectiveValues[1]
     return repaired
 
-# Function to run ALNS algorithm
-def runALNS(schedulingParameters: SP, ttwList: list, oh: OH, destructionRate: float, maxSizeTabooBank: int):
+def createInitialSolution(ttwList: list, schedulingParameters: SP, oh: OH, destructionRate: float, maxSizeTabooBank: int):
+    
     # Create the initial solution
-    init_sol = initial_state(schedulingParameters, ttwList, oh, destructionRate, maxSizeTabooBank)
-    #print(f"Initial solution objective is {init_sol.maxObjective[0]} and {init_sol.maxObjective[1]}.")
-
-    # Run the greedy algorithm 
     otListEmpty = []
-    newTabooBank = []
-    _, _, objectiveValGreedy = repairOperator(init_sol.ttwList.copy() , otListEmpty, newTabooBank, RepairType.GREEDY, SP(20, 60, 90), init_sol.oh)
-    #print(f"Greedy solution objective is {objectiveValGreedy[0]} and {objectiveValGreedy[1]}.")
+    init_sol = initial_state(otListEmpty, ttwList, schedulingParameters, oh, destructionRate, maxSizeTabooBank)
+
+    return init_sol
+
+# Function to run ALNS algorithm
+def runALNS( inital_otList: list, initial_ttwList: list, schedulingParameters: SP, oh: OH, destructionRate: float, maxSizeTabooBank: int):
+    
+    # Format the problem state
+    state = ProblemState(inital_otList, initial_ttwList, oh, destructionRate, schedulingParameters, maxSizeTabooBank)
+    state.maxObjective = [0,0]
 
     # Create ALNS and add one or more destroy and repair operators
     alns = ALNS.ALNS() # ALNS() # Initialize without a random seed
@@ -189,10 +191,10 @@ def runALNS(schedulingParameters: SP, ttwList: list, oh: OH, destructionRate: fl
     # Configure ALNS
     select = RandomSelect(num_destroy=3, num_repair=4)  # see alns.select for others
     accept = HillClimbing()  # see alns.accept for others
-    stop = NoImprovement(100)  # Create a new MaxRuntime instance for each run MaxRuntime(20)#
+    stop = MaxRuntime(10)   # Create a new MaxRuntime instance for each run MaxRuntime(20)#NoImprovement(100)
 
     # Run the ALNS algorithm
-    result = alns.iterate(init_sol, select, accept, stop)
+    result = alns.iterate(state, select, accept, stop)
 
     # Retrieve the final solution
     # best = result.best_state
@@ -200,7 +202,7 @@ def runALNS(schedulingParameters: SP, ttwList: list, oh: OH, destructionRate: fl
     # result.plot_objectives()
     # plt.show()
     # print()
-    return result, init_sol
+    return result, state
 
 
 

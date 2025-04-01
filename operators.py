@@ -21,7 +21,8 @@ class RepairType(Enum):
 #### Sorting functions for different target prioritizing strategies
 
 """ Sort target list randomly """
-def randomSort(ttwList: list):
+def randomSort(ttwListOriginal: list):
+    ttwList = ttwListOriginal.copy()
     ttwListSorted = []
 
     # Randomly select ttw from ttwList, remove from ttwList and add to ttwListSorted
@@ -30,7 +31,8 @@ def randomSort(ttwList: list):
     return ttwListSorted
 
 """ Sort target list so hight priority gt are first"""
-def greedySort(ttwList: list):
+def greedySort(ttwListOriginal: list):
+    ttwList = ttwListOriginal.copy()
     ttwListSorted = []
 
     # Find element in ttwList with highest priority, remove from ttwList and add to ttwListSorted
@@ -45,7 +47,8 @@ def greedySort(ttwList: list):
     return ttwListSorted
 
 """ Sort target list so gt with small tw are first"""
-def smallTWSort(ttwList: list):
+def smallTWSort(ttwListOriginal: list):
+    ttwList = ttwListOriginal.copy()
     ttwListSorted = []
 
     # Find element in ttwList with shortest tw, remove from ttwList and add to ttwListSorted
@@ -63,7 +66,8 @@ def smallTWSort(ttwList: list):
 
 
 """ Sort target list so gt with little congestion are first"""
-def congestionSort(ttwList: list):
+def congestionSort(ttwListOriginal: list):
+    ttwList = ttwListOriginal.copy()
     congestionLevelsList = []
 
     #Calculate the congestion level assosiated with each element in ttwList
@@ -121,9 +125,9 @@ def destroyOperator(otList: list, ttwList: list, destroyNumber: int, destroyType
     elif destroyType == DestroyType.GREEDY:
         otListsorted = greedySort(otList)
     elif destroyType == DestroyType.CONGESTION:
-        ttwList = congestionSort(ttwList.copy())
+        ttwListSorted = congestionSort(ttwList)
         otListsorted = []
-        for ttw in ttwList:         
+        for ttw in ttwListSorted:         
             for ot in otList:   
                 if ot.GT.id == ttw.GT.id:
                     otListsorted.append(ot)
@@ -147,25 +151,25 @@ def repairOperator(ttwList: list, otList: list, unfeasibleTargetsIdList: list, r
     - smallTW
     - congestion
     """
-    ttwListRepaired =  []
+    ttwListSorted =  []
 
     #Sort list based on repairType
     if repairType == RepairType.RANDOM:
-        ttwListRepaired = randomSort(ttwList)
+        ttwListSorted = randomSort(ttwList)
     elif repairType == RepairType.GREEDY:
-        ttwListRepaired = greedySort(ttwList)
+        ttwListSorted = greedySort(ttwList)
     elif repairType == RepairType.SMALL_TW:
-        ttwListRepaired = smallTWSort(ttwList.copy())
+        ttwListSorted = smallTWSort(ttwList)
     elif repairType == RepairType.CONGESTION:
-        ttwListRepaired = congestionSort(ttwList)
+        ttwListSorted = congestionSort(ttwList)
     else:
         print("Repair type not found")
         return 0
     
     #Find an observation task schedule
-    otList, objectiveValuesList = RHGA(ttwListRepaired, otList, unfeasibleTargetsIdList, schedulingParameters, oh)
+    otListRepared, objectiveValuesList = RHGA(ttwListSorted, otList, unfeasibleTargetsIdList, schedulingParameters, oh)
 
-    return ttwListRepaired, otList, objectiveValuesList
+    return ttwListSorted, otListRepared, objectiveValuesList
 
 
 # Test the functions
