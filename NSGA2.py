@@ -1,6 +1,7 @@
 import numpy as np
 import random
 import math
+import csv
 from pymoo.util.nds.non_dominated_sorting import NonDominatedSorting
 from pymoo.operators.survival.rank_and_crowding.metrics import get_crowding_function
 from pymoo.mcdm.high_tradeoff import HighTradeoffPoints
@@ -54,11 +55,11 @@ def runNSGA(
     best = result.best_state
     schedual = best.otList
     population.append(INSTANCE(0, best.maxObjective, schedual))
-
-
+    previousParetoFront = []
+    terminationCounter = 0
     # Main loop in the NSGA2 algorithm
     for runNr in range(nRuns):
-        #### Mutation using ALNS
+        #### Creating offsprings using ALNS
 
         iterationNumber = popSize - len(population)
         for i in range(iterationNumber):
@@ -117,20 +118,20 @@ def runNSGA(
         nds = NonDominatedSorting()
         fronts = nds.do(objectiveSpace_minimization, n_stop_if_ranked=10) # not sure what n_stop_if_ranked do!
 
-        target = popSize // 2 
+        reducedPopSize = popSize // 2 
         selected_indices = []
 
         # Select top 50% of induviduals in population
         for front in fronts:
 
-            if len(selected_indices) + len(front) <= target:
+            if len(selected_indices) + len(front) <= reducedPopSize:
                 ### Add the entire front to the selected solutions
 
                 selected_indices.extend(front)
             else:
                 ### Select the best solutions in current front based on crowding distance
                 
-                n_select = target - len(selected_indices)
+                n_select = reducedPopSize - len(selected_indices)
 
                 # Calculate crowding distance for the current front
                 crowding_function = get_crowding_function('cd')
@@ -154,7 +155,28 @@ def runNSGA(
         print(f"Population size: {len(population)}, and {len(newPopulation)} added round {runNr}")
         
         printarray.append((fronts, objectiveSpace, F_selected))
+
+        # Check termination criteria
+        if runNr > 0:
+            # Check if the Pareto front has not changed
+            result = np.isin(previousParetoFront, fronts[0])
+
+            if np.all(result):
+                if terminationCounter < 2:
+                    # pareto front is the same as previous, increase termination counter
+                    terminationCounter += 1
+                elif terminationCounter == 2:
+                    # pareto front has not changed for 2 iterations, stop the algorithm
+                    print(f"Termination criteria met at run {runNr}, break loop with {nRuns - runNr} iterations left")
+                    break
+            else:
+                #if pareto front has changed, reset termination counter
+                terminationCounter = 0
+            
+        previousParetoFront = fronts[0]
+
     #end main loop
+
     print("Fronts:", fronts)
     print("Pareto front indices (fronts[0]):", fronts[0])
     #Here I need a function to choose the best solution from the last population
@@ -167,6 +189,10 @@ def runNSGA(
         raise ValueError("No solutions found")
     elif pareto_front.shape[1] == 1:
         best_F = pareto_front[0]
+    elif pareto_front.shape[1] == 2:
+        # Select the solution with the highest priority and image quality
+        best_F = pareto_front[np.argmax(pareto_front[:, 0])]
+        bestIndex = np.argmax(pareto_front[:, 0])
     else:
         selector = HighTradeoffPoints()
         selected = selector.do(pareto_front, n_points=1)
@@ -179,9 +205,10 @@ def runNSGA(
 popSize = 20
 instances = []
 schedulingParameters = SP(20, 60, 90)
-oh, ttwList = getModelInput(50, 2, 2, 1)
+startTime = "2025-04-01 16:47:49.990785"
+oh, ttwList = getModelInput(50, 2, 2, 1, startTime)
 
-printArray, best_F, bestIndex, population = runNSGA(popSize, 4, ttwList, schedulingParameters, oh)
+printArray, best_F, bestIndex, population = runNSGA(popSize, 2, ttwList, schedulingParameters, oh)
 i = 1
 # for element in printArray:
 #     fronts, objectiveSpace, F_selected = element
@@ -192,5 +219,25 @@ fronts, objectiveSpace, F_selected = printArray[-1]
 print(f"Best solution: {best_F}")
 printObjectiveSpace(fronts, objectiveSpace, F_selected)
 printSchedual(population[bestIndex].schedual)
+
+
+# Save population[bestIndex].schedual to optimizedSchedual.csv
+optimized_schedual_file = "optimizedSchedual.csv"
+with open(optimized_schedual_file, mode='w', newline='') as file:
+    writer = csv.writer(file)
+    writer.writerow(["Task", "Start Time", "End Time"])  # Example header, adjust as needed
+    for row in population[bestIndex].schedual:
+        writer.writerow(row)
+
+print(f"Optimized schedule saved to {optimized_schedual_file}")
+
+# Save fronts, objectiveSpace, and F_selected to finalPopulationData.csv
+final_population_data_file = "finalPopulationData.csv"
+with open(final_population_data_file, mode='w', newline='') as file:
+    writer = csv.writer(file)
+    writer.writerow(["Fronts"])  # Header for fronts
+    for front in fronts:
+        writer.writerow(front)
+
 
  

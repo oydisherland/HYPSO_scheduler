@@ -168,7 +168,7 @@ def createInitialSolution(ttwList: list, schedulingParameters: SP, oh: OH, destr
     # Create the initial solution
     otListEmpty = []
     init_sol = initial_state(otListEmpty, ttwList, schedulingParameters, oh, destructionRate, maxSizeTabooBank)
-
+    
     return init_sol
 
 # Function to run ALNS algorithm

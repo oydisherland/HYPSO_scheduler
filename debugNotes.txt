@@ -1,3 +1,9 @@
 Skips rise when calculating passes
-
 Start time OH: 2025-04-01 16:47:49.990785+00:00 End time OH: 2025-04-03 16:47:49.990785+00:00
+
+Scheduled Marianacost twice at the same time:
+Start time OH: 2025-04-24 17:17:09.875675+00:00 End time OH: 2025-04-26 17:17:09.875675+00:00
+
+
+Ganger jeg har fått feilmelding.
+- Pareto front på to elementer, ville ikke gi meg high trade off punkt

@@ -47,6 +47,11 @@ def getAllTargetPasses(captureTimeSeconds: int, startTimeOH: datetime.datetime, 
         longitude = target[2]
         elevation = target[3]
 
+        # Verify that the target is is not already in list of targets
+        if target[0] in [t[0] for t in allTargetPasses]:
+            print(f"Target id {target[0]} is duplicated in target request list, only first entry is used")
+            continue
+
         # Add the target priority as an element of the target data list
         priotity = len(targets) - index
         target.append(priotity)
@@ -61,41 +66,55 @@ def getAllTargetPasses(captureTimeSeconds: int, startTimeOH: datetime.datetime, 
         #For each target pass, find start time and end time
         startTimes = []
         endTimes = []
-        for i in range(len(passes)):
-            if passes[i][1] == 'rise':
-                startTimes.append(passes[i][0])
-            if passes[i][1] == 'set':
-                endTimes.append(passes[i][0])
+        # for i in range(len(passes)):
+        #     if passes[i][1] == 'rise':
+        #         startTimes.append(passes[i][0])
+        #     if passes[i][1] == 'set':
+        #         endTimes.append(passes[i][0])
 
-        #Remove startTime or endTime if the corresponding pass is not complete
-        startTimes, endTimes, ajustmentNeeded, message = removeSingleTimepassElement(startTimes, endTimes, passes[0][1], passes[-1][1])
-        if ajustmentNeeded != 0:
-            print(message)
+        ## Remove startTime or endTime if the corresponding pass is not complete
+        # startTimes, endTimes, ajustmentNeeded, message = removeSingleTimepassElement(startTimes, endTimes, passes[0][1], passes[-1][1])
+        # if ajustmentNeeded != 0:
+        #     print(message)
+
+        twMaxSeconds = 500
+        for i in range(len(passes)-2):
+            if passes[i][1] == 'rise' and passes[i+1][1] == 'culminate' and passes[i+2][1] == 'set':
+                # The pass i -> i+2 corresponds to a time window
+                
+                time_diff = (passes[i+2][0] - passes[i][0]).total_seconds()
+                if time_diff < captureTimeSeconds or time_diff > twMaxSeconds: 
+                    # Time window too short or too long
+                    continue
+                
+                # Add tw to start and end times
+                startTimes.append(passes[i][0])
+                endTimes.append(passes[i+2][0])
 
         # Check if the time window is too short (not enough time to capture) or too long (likely not belonging to the same pass)
         #One pass typically takes 50-150 seconds, thus bigger time differences than 500 second can be omitted
-        largeTimeDifferenc = []
-        twMaxSeconds = 500
-        for i in range(len(startTimes)):
+        # largeTimeDifferenc = []
+        # twMaxSeconds = 500
+        # for i in range(len(startTimes)):
             
-            try: 
-                time_diff = (endTimes[i] - startTimes[i]).total_seconds()
-                if time_diff < captureTimeSeconds and time_diff > twMaxSeconds: 
-                    # TW too short or too long
-                    startTimes.pop(i)
-                    endTimes.pop(i)
+        #     try: 
+        #         time_diff = (endTimes[i] - startTimes[i]).total_seconds()
+        #         if time_diff < captureTimeSeconds and time_diff > twMaxSeconds: 
+        #             # TW too short or too long
+        #             startTimes.pop(i)
+        #             endTimes.pop(i)
 
-                if time_diff > twMaxSeconds:
-                    # TW too long
-                    largeTimeDifferenc.append((startTimes[i], endTimes[i], target[0]))
+        #         if time_diff > twMaxSeconds:
+        #             # TW too long
+        #             largeTimeDifferenc.append((startTimes[i], endTimes[i], target[0]))
 
-            except IndexError as e:
-                print(f"IndexError: {e}")
-                break    
+        #     except IndexError as e:
+        #         print(f"IndexError: {e}")
+        #         break    
 
-        if len(largeTimeDifferenc) > 0:
-            for instance in largeTimeDifferenc:
-                print("Time differences that are too long: ", instance)
+        # if len(largeTimeDifferenc) > 0:
+        #     for instance in largeTimeDifferenc:
+        #         print("Time differences that are too long: ", instance)
 
         # Check that number of start times is equal number of end times
         if len(startTimes) != len(endTimes):
@@ -104,7 +123,7 @@ def getAllTargetPasses(captureTimeSeconds: int, startTimeOH: datetime.datetime, 
                 print(p)
             raise ValueError("The length of start times and end times are not equal")
         
-        # Skip iteration if the pass was removed
+        # Skip if no tw correspond to target, go next target
         if len(startTimes) == 0:
             continue
 
@@ -151,7 +170,7 @@ def removeCloudObscuredTargets(allTargetPasses: list, startTimeOH: int, endTimeO
     return targetPassesWithoutClouds
 
 
-def getModelInput( captureTime: int, ohDurationInDays: int, ohDelayInHours: int, hypsoNr: int):
+def getModelInput( captureTime: int, ohDurationInDays: int, ohDelayInHours: int, hypsoNr: int, defineStartTime= 'now'):
     """ Put the targetpasses-data into objects defined in scheduling_model.py
     Output:
     - oh: OH object
@@ -159,7 +178,10 @@ def getModelInput( captureTime: int, ohDurationInDays: int, ohDelayInHours: int,
     """
 
     #Define the OH - Optimalization Horizon
-    startTimeOH = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=ohDelayInHours)
+    if defineStartTime == 'now':
+        startTimeOH = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=ohDelayInHours)
+    else:
+        startTimeOH = datetime.datetime.strptime(defineStartTime, '%Y-%m-%d %H:%M:%S.%f').replace(tzinfo=datetime.timezone.utc)
     endTimeOH = startTimeOH + datetime.timedelta(days=ohDurationInDays)
     print("Start time OH:", startTimeOH, "End time OH:", endTimeOH)
     # Path to the file containing the ground targets data
@@ -168,6 +190,7 @@ def getModelInput( captureTime: int, ohDurationInDays: int, ohDelayInHours: int,
     # Get the target passes
     allTargetPasses = getAllTargetPasses(captureTime, startTimeOH, endTimeOH, targetsFilePath, hypsoNr)
     
+
     # Remove targets that are obscured by clouds
     #cloudlessTargetpasses = removeCloudObscuredTargets(allTargetPasses, startTimeOH, endTimeOH)
     cloudlessTargetpasses = allTargetPasses

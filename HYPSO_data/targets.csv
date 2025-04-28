@@ -1,5 +1,4 @@
 #Targets are defined as: Name;Latitude;Longitude;MinElevation;MaxCloudCover;exposure;capture_mode night_imaging. The higher the number; the higher the priority. Default capture mode; valid_until (iso-format)
-mauritaniacoast;17.300000;-16.785000;40;30;35;wide;0;2025-03-18T23:59:59Z
 menindee;-32.34;142.3;40;90;15;wide;0;
 malpasdam;-30.27913157644037;151.7385707620185;40;40;15;wide;0;
 wavescisbridge;30.195822776461537;-90.12332011505328;88;5;30;wide;0;
