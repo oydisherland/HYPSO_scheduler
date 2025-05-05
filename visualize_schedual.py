@@ -1,10 +1,10 @@
-from ALNS_algorithm import runALNS, createInitialSolution
-from get_target_passes import getModelInput
+import numpy as np
 from scheduling_model import SP, OH
 import matplotlib.pyplot as plt
+from pymoo.visualization.scatter import Scatter
 
 
-def printSchedual(schedual):
+def createPlotSchedual(schedual, filename, showPlot):
 
     # Extract data for plotting
     x_values = [ot.start for ot in schedual]
@@ -26,20 +26,57 @@ def printSchedual(schedual):
     plt.legend()
     plt.grid(True)
     plt.yticks([])
-    plt.show()
+    plt.savefig(filename, format='pdf', dpi=300) 
+    if showPlot:
+        plt.show()
+    plt.close()
 
+def createPlotObjectiveSpace(fronts, objectiveSpace, F_selected, filename, showPlot):
 
-# schedulingParameters = SP(20, 60, 90)
-# oh, ttwList = getModelInput(50, 2, 2, 1)
-# print(f"numbers of targets to choose from {len(ttwList)}")
+    pareto_front_indices = fronts[0]
 
-# init_sol = createInitialSolution(ttwList, schedulingParameters, oh, destructionRate=0.3, maxSizeTabooBank=20)
+    # Ensure pareto_front_indices is a valid index
+    pareto_front_indices = np.array(pareto_front_indices, dtype=int).flatten()
+    # Ensure objectiveSpace is a NumPy array
+    objectiveSpace = np.array(objectiveSpace)
 
-# result, init_sol = runALNS(init_sol.otList, init_sol.ttwList, schedulingParameters, oh, destructionRate = 0.3, maxSizeTabooBank = 20)
+    pareto_front = objectiveSpace[pareto_front_indices]
+    F_selected = np.array(F_selected)
 
-# best = result.best_state
-# print(f"Best heuristic solution objective is {best.maxObjective[0]} and {best.maxObjective[1]}.")
+    plot = Scatter(title="Pareto Front")
+    plot.add(objectiveSpace, color="blue")
+    plot.add(pareto_front, facecolor="green")
+    plot.add(F_selected, facecolor="none", edgecolor="red")
+    plot.save(filename, format='pdf', dpi=300) 
+    if showPlot:
+        print("Displaying plot...")
+        plot.show()
+    plt.close()
+    
 
-# schedual = best.otList
-# printSchedual(init_sol.otList)
-# printSchedual(schedual)
+def createPlotKneePointHistogram(bestObjectivesHistory, filename, showPlot):
+    # Create a histogram of the best solution objective values
+    x_values = [obj[0] for obj in bestObjectivesHistory]
+    y_values = [obj[1] for obj in bestObjectivesHistory]
+    plt.figure(figsize=(10, 6))
+    plt.scatter(x_values, y_values, c='blue', label='Observation Tasks')
+
+    similarIndices = []
+    for i in range(len(bestObjectivesHistory)):
+        if i != len(bestObjectivesHistory)-1:
+            if x_values[i] == x_values[i+1] and y_values[i] == y_values[i+1]:
+                similarIndices.append(i)
+                continue
+        if similarIndices != []:
+            text = f"{similarIndices[0]} to {i}"
+        else:
+            text = f"{i}"
+        plt.annotate(text, (x_values[i], y_values[i]), textcoords="offset points", xytext=(0, 10), ha='center')
+        similarIndices.clear()
+
+    plt.xlabel('Priority')
+    plt.ylabel('Image Quality')
+    plt.savefig(filename, format='pdf', dpi=300) 
+    if showPlot:
+        plt.show()
+    plt.close()

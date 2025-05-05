@@ -5,28 +5,7 @@ from extract_cloud_data import getCloudData
 from satellite_positioning_calculations import findSatelliteTargetPasses
 from scheduling_model import OH, GT, TW, TTW
 
-
-
-def removeSingleTimepassElement(startTimes: list, endTimes: list, firstType: str, lastType: str):       
-    """ Makes sure that the indexing of startTime and endTime list correspond to the same time window """
-
-    adjustmentString = [
-        "No adjustment needed", # adjustmentNr = 0
-        "Last element of startTimes and first element of endTimes are removed", # adjustmentNr = 1
-        "First element of endTimes is removed", # adjustmentNr = 2
-        "Last element of startTimes is removed" # adjustmentNr = -1
-    ]
-    ajustmentNr = 0
-
-    if lastType == 'rise' or lastType == 'culminate':
-        startTimes.pop(-1)
-        ajustmentNr = -1
-    if firstType == 'set' or firstType == 'culminate':
-        endTimes.pop(0)
-        ajustmentNr = ajustmentNr + 2 
-    
-    return startTimes, endTimes, ajustmentNr, adjustmentString[ajustmentNr]
-        
+   
 
 def getAllTargetPasses(captureTimeSeconds: int, startTimeOH: datetime.datetime, endTimeOH: datetime.datetime, targetsFilePath: str, hypsoNr: int) -> list:# captureTimeSeconds: int, timewindow: int, startTimeDelay: int, targetsFilePath: str, hypsoNr: int) -> list:
     """ Get the timewindows for each time the satellte passes the targets
@@ -63,20 +42,9 @@ def getAllTargetPasses(captureTimeSeconds: int, startTimeOH: datetime.datetime, 
         if not passes:
             continue
 
-        #For each target pass, find start time and end time
+        #For each target pass, find start time and end time of the time window
         startTimes = []
         endTimes = []
-        # for i in range(len(passes)):
-        #     if passes[i][1] == 'rise':
-        #         startTimes.append(passes[i][0])
-        #     if passes[i][1] == 'set':
-        #         endTimes.append(passes[i][0])
-
-        ## Remove startTime or endTime if the corresponding pass is not complete
-        # startTimes, endTimes, ajustmentNeeded, message = removeSingleTimepassElement(startTimes, endTimes, passes[0][1], passes[-1][1])
-        # if ajustmentNeeded != 0:
-        #     print(message)
-
         twMaxSeconds = 500
         for i in range(len(passes)-2):
             if passes[i][1] == 'rise' and passes[i+1][1] == 'culminate' and passes[i+2][1] == 'set':
@@ -91,31 +59,7 @@ def getAllTargetPasses(captureTimeSeconds: int, startTimeOH: datetime.datetime, 
                 startTimes.append(passes[i][0])
                 endTimes.append(passes[i+2][0])
 
-        # Check if the time window is too short (not enough time to capture) or too long (likely not belonging to the same pass)
-        #One pass typically takes 50-150 seconds, thus bigger time differences than 500 second can be omitted
-        # largeTimeDifferenc = []
-        # twMaxSeconds = 500
-        # for i in range(len(startTimes)):
-            
-        #     try: 
-        #         time_diff = (endTimes[i] - startTimes[i]).total_seconds()
-        #         if time_diff < captureTimeSeconds and time_diff > twMaxSeconds: 
-        #             # TW too short or too long
-        #             startTimes.pop(i)
-        #             endTimes.pop(i)
-
-        #         if time_diff > twMaxSeconds:
-        #             # TW too long
-        #             largeTimeDifferenc.append((startTimes[i], endTimes[i], target[0]))
-
-        #     except IndexError as e:
-        #         print(f"IndexError: {e}")
-        #         break    
-
-        # if len(largeTimeDifferenc) > 0:
-        #     for instance in largeTimeDifferenc:
-        #         print("Time differences that are too long: ", instance)
-
+    
         # Check that number of start times is equal number of end times
         if len(startTimes) != len(endTimes):
             print(f"len passes: {len(passes)}, firstpass: {passes[0][1]}, lastpass: {passes[-1][1]}, len startTimes: {len(startTimes)}, len endTimes: {len(endTimes)}")
