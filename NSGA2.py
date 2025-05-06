@@ -66,6 +66,7 @@ def runNSGA(
     previousParetoFront = []
     terminationCounter = 0
 
+    print(f"NSGA2 main loop using total of {nRuns} runs: ", end='', flush=True)
     ##### Main loop in the NSGA2 algorithm
     for runNr in range(nRuns):
         #### Creating offsprings using ALNS
@@ -93,7 +94,6 @@ def runNSGA(
             schedual = best.otList
 
             population.append(INSTANCE(len(population) + 1 , best.maxObjective, schedual))
-            print("created instance", i)
 
 
         #### Selection using non dominated sorting and crowding distance
@@ -154,7 +154,7 @@ def runNSGA(
         population = newPopulation
 
         #### Printing results: 
-        print(f"Population size: {len(population)}, and {len(newPopulation)} added round {runNr}")
+        print(f"{runNr + 1} | ", end='', flush=True)
         printarray.append((fronts, objectiveSpace, selectedObjectiveVals))
 
         #### Check termination criteria
@@ -183,8 +183,6 @@ def runNSGA(
 
     ##### end main loop
 
-    print("Fronts:", fronts)
-    print("Pareto front indices (fronts[0]):", fronts[0])
     bestSolution, bestIndex = findKneePoint(fronts, objectiveSpace)
 
     return printarray, bestSolution, bestIndex, population

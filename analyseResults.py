@@ -178,8 +178,8 @@ def plotParetoFrontEvolution(paretoFrontEvolution, testnr: str, plotname: str, s
         plt.show()
     plt.close()
 
-schedualedTargetsHistogram("1", 10, True, False)
-objectiveSpaceHistogram("1", 10, True, False)
+schedualedTargetsHistogram("3", 10, True, False)
+objectiveSpaceHistogram("3", 10, True, False)
 
 
 

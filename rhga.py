@@ -4,7 +4,7 @@ from collections import Counter
 import random
 
 
-def RHGA(ttwList: list, otList: list, unfeasibleTargetsIdList: list, schedulingParameters: SP, oh: OH, randomtwDistrobution = True):
+def RHGA(ttwList: list, otList: list, unfeasibleTargetsIdList: list, schedulingParameters: SP, oh: OH, greedyMode: bool, randomtwDistrobution = True):
     """
     Random Heuristic Greedy Algorithm:
     1. Encode GT and TW data
@@ -32,7 +32,12 @@ def RHGA(ttwList: list, otList: list, unfeasibleTargetsIdList: list, schedulingP
         for tw in ttw.TWs:   
             newObeservationStart = tw.start
             
-            if randomtwDistrobution:
+
+            if greedyMode:
+                # select start time when image quality is highest
+                newObeservationStart = tw.start + (tw.end - tw.start) / 2 - schedulingParameters.captureDuration / 2
+                
+            elif randomtwDistrobution:
                 # Randomly select a time within the time window
                 newObeservationStart = random.uniform(tw.start, tw.end - bufferTime)
 

@@ -4,12 +4,13 @@ from enum import Enum
 from rhga import RHGA
 from get_target_passes import getModelInput
 from scheduling_model import OH,SP, OT
-
+from objective_functions import objectiveFunctionImageQuality
 
 class DestroyType(Enum):
     RANDOM = 0
-    GREEDY = 1
-    CONGESTION = 2
+    GREEDY_P = 1
+    GREEDY_IQ = 2
+    CONGESTION = 3
 
 class RepairType(Enum):
     RANDOM = 0
@@ -31,7 +32,7 @@ def randomSort(ttwListOriginal: list):
     return ttwListSorted
 
 """ Sort target list so hight priority gt are first"""
-def greedySort(ttwListOriginal: list):
+def greedyPrioritySort(ttwListOriginal: list):
     ttwList = ttwListOriginal.copy()
     ttwListSorted = []
 
@@ -45,6 +46,21 @@ def greedySort(ttwListOriginal: list):
                 maxIndex = j
         ttwListSorted.append(ttwList.pop(maxIndex))
     return ttwListSorted
+
+def greedyImageQualitySort(otListOriginal: list, oh: OH):
+    otList = otListOriginal.copy()
+    otListSorted = []
+
+    while otList:
+        maxImageQuality = 0
+        maxIndex = 0
+        for j in range(len(otList)):
+            imageQuality = objectiveFunctionImageQuality([otList[j]], oh)
+            if imageQuality > maxImageQuality:
+                maxImageQuality = imageQuality
+                maxIndex = j
+        otListSorted.append(otList.pop(maxIndex))
+    return otListSorted
 
 """ Sort target list so gt with small tw are first"""
 def smallTWSort(ttwListOriginal: list):
@@ -103,11 +119,12 @@ def congestionSort(ttwListOriginal: list):
 
 #### Destroy operator
 
-def destroyOperator(otList: list, ttwList: list, destroyNumber: int, destroyType: DestroyType):
+def destroyOperator(otList: list, ttwList: list, destroyNumber: int, destroyType: DestroyType, oh: OH):
     """
     destroyType:
     - random
-    - greedy   
+    - greedy_priority
+    - greedy_imageQuality   
     - congestion
     """
     removedTargetsIdList = []
@@ -122,8 +139,10 @@ def destroyOperator(otList: list, ttwList: list, destroyNumber: int, destroyType
     #Sort list based on destroyType
     if destroyType == DestroyType.RANDOM:
         otListsorted = randomSort(otList)
-    elif destroyType == DestroyType.GREEDY:
-        otListsorted = greedySort(otList)
+    elif destroyType == DestroyType.GREEDY_P:
+        otListsorted = greedyPrioritySort(otList)
+    elif destroyType == DestroyType.GREEDY_IQ:
+        otListsorted = greedyImageQualitySort(otList, oh)
     elif destroyType == DestroyType.CONGESTION:
         ttwListSorted = congestionSort(ttwList)
         otListsorted = []
@@ -152,12 +171,16 @@ def repairOperator(ttwList: list, otList: list, unfeasibleTargetsIdList: list, r
     - congestion
     """
     ttwListSorted =  []
+    greedyMode = False
+    randomMode = True
 
     #Sort list based on repairType
     if repairType == RepairType.RANDOM:
         ttwListSorted = randomSort(ttwList)
+        randomMode = True
     elif repairType == RepairType.GREEDY:
-        ttwListSorted = greedySort(ttwList)
+        ttwListSorted = greedyPrioritySort(ttwList)
+        greedyMode = False
     elif repairType == RepairType.SMALL_TW:
         ttwListSorted = smallTWSort(ttwList)
     elif repairType == RepairType.CONGESTION:
@@ -167,7 +190,7 @@ def repairOperator(ttwList: list, otList: list, unfeasibleTargetsIdList: list, r
         return 0
     
     #Find an observation task schedule
-    otListRepared, objectiveValuesList = RHGA(ttwListSorted, otList, unfeasibleTargetsIdList, schedulingParameters, oh)
+    otListRepared, objectiveValuesList = RHGA(ttwListSorted, otList, unfeasibleTargetsIdList, schedulingParameters, oh, greedyMode, randomMode)
 
     return ttwListSorted, otListRepared, objectiveValuesList
 
@@ -179,9 +202,9 @@ def repairOperator(ttwList: list, otList: list, unfeasibleTargetsIdList: list, r
 # ttwList, otList, objectiveVals = repairOperator(ttwList, otList, [], RepairType.RANDOM, sp, oh)
 # print(objectiveVals)
  
-# otList, unfesaibleTargs = destroyOperator(otList, ttwList, 7, DestroyType.CONGESTION)
+# otList, unfesaibleTargs = destroyOperator(otList, ttwList, 7, DestroyType.GREEDY_IQ, oh)
 # print(len(otList))
 
-# ttwList, otList, objectiveVals = repairOperator(ttwList, otList, unfesaibleTargs, RepairType.CONGESTION, sp, oh)
+# ttwList, otList, objectiveVals = repairOperator(ttwList, otList, unfesaibleTargs, RepairType.GREEDY, sp, oh)
 # print(objectiveVals)
 # print(len(otList))

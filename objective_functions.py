@@ -16,7 +16,7 @@ def objectiveFunctionPriority(otList: list):
 def objectiveFunctionImageQuality(otList:list, oh: OH) -> int:
     """ Objective function representing the angle between satellite and target when capturing 
     Output: 
-    - Image quality score (0 = min, 100 = max)
+    - Image quality score (0 = min, 90 = max)
     """
     elevationAverage = 0
     maxElivation = 90

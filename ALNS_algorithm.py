@@ -60,13 +60,14 @@ def destroyRandom(current: ProblemState, rng: rnd.Generator) -> ProblemState:
         destroyed.otList, 
         destroyed.ttwList,
         destructionNumber, 
-        DestroyType.RANDOM)
+        DestroyType.RANDOM,
+        destroyed.oh)
     
     destroyed.tabooBank.extend(removedTargetsIdList)
     return destroyed
 
 
-def destroyGreedy(current: ProblemState, rng: rnd.Generator) -> ProblemState:
+def destroyGreedyPriority(current: ProblemState, rng: rnd.Generator) -> ProblemState:
     # Make sure to (deep)copy the current state before modifying!
     destructionNumber = 1 if current.maxSizeTabooBank > len(current.tabooBank) else 0
     destroyed = copy.deepcopy(current)
@@ -74,7 +75,22 @@ def destroyGreedy(current: ProblemState, rng: rnd.Generator) -> ProblemState:
         destroyed.otList, 
         destroyed.ttwList,
         destructionNumber, 
-        DestroyType.GREEDY)
+        DestroyType.GREEDY_P,
+        destroyed.oh)
+    
+    destroyed.tabooBank.extend(removedTargetsIdList)
+    return destroyed
+
+def destroyGreedyImageQuality(current: ProblemState, rng: rnd.Generator) -> ProblemState:
+    # Make sure to (deep)copy the current state before modifying!
+    destructionNumber = 1 if current.maxSizeTabooBank > len(current.tabooBank) else 0
+    destroyed = copy.deepcopy(current)
+    destroyed.otList, removedTargetsIdList = destroyOperator(
+        destroyed.otList, 
+        destroyed.ttwList,
+        destructionNumber, 
+        DestroyType.GREEDY_IQ,
+        destroyed.oh)
     
     destroyed.tabooBank.extend(removedTargetsIdList)
     return destroyed
@@ -87,7 +103,8 @@ def destroyCongestion(current: ProblemState, rng: rnd.Generator) -> ProblemState
         current.otList, 
         current.ttwList,
         destructionNumber, 
-        DestroyType.CONGESTION)
+        DestroyType.CONGESTION,
+        destroyed.oh)
     
     destroyed.tabooBank.extend(removedTargetsIdList)
     return destroyed
@@ -181,7 +198,8 @@ def runALNS( inital_otList: list, initial_ttwList: list, schedulingParameters: S
     # Create ALNS and add one or more destroy and repair operators
     alns = ALNS.ALNS() # ALNS() # Initialize without a random seed
     alns.add_destroy_operator(destroyRandom)
-    alns.add_destroy_operator(destroyGreedy)
+    alns.add_destroy_operator(destroyGreedyPriority)
+    # alns.add_destroy_operator(destroyGreedyImageQuality)
     alns.add_destroy_operator(destroyCongestion)
     alns.add_repair_operator(repairRandom)
     alns.add_repair_operator(repairGreedy)

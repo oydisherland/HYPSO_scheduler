@@ -14,11 +14,11 @@ def runAlgFormatResults(testName: str,
                         oh: OH,
                         destructionRate: float,
                         maxSizeTabooBank: int,
-                        printResults = True, 
-                        saveToFile = True,
-                        nRuns: int=3,
-                        popSize: int=20,
-                        schedulingParameters: SP = SP(20, 60, 90), 
+                        printResults, 
+                        saveToFile,
+                        nRuns: int,
+                        popSize: int,
+                        schedulingParameters: SP, 
                         ohDurationInDays: int = 2, 
                         ohDelayInHours: int = 2,
                         hypsoNr: int = 1):
@@ -217,17 +217,17 @@ ohDurationInDays, ohDelayInHours, hypsoNr = 2, 2, 1
 oh, ttwList = getModelInput(schedulingParameters.captureDuration, ohDurationInDays, ohDelayInHours, hypsoNr, startTime)
 
 #### RUN THE TEST ####
-#Variables that change during different tests
+# Variables that change during different tests
 popSize = 20
 nsgaRunds = 40
 desRate = 0.4
-maxTabBank = 15
+maxTabBank = 30
 
 RepetedRuns = 10
 
 for i in range(RepetedRuns):
     runAlgFormatResults(
-        testName = f"test2-run{i}",
+        testName = f"test5-run{i}",
         ttwList = ttwList,
         oh = oh,
         destructionRate = desRate, 
@@ -235,10 +235,12 @@ for i in range(RepetedRuns):
         printResults = False, 
         saveToFile = True,
         nRuns = nsgaRunds,
-        popSize = popSize
+        popSize = popSize, 
+        schedulingParameters = schedulingParameters
     )
+    print(f"Test {i}/{RepetedRuns} finished")
 
-
+ 
 # evaluateAlgorithmData("test1")
 # evaluateSchedualsFinalPop("test1")
 # evaluateBestSchedual("test1")
