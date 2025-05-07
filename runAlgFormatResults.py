@@ -1,16 +1,15 @@
 import csv
 import numpy as np
-import ast
 import json
 import time
 
 from NSGA2 import runNSGA, findKneePoint
-from get_target_passes import getModelInput
 from scheduling_model import SP, OH, OT, GT
-from visualize_schedual import createPlotSchedual, createPlotObjectiveSpace, createPlotKneePointHistogram
+from visualize_schedual import createPlotSchedual, createPlotObjectiveSpace, createPlotKneePointHistogram 
+from analyseResults import createPlotKneePointHistogram
 
 def runAlgFormatResults(testName: str,
-                        testNr: int,
+                        testNumber: int,
                         ttwList: list,
                         oh: OH,
                         destructionRate: float,
@@ -206,49 +205,6 @@ def evaluateBestSchedual( schedual_filename: str):
         schedual.append(scheduledOT)
 
     return schedual
-
-
-
-#Variables that say fixed during all tests
-schedulingParameters = SP(40, 60, 90)
-startTime = "2025-04-01 16:47:49.990785"
-ohDurationInDays, ohDelayInHours, hypsoNr = 2, 2, 1
-
-
-# oh, ttwList = getModelInput(schedulingParameters.captureDuration, ohDurationInDays, ohDelayInHours, hypsoNr, startTime)
-
-# #### RUN THE TEST ####
-# # Variables that change during different tests
-# testNumber = 7
-# maxTabBank = 30
-# desRate = 0.4
-# popSize = 20
-# nsgaRunds = 40
-# RepetedRuns = 10
-
-
-
-# for i in range(RepetedRuns):
-#     runAlgFormatResults(
-#         testName = f"test{testNumber}-run{i}",
-#         testNr = testNumber,
-#         ttwList = ttwList,
-#         oh = oh,
-#         destructionRate = desRate, 
-#         maxSizeTabooBank = maxTabBank,
-#         printResults = False, 
-#         saveToFile = True,
-#         nRuns = nsgaRunds,
-#         popSize = popSize, 
-#         schedulingParameters = schedulingParameters
-#     )
-#     print(f"Test {i}/{RepetedRuns} finished")
-
- 
-# evaluateAlgorithmData("test1")
-# evaluateSchedualsFinalPop("test1")
-# evaluateBestSchedual("test1")
-
 
 
 """

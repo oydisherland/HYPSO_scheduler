@@ -1,6 +1,6 @@
-from runAlgFormatResults import evaluateAlgorithmData
-from runAlgFormatResults import evaluateBestSchedual
-from runAlgFormatResults import evaluateSchedualsFinalPop
+from runAlgFormatResults import evaluateAlgorithmData, evaluateBestSchedual, runAlgFormatResults 
+from get_target_passes import getModelInput
+from scheduling_model import SP
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -178,10 +178,43 @@ def plotParetoFrontEvolution(paretoFrontEvolution, testnr: str, plotname: str, s
         plt.show()
     plt.close()
 
+
+
+
+#Variables that say fixed during all tests
+schedulingParameters = SP(40, 60, 90)
+startTime = "2025-04-01 16:47:49.990785"
+ohDurationInDays, ohDelayInHours, hypsoNr = 2, 2, 1
+
+
+oh, ttwList = getModelInput(schedulingParameters.captureDuration, ohDurationInDays, ohDelayInHours, hypsoNr, startTime)
+
+#### RUN THE TEST ####
+# Variables that change during different tests
 testNumber = 7
+maxTabBank = 30
+desRate = 0.4
+popSize = 20
+nsgaRunds = 40
+RepetedRuns = 10
 
-schedualedTargetsHistogram(testNumber, 10, True, False)
-objectiveSpaceHistogram(testNumber, 10, True, False)
 
 
+for i in range(RepetedRuns):
+    runAlgFormatResults(
+        testName = f"test{testNumber}-run{i}",
+        testNumber = testNumber,
+        ttwList = ttwList,
+        oh = oh,
+        destructionRate = desRate, 
+        maxSizeTabooBank = maxTabBank,
+        printResults = False, 
+        saveToFile = True,
+        nRuns = nsgaRunds,
+        popSize = popSize, 
+        schedulingParameters = schedulingParameters
+    )
+    print(f"Test {i+1}/{RepetedRuns} finished")
 
+schedualedTargetsHistogram(testNumber, RepetedRuns, True, False)
+objectiveSpaceHistogram(testNumber, RepetedRuns, True, False)
