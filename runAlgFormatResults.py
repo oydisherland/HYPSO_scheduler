@@ -10,6 +10,7 @@ from scheduling_model import SP, OH, OT, GT
 from visualize_schedual import createPlotSchedual, createPlotObjectiveSpace, createPlotKneePointHistogram
 
 def runAlgFormatResults(testName: str,
+                        testNr: int,
                         ttwList: list,
                         oh: OH,
                         destructionRate: float,
@@ -42,15 +43,15 @@ def runAlgFormatResults(testName: str,
     print(f"Best solution: {bestSolution}")
 
     ### Create plots and save to file
-    plotObjectiveSpace_filename = f"results/plots/OS_{testName}.pdf"
+    plotObjectiveSpace_filename = f"results/test{testNumber}/plots/OS_{testName}.pdf"
     createPlotObjectiveSpace(fronts, objectiveSpace, selectedObjectiveVals, plotObjectiveSpace_filename, printResults)
-    plotSchedual_filename = f"results/plots/S_{testName}.pdf"
+    plotSchedual_filename = f"results/test{testNumber}/plots/S_{testName}.pdf"
     try:
         createPlotSchedual(population[bestIndex].schedual, plotSchedual_filename, printResults)
     except IndexError:
         print(f"BestIndex = {bestIndex} is out of range for population of size {len(population)}")
 
-    plotKneePoints_filename = f"results/plots/KP_{testName}.pdf"
+    plotKneePoints_filename = f"results/test{testNumber}/plots/KP_{testName}.pdf"
     createPlotKneePointHistogram(kneePoints, plotKneePoints_filename, printResults)
 
     
@@ -59,7 +60,7 @@ def runAlgFormatResults(testName: str,
         return
     
     # Save parameter data from the run to csv file
-    testData_filename = f"results/testData/TD_{testName}.csv"
+    testData_filename = f"results/test{testNumber}/testData/TD_{testName}.csv"
     with open(testData_filename, mode='w', newline='') as file:
         writer = csv.writer(file)
         writer.writerow(["Observation Horizon (start/end): ", oh.utcStart, oh.utcEnd])
@@ -92,12 +93,12 @@ def runAlgFormatResults(testName: str,
             })
         serializable_schedualsFinalPop.append(serializable_induvidual)
 
-    schedualsFinalPop_filename = f"results/schedual/SFP_{testName}.json"
+    schedualsFinalPop_filename = f"results/test{testNumber}/schedual/SFP_{testName}.json"
     with open(schedualsFinalPop_filename, mode='w') as file:
         json.dump(serializable_schedualsFinalPop, file, indent=4)
 
     ### Save best schedual to json file
-    bestSchedual_filename = f"results/schedual/BS_{testName}.json"
+    bestSchedual_filename = f"results/test{testNumber}/schedual/BS_{testName}.json"
     serializable_schedual = [
         {"Ground Target": row[0], "Start Time": row[1], "End Time": row[2]} for row in population[bestIndex].schedual
     ]
@@ -106,7 +107,7 @@ def runAlgFormatResults(testName: str,
         json.dump(serializable_schedual, file, indent=4)
 
     ### Save fronts, objectiveSpace, and selectedIbjectiveVals and kneepoint to json file
-    json_filename = f"results/algorithmData/AD_{testName}.json"
+    json_filename = f"results/test{testNumber}/algorithmData/AD_{testName}.json"
     serializable_printArray = []
     for i in range(len(printArray)):
         fronts, objectiveSpace, selectedObjectiveVals = printArray[i]
@@ -214,31 +215,34 @@ startTime = "2025-04-01 16:47:49.990785"
 ohDurationInDays, ohDelayInHours, hypsoNr = 2, 2, 1
 
 
-oh, ttwList = getModelInput(schedulingParameters.captureDuration, ohDurationInDays, ohDelayInHours, hypsoNr, startTime)
+# oh, ttwList = getModelInput(schedulingParameters.captureDuration, ohDurationInDays, ohDelayInHours, hypsoNr, startTime)
 
-#### RUN THE TEST ####
-# Variables that change during different tests
-popSize = 20
-nsgaRunds = 40
-desRate = 0.4
-maxTabBank = 30
+# #### RUN THE TEST ####
+# # Variables that change during different tests
+# testNumber = 7
+# maxTabBank = 30
+# desRate = 0.4
+# popSize = 20
+# nsgaRunds = 40
+# RepetedRuns = 10
 
-RepetedRuns = 10
 
-for i in range(RepetedRuns):
-    runAlgFormatResults(
-        testName = f"test5-run{i}",
-        ttwList = ttwList,
-        oh = oh,
-        destructionRate = desRate, 
-        maxSizeTabooBank = maxTabBank,
-        printResults = False, 
-        saveToFile = True,
-        nRuns = nsgaRunds,
-        popSize = popSize, 
-        schedulingParameters = schedulingParameters
-    )
-    print(f"Test {i}/{RepetedRuns} finished")
+
+# for i in range(RepetedRuns):
+#     runAlgFormatResults(
+#         testName = f"test{testNumber}-run{i}",
+#         testNr = testNumber,
+#         ttwList = ttwList,
+#         oh = oh,
+#         destructionRate = desRate, 
+#         maxSizeTabooBank = maxTabBank,
+#         printResults = False, 
+#         saveToFile = True,
+#         nRuns = nsgaRunds,
+#         popSize = popSize, 
+#         schedulingParameters = schedulingParameters
+#     )
+#     print(f"Test {i}/{RepetedRuns} finished")
 
  
 # evaluateAlgorithmData("test1")

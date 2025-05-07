@@ -13,7 +13,7 @@ def schedualedTargetsHistogram(testnr: str, repeatedRuns: int, savetoFile: bool,
     ## Extract all scheduals from the seperate runs
     scheduals = []
     for i in range(repeatedRuns):
-        filename_BS = f"results/schedual/BS_test{testnr}-run{i}.json"
+        filename_BS = f"results/test{testnr}/schedual/BS_test{testnr}-run{i}.json"
         scheduals.append(evaluateBestSchedual(filename_BS))
 
 
@@ -42,7 +42,7 @@ def schedualedTargetsHistogram(testnr: str, repeatedRuns: int, savetoFile: bool,
     plt.xticks(rotation=45, ha='right')
     plt.tight_layout()  
     if savetoFile:
-        plt.savefig(f"results/plots/test{testnr}/analyse/schedualedTargetsHistogram.pdf", format='pdf', dpi=300) 
+        plt.savefig(f"results/test{testnr}/plots/analyse/schedualedTargetsHistogram.pdf", format='pdf', dpi=300) 
     if printPlot:
         plt.show()
     plt.close()
@@ -59,7 +59,7 @@ def objectiveSpaceHistogram(testnr: str, repeatedRuns: int, savetoFile: bool, pr
     for runNr in range(repeatedRuns):
         paretoFrontEvolution = []
         changesInParetoFront = []
-        filename_AD = f"results/algorithmData/AD_test{testnr}-run{runNr}.json"
+        filename_AD = f"results/test{testnr}/algorithmData/AD_test{testnr}-run{runNr}.json"
         algData = evaluateAlgorithmData(filename_AD)
 
         ### Evaluate the evolution of the pareto front
@@ -109,7 +109,7 @@ def plotKneePoints(kneePoints, testnr: str, savetoFile: bool, printPlot: bool):
     # Save or display the plot
     plt.tight_layout()
     if savetoFile:
-        plt.savefig(f"results/plots/test{testnr}/analyse/kneePoints.pdf", format='pdf', dpi=300)
+        plt.savefig(f"results/test{testnr}/plots/analyse/kneePoints.pdf", format='pdf', dpi=300)
     if printPlot:
         plt.show()
     plt.close()
@@ -138,7 +138,7 @@ def plotChangesInParetoFront(changesInParetoFront, testnr: str, plotname: str, s
     plt.tight_layout()
     
     if savetoFile:
-        plt.savefig(f"results/plots/test{testnr}/analyse/changesInParetoFront_{plotname}.pdf", format='pdf', dpi=300) 
+        plt.savefig(f"results/test{testnr}/plots/analyse/changesInParetoFront_{plotname}.pdf", format='pdf', dpi=300) 
     if printPlot:
         plt.show()
 
@@ -173,13 +173,15 @@ def plotParetoFrontEvolution(paretoFrontEvolution, testnr: str, plotname: str, s
     plt.grid(True)
     plt.tight_layout()
     if savetoFile:
-        plt.savefig(f"results/plots/test{testnr}/analyse/paretofrontEvolution_{plotname}.pdf", format='pdf', dpi=300) 
+        plt.savefig(f"results/test{testnr}/plots/analyse/paretofrontEvolution_{plotname}.pdf", format='pdf', dpi=300) 
     if printPlot:
         plt.show()
     plt.close()
 
-schedualedTargetsHistogram("3", 10, True, False)
-objectiveSpaceHistogram("3", 10, True, False)
+testNumber = 7
+
+schedualedTargetsHistogram(testNumber, 10, True, False)
+objectiveSpaceHistogram(testNumber, 10, True, False)
 
 
 
