@@ -384,12 +384,12 @@ oh, ttwList = getModelInput(schedulingParameters.captureDuration, ohDurationInDa
 
 #### RUN THE TEST ####
 # Variables that change during different tests
-testNumber = 222
-maxTabBank = 30
-desRate = 0.4
+testNumber = 22
+maxTabBank = 50
+desRate = 0.6
 popSize = 20
-nsgaRunds = 2
-RepetedRuns = 1
+nsgaRunds = 40
+RepetedRuns = 10
 
 
 

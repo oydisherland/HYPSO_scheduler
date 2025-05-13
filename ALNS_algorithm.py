@@ -199,7 +199,7 @@ def runALNS( inital_otList: list, initial_ttwList: list, schedulingParameters: S
     alns = ALNS.ALNS() # ALNS() # Initialize without a random seed
     alns.add_destroy_operator(destroyRandom)
     alns.add_destroy_operator(destroyGreedyPriority)
-    alns.add_destroy_operator(destroyGreedyImageQuality)
+    # alns.add_destroy_operator(destroyGreedyImageQuality)
     alns.add_destroy_operator(destroyCongestion)
     alns.add_repair_operator(repairRandom)
     alns.add_repair_operator(repairGreedy)
@@ -207,7 +207,7 @@ def runALNS( inital_otList: list, initial_ttwList: list, schedulingParameters: S
     alns.add_repair_operator(repairCongestion)
    
     # Configure ALNS
-    select = RandomSelect(num_destroy=4, num_repair=4)  # see alns.select for others
+    select = RandomSelect(num_destroy=3, num_repair=4)  # see alns.select for others
     accept = HillClimbing()  # see alns.accept for others
     stop = MaxRuntime(10)   # Create a new MaxRuntime instance for each run MaxRuntime(20)#NoImprovement(100)
 
