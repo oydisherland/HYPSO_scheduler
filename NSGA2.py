@@ -13,7 +13,7 @@ from ALNS_algorithm import runALNS, createInitialSolution
 from scheduling_model import SP, OH
 
 
-INSTANCE = namedtuple("INSTANCE", ["id", "objectiveValues", "schedual"])
+INSTANCE = namedtuple("INSTANCE", ["id", "objectiveValues", "schedual", "ttwList"])
 
 def findKneePoint(fronts, objectiveSpace):
         pareto_front_indices = fronts[0]
@@ -62,7 +62,7 @@ def runNSGA(
     
     best = result.best_state
     schedual = best.otList
-    population.append(INSTANCE(0, best.maxObjective, schedual))
+    population.append(INSTANCE(0, best.maxObjective, schedual, best.ttwList.copy()))
     previousParetoFront = []
     terminationCounter = 0
 
@@ -93,7 +93,7 @@ def runNSGA(
             best = newIndividual.best_state
             schedual = best.otList
 
-            population.append(INSTANCE(len(population) + 1 , best.maxObjective, schedual))
+            population.append(INSTANCE(len(population) + 1 , best.maxObjective, schedual, best.ttwList.copy()))
 
 
         #### Selection using non dominated sorting and crowding distance
@@ -151,6 +151,7 @@ def runNSGA(
         for index in selected_indices:
             newPopulation.append(population[index])
 
+        oldPopulation = population.copy()
         population = newPopulation
 
         #### Printing results: 
@@ -185,4 +186,4 @@ def runNSGA(
 
     bestSolution, bestIndex = findKneePoint(fronts, objectiveSpace)
 
-    return printarray, bestSolution, bestIndex, population
+    return printarray, bestSolution, bestIndex, oldPopulation

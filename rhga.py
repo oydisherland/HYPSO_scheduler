@@ -39,7 +39,7 @@ def RHGA(ttwList: list, otList: list, unfeasibleTargetsIdList: list, schedulingP
                 
             elif randomtwDistrobution:
                 # Randomly select a time within the time window
-                newObeservationStart = random.uniform(tw.start, tw.end - bufferTime)
+                newObeservationStart = random.uniform(tw.start, tw.end - schedulingParameters.captureDuration)
 
             solutionIsFeasible = True
 
@@ -50,7 +50,7 @@ def RHGA(ttwList: list, otList: list, unfeasibleTargetsIdList: list, schedulingP
                     solutionIsFeasible = False
                     break
 
-                if ot.start > newObeservationStart + bufferTime or ot.start + bufferTime < newObeservationStart:
+                if ot.start > newObeservationStart + bufferTime or ot.end + schedulingParameters.transitionTime < newObeservationStart:
                     # No collision with current ot, continue to check next ot
                     continue
                 elif ot.start + bufferTime*2 < tw.end:
@@ -64,7 +64,7 @@ def RHGA(ttwList: list, otList: list, unfeasibleTargetsIdList: list, schedulingP
 
             if solutionIsFeasible:
                 # Solution is feasible, add the observation task to the schedule
-                otList.append(OT(ttw.GT, newObeservationStart, newObeservationStart + bufferTime))
+                otList.append(OT(ttw.GT, newObeservationStart, newObeservationStart + schedulingParameters.captureDuration))
                 break
         
 
@@ -74,7 +74,6 @@ def RHGA(ttwList: list, otList: list, unfeasibleTargetsIdList: list, schedulingP
     # if duplicates:
     #     print("Duplicate observation tasks found after rnsga loop:", duplicates)
     
-        
 
     objectiveValues = []
     objectiveValues.append(objectiveFunctionPriority(otList))

@@ -5,9 +5,11 @@ import json
 import time
 
 from NSGA2 import runNSGA, findKneePoint
-from scheduling_model import SP, OH, OT, GT
+from scheduling_model import SP, OH, OT, GT, TTW, TW
 from visualize_schedual import createPlotSchedual, createPlotObjectiveSpace, createPlotKneePointHistogram 
 from get_target_passes import getModelInput
+from optimizeSchedule import checkFeasibility, improveIQ, findMaxPriority
+from objective_functions import objectiveFunctionImageQuality
 from scheduling_model import SP
 
 # Functions that read data from json files and recreate the original data structure
@@ -91,6 +93,30 @@ def evaluateBestSchedual( schedual_filename: str):
         schedual.append(scheduledOT)
 
     return schedual
+def evaluateBSTTW(ttwList_filename: str):
+    """ Evaluate the ttwList and recreate printArray from the JSON file """
+    # Load the ttwList data from the JSON file
+
+    with open(ttwList_filename, mode='r') as file:
+        serialized_ttwList = json.load(file)
+
+    # Reconstruct ttwList from the serialized data
+    ttwList = []
+    for entry in serialized_ttwList:
+        groundTarget = entry["Ground Target"]
+        gt = GT(
+            id = groundTarget[0],
+            lat = None,
+            long = None,
+            priority = groundTarget[1],
+            idealIllumination = None
+        )
+        tws = []
+        for tw in entry["Time Windows"]:
+            tws.append(TW(float(tw["start"]), float(tw["end"])))
+        ttwList.append(TTW(gt, tws))
+
+    return ttwList
 
 # Functions to evaluate data
 def schedualedTargetsHistogram(testnr: str, repeatedRuns: int, savetoFile: bool, printPlot: bool):
@@ -260,6 +286,39 @@ def plotParetoFrontEvolution(paretoFrontEvolution, testnr: str, plotname: str, s
     if printPlot:
         plt.show()
     plt.close()
+def plotParetoFrontWithMaxOV(points, maxObjectiveValues, testnr: str, plotname: str, savetoFile: bool, printPlot: bool):
+        # Extract x and y values from objectiveSpace
+    x_values = [point[0] for point in points]
+    y_values = [point[1] for point in points]
+
+    # Create the plot
+    plt.figure(figsize=(10, 6))
+    plt.scatter(x_values, y_values, color='blue', label='Objective Space Points', alpha=0.7)
+
+    # Add horizontal and vertical lines
+    plt.axvline(x=maxObjectiveValues[0], color='green', linestyle='--', label=f'Max Priority ({maxObjectiveValues[0]})')
+    plt.axhline(y=maxObjectiveValues[1], color='red', linestyle='--', label=f'Max Image quality ({round(maxObjectiveValues[1],2)})')
+
+   # Set axis limits to start from 0
+    plt.xlim(0, max(maxObjectiveValues[0], max(x_values)) * 1.1)  # Add 10% padding for better visualization
+    plt.ylim(0, max(maxObjectiveValues[1], max(y_values)) * 1.1)  # Add 10% padding for better visualization
+    
+    # Add labels, title, and legend
+    plt.xlabel('Priority', fontsize=12)
+    plt.ylabel('Image Quality', fontsize=12)
+    plt.title('Objective Space', fontsize=14)
+    plt.legend(loc='center left', bbox_to_anchor=(1, 0.5), fontsize=10)
+    plt.grid(True)
+
+    # Show the plot
+    plt.tight_layout()
+    if savetoFile:
+        plt.savefig(f"results/test{testnr}/plots/analyse/obSpace_wLimits_{plotname}.pdf", format='pdf', dpi=300) 
+    if printPlot:
+        plt.show()
+    plt.close()
+    plt.show()
+
 
 # Run algorithm and save data in json files
 def runAlgFormatResults(testName: str,
@@ -306,6 +365,31 @@ def runAlgFormatResults(testName: str,
 
     plotKneePoints_filename = f"results/test{testNumber}/plots/KP_{testName}.pdf"
     createPlotKneePointHistogram(kneePoints, plotKneePoints_filename, printResults)
+
+    # Find max IQ in final population
+    maxIQ = 0
+    for i in range(len(population)):
+        individual = population[i]
+        _, maxImproved, _ = improveIQ(individual.schedual, ttwList, oh, schedulingParameters)
+        newIQ = objectiveFunctionImageQuality(maxImproved, oh)
+        if newIQ > maxIQ:
+            maxIQ = newIQ
+    maxP = findMaxPriority(ttwList, schedulingParameters)
+
+    # create plot of ob space with maxIQ and maxP
+    plotParetoFrontWithMaxOV(objectiveSpace, [maxP, maxIQ], testNumber, testName, saveToFile, printResults)
+
+    #Chekc if best solution can be improved
+    improvedBS, _, canBeImproved = improveIQ(population[bestIndex].schedual, ttwList, oh, schedulingParameters)    
+    if checkFeasibility(improvedBS, schedulingParameters.captureDuration, schedulingParameters.transitionTime):
+        if canBeImproved:
+            print("Best solution can be improved")
+            # save to file
+            bestSchedual_filename = f"results/test{testNumber}/schedual/Imporved_BS_{testName}.json"
+            serializable_schedual = [
+                {"Ground Target": row[0], "Start Time": row[1], "End Time": row[2]} for row in improvedBS
+            ]
+            
 
     
     if not saveToFile:
@@ -359,6 +443,20 @@ def runAlgFormatResults(testName: str,
     with open(bestSchedual_filename, mode='w') as file:
         json.dump(serializable_schedual, file, indent=4)
 
+    ### Save ttwList of best solution to json file
+    ttwList_filename = f"results/test{testNumber}/schedual/TTWL_{testName}.json"
+    serializable_ttwList = []
+    for ttw in population[bestIndex].ttwList:
+        ttwData = {
+            "Ground Target": [ttw.GT.id, ttw.GT.priority]
+,            "Time Windows": [{"start": tw.start, "end": tw.end} for tw in ttw.TWs]
+        }
+        serializable_ttwList.append(ttwData)
+
+    with open(ttwList_filename, mode='w') as file:
+        json.dump(serializable_ttwList, file, indent=4)
+
+
     ### Save fronts, objectiveSpace, and selectedIbjectiveVals and kneepoint to json file
     json_filename = f"results/test{testNumber}/algorithmData/AD_{testName}.json"
     serializable_printArray = []
@@ -384,7 +482,7 @@ oh, ttwList = getModelInput(schedulingParameters.captureDuration, ohDurationInDa
 
 #### RUN THE TEST ####
 # Variables that change during different tests
-testNumber = 22
+testNumber = 27
 maxTabBank = 50
 desRate = 0.6
 popSize = 20
@@ -413,20 +511,6 @@ schedualedTargetsHistogram(testNumber, RepetedRuns, True, False)
 objectiveSpaceHistogram(testNumber, RepetedRuns, True, False)
 
 
-"""
-How to present the result of the algorithm
-- Objective values of the best solution
-- Objective values of the Pareto front
-- Schedual of the best solution
-- Runtime
-- Objective values of best solution after each main loop iteration 
-
-Input data: 
-- Max Runs in main loop
-- Population size
-- Max captures 
-
-"""
 
 
  
