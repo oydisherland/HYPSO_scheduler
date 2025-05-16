@@ -209,7 +209,7 @@ def runALNS( inital_otList: list, initial_ttwList: list, schedulingParameters: S
     # Configure ALNS
     select = RandomSelect(num_destroy=3, num_repair=4)  # see alns.select for others
     accept = HillClimbing()  # see alns.accept for others
-    stop = MaxRuntime(10)   # Create a new MaxRuntime instance for each run MaxRuntime(20)#NoImprovement(100) NoImprovement(10) #
+    stop = MaxIterations(30)   # Create a new MaxRuntime instance for each run MaxRuntime(20)#NoImprovement(100) NoImprovement(10) #
 
     # Run the ALNS algorithm
     result = alns.iterate(state, select, accept, stop)
