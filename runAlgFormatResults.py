@@ -11,6 +11,25 @@ from get_target_passes import getModelInput
 from optimizeSchedule import checkFeasibility, improveIQ, findMaxPriority
 from objective_functions import objectiveFunctionImageQuality
 from scheduling_model import SP
+from rhga import RHGA
+from operators import greedyPrioritySort
+
+
+def runGreedyAlgorithm(ttwList, oh, schedulingParameters):
+    otList = []
+    unfeasibleTargets = []
+    ttwListSorted = greedyPrioritySort(ttwList)
+    schedule, objectiveVals = RHGA(ttwListSorted, otList, unfeasibleTargets ,schedulingParameters, oh, False, True)
+
+    optimizedSchedule, _, hasChanged = improveIQ(schedule, ttwList, oh, schedulingParameters)
+    if hasChanged:
+        print("Greedy schedule was improved")
+        return optimizedSchedule, objectiveVals
+    else:
+        return schedule, objectiveVals
+    
+    
+
 
 # Functions that read data from json files and recreate the original data structure
 def evaluateAlgorithmData(algData_filename: str):
@@ -480,35 +499,40 @@ ohDurationInDays, ohDelayInHours, hypsoNr = 2, 2, 1
 
 oh, ttwList = getModelInput(schedulingParameters.captureDuration, ohDurationInDays, ohDelayInHours, hypsoNr, startTime)
 
-#### RUN THE TEST ####
-# Variables that change during different tests
-testNumber = 28
-maxTabBank = 50
-desRate = 0.6
-popSize = 30
-nsgaRunds = 80
-RepetedRuns = 10
+optimizedSchedule, objVals = runGreedyAlgorithm(ttwList, oh, schedulingParameters)
+print(objVals)
 
 
 
-for i in range(RepetedRuns):
-    runAlgFormatResults(
-        testName = f"test{testNumber}-run{i}",
-        testNumber = testNumber,
-        ttwList = ttwList,
-        oh = oh,
-        destructionRate = desRate, 
-        maxSizeTabooBank = maxTabBank,
-        printResults = False, 
-        saveToFile = True,
-        nRuns = nsgaRunds,
-        popSize = popSize, 
-        schedulingParameters = schedulingParameters
-    )
-    print(f"Test {i+1}/{RepetedRuns} finished")
+# #### RUN THE TEST ####
+# # Variables that change during different tests
+# testNumber = 28
+# maxTabBank = 50
+# desRate = 0.6
+# popSize = 30
+# nsgaRunds = 80
+# RepetedRuns = 10
 
-schedualedTargetsHistogram(testNumber, RepetedRuns, True, False)
-objectiveSpaceHistogram(testNumber, RepetedRuns, True, False)
+
+
+# for i in range(RepetedRuns):
+#     runAlgFormatResults(
+#         testName = f"test{testNumber}-run{i}",
+#         testNumber = testNumber,
+#         ttwList = ttwList,
+#         oh = oh,
+#         destructionRate = desRate, 
+#         maxSizeTabooBank = maxTabBank,
+#         printResults = False, 
+#         saveToFile = True,
+#         nRuns = nsgaRunds,
+#         popSize = popSize, 
+#         schedulingParameters = schedulingParameters
+#     )
+#     print(f"Test {i+1}/{RepetedRuns} finished")
+
+# schedualedTargetsHistogram(testNumber, RepetedRuns, True, False)
+# objectiveSpaceHistogram(testNumber, RepetedRuns, True, False)
 
 
 
