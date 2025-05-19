@@ -42,23 +42,28 @@ def runNSGA(
             ttwList: list, 
             schedulingParameters: SP,  
             oh: OH,
-            destructionRate: float=round(random.uniform(0.1,0.7),2),
-            maxSizeTabooBank: int=random.randint(2, 20),
+            alnsRuns: int,
+            isTabooBankFIFO: bool,
+            IQNonLinear: bool,
+            destructionNumber: int,
+            maxSizeTabooBank: int,
             optimalTermination: bool=False):
     
     printarray = []
     population = []
 
     #### Create initial induvidual
-    initSolution = createInitialSolution(ttwList.copy(), schedulingParameters, oh, destructionRate=0.3, maxSizeTabooBank=20)
+    initSolution = createInitialSolution(ttwList.copy(), schedulingParameters, oh, destructionNumber, maxSizeTabooBank, isTabooBankFIFO)
 
     result, _ = runALNS(
         initSolution.otList.copy(),
         initSolution.ttwList.copy(),
         schedulingParameters,  
         oh, 
-        destructionRate, 
-        maxSizeTabooBank)
+        destructionNumber, 
+        maxSizeTabooBank,
+        alnsRuns,
+        isTabooBankFIFO)
     
     best = result.best_state
     schedual = best.otList
@@ -87,8 +92,10 @@ def runNSGA(
                 ttwList.copy(),
                 schedulingParameters, 
                 oh, 
-                destructionRate = round(random.uniform(0.1,0.7),2), 
-                maxSizeTabooBank = random.randint(2, 20))
+                destructionNumber, 
+                maxSizeTabooBank,
+                alnsRuns,
+                isTabooBankFIFO)
             
             best = newIndividual.best_state
             schedual = best.otList
@@ -110,7 +117,8 @@ def runNSGA(
 
             #nonlinear scaling of imageQuality
             # imageQuality = math.sin( ((imageQuality-minImageQuality) / diffImageQuality) * (math.pi/2) ) * 100
-            imageQuality = ( 1 - math.cos(math.radians(imageQuality)) ) * 100
+            if IQNonLinear:
+                imageQuality = ( 1 - math.cos(math.radians(imageQuality)) ) * 100
 
             objectiveSpace = np.vstack([objectiveSpace, [priority, imageQuality]])
         objectiveSpace_minimization = -objectiveSpace

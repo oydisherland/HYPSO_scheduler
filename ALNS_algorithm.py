@@ -11,22 +11,25 @@ from scheduling_model import OH ,SP
 from operators import repairOperator, destroyOperator, RepairType, DestroyType
 
 class ProblemState:
-    def __init__(self, otList, ttwList, oh, destructionRate, schedulingParameters, maxSizeTabooBank):
+    def __init__(self, otList, ttwList, oh, destructionNumber, schedulingParameters, maxSizeTabooBank, isTabooBankFIFO):
         self.otList = otList
         self.ttwList = ttwList
         self.oh = oh
-        self.destructionRate = destructionRate
+        self.destructionNumber = destructionNumber
         self.schedulingParameters = schedulingParameters
         self.tabooBank = []
         self.maxSizeTabooBank = maxSizeTabooBank
+        self.isTabooBankFIFO = isTabooBankFIFO
         self.maxObjective = [0, 0]
         self.imageQuality = 0
 
     def objective(self) -> float:
-        sum = 0
+        sum_priority = 0
+        priotityMax = 12454
         for ot in self.otList:
-            sum += ot.GT.priority
+            sum_priority += ot.GT.priority
             #Negating the sum since the alns solves the minimization problem
+        sum = 100 * (sum_priority / priotityMax)
         sum += self.imageQuality
         return -sum
 
@@ -37,7 +40,7 @@ class ProblemState:
         return None
 
 
-def initial_state(otList: list, ttwList: list, schedulingParameters: SP, oh: OH, destructionRate: float, maxSizeTabooBank: int) -> ProblemState:
+def initial_state(otList: list, ttwList: list, schedulingParameters: SP, oh: OH, destructionNumber: int, maxSizeTabooBank: int, isTabooBankFIFO: bool) -> ProblemState:
     tabooBank = []
     ttwListResorted, otList, objectiveValues = repairOperator(
         ttwList, 
@@ -47,34 +50,64 @@ def initial_state(otList: list, ttwList: list, schedulingParameters: SP, oh: OH,
         schedulingParameters, 
         oh)
     
-    state = ProblemState(otList, ttwListResorted, oh, destructionRate, schedulingParameters, maxSizeTabooBank)
+    state = ProblemState(otList, ttwListResorted, oh, destructionNumber, schedulingParameters, maxSizeTabooBank, isTabooBankFIFO)
     state.maxObjective = objectiveValues
     return state
 
+def removeElementsFromTabooBank(current: ProblemState) -> ProblemState:
+    # Remove targets from FIFO queue If the queue is full
+    while len(current.tabooBank) + current.destructionNumber >= current.maxSizeTabooBank:
+        # Remove the oldest target from the queue
+        current.tabooBank.pop(0)
+    return current
+
+def getDestructionNumber(current: ProblemState) -> int:
+    if len(current.tabooBank) + current.destructionNumber >= current.maxSizeTabooBank:
+        # No targets can be romoved
+        return 0
+    elif len(current.tabooBank) >= current.maxSizeTabooBank - current.destructionNumber:
+        # Cannot remove as many taregts as destruction dumber says
+        return 1
+    else: 
+        return current.destructionNumber
 
 def destroyRandom(current: ProblemState, rng: rnd.Generator) -> ProblemState:
     # Make sure to (deep)copy the current state before modifying!
-    destructionNumber = 1 if current.maxSizeTabooBank > len(current.tabooBank) else 0
+    if current.isTabooBankFIFO:
+        # Make space in the taboobank for new round of destructions
+        current = removeElementsFromTabooBank(current)
+        numberOfTargetsToRemove = current.destructionNumber
+    else:
+        # Adjust destruction number after the size of the taboo bank
+        numberOfTargetsToRemove = getDestructionNumber(current)
+
     destroyed = copy.deepcopy(current)
     destroyed.otList, removedTargetsIdList = destroyOperator(
         destroyed.otList, 
         destroyed.ttwList,
-        destructionNumber, 
+        numberOfTargetsToRemove, 
         DestroyType.RANDOM,
         destroyed.oh)
     
     destroyed.tabooBank.extend(removedTargetsIdList)
     return destroyed
 
-
 def destroyGreedyPriority(current: ProblemState, rng: rnd.Generator) -> ProblemState:
     # Make sure to (deep)copy the current state before modifying!
-    destructionNumber = 1 if current.maxSizeTabooBank > len(current.tabooBank) else 0
+        # Make sure to (deep)copy the current state before modifying!
+    if current.isTabooBankFIFO:
+        # Make space in the taboobank for new round of destructions
+        current = removeElementsFromTabooBank(current)
+        numberOfTargetsToRemove = current.destructionNumber
+    else:
+        # Adjust destruction number after the size of the taboo bank
+        numberOfTargetsToRemove = getDestructionNumber(current)
+
     destroyed = copy.deepcopy(current)
     destroyed.otList, removedTargetsIdList = destroyOperator(
         destroyed.otList, 
         destroyed.ttwList,
-        destructionNumber, 
+        numberOfTargetsToRemove, 
         DestroyType.GREEDY_P,
         destroyed.oh)
     
@@ -83,12 +116,20 @@ def destroyGreedyPriority(current: ProblemState, rng: rnd.Generator) -> ProblemS
 
 def destroyGreedyImageQuality(current: ProblemState, rng: rnd.Generator) -> ProblemState:
     # Make sure to (deep)copy the current state before modifying!
-    destructionNumber = 1 if current.maxSizeTabooBank > len(current.tabooBank) else 0
+        # Make sure to (deep)copy the current state before modifying!
+    if current.isTabooBankFIFO:
+        # Make space in the taboobank for new round of destructions
+        current = removeElementsFromTabooBank(current)
+        numberOfTargetsToRemove = current.destructionNumber
+    else:
+        # Adjust destruction number after the size of the taboo bank
+        numberOfTargetsToRemove = getDestructionNumber(current) 
+
     destroyed = copy.deepcopy(current)
     destroyed.otList, removedTargetsIdList = destroyOperator(
         destroyed.otList, 
         destroyed.ttwList,
-        destructionNumber, 
+        numberOfTargetsToRemove, 
         DestroyType.GREEDY_IQ,
         destroyed.oh)
     
@@ -97,12 +138,20 @@ def destroyGreedyImageQuality(current: ProblemState, rng: rnd.Generator) -> Prob
 
 def destroyCongestion(current: ProblemState, rng: rnd.Generator) -> ProblemState:
     # Make sure to (deep)copy the current state before modifying!
-    destructionNumber = 1 if current.maxSizeTabooBank > len(current.tabooBank) else 0
+        # Make sure to (deep)copy the current state before modifying!
+    if current.isTabooBankFIFO:
+        # Make space in the taboobank for new round of destructions
+        current = removeElementsFromTabooBank(current)
+        numberOfTargetsToRemove = current.destructionNumber
+    else:
+        # Adjust destruction number after the size of the taboo bank
+        numberOfTargetsToRemove = getDestructionNumber(current)
+
     destroyed = copy.deepcopy(current)
     destroyed.otList, removedTargetsIdList = destroyOperator(
         current.otList, 
         current.ttwList,
-        destructionNumber, 
+        numberOfTargetsToRemove, 
         DestroyType.CONGESTION,
         destroyed.oh)
     
@@ -125,7 +174,6 @@ def repairRandom(current: ProblemState, rng: rnd.Generator) -> ProblemState:
     if objectiveValues[1] > repaired.maxObjective[1]:
         repaired.maxObjective[1] = objectiveValues[1]
     return repaired
-
 
 def repairGreedy(current: ProblemState, rng: rnd.Generator) -> ProblemState: 
     repaired = copy.deepcopy(current)
@@ -180,19 +228,20 @@ def repairCongestion(current: ProblemState, rng: rnd.Generator) -> ProblemState:
         repaired.maxObjective[1] = objectiveValues[1]
     return repaired
 
-def createInitialSolution(ttwList: list, schedulingParameters: SP, oh: OH, destructionRate: float, maxSizeTabooBank: int):
+
+def createInitialSolution(ttwList: list, schedulingParameters: SP, oh: OH, destructionNumber: int, maxSizeTabooBank: int, isTabooBankFIFO: bool):
     
     # Create the initial solution
     otListEmpty = []
-    init_sol = initial_state(otListEmpty, ttwList, schedulingParameters, oh, destructionRate, maxSizeTabooBank)
+    init_sol = initial_state(otListEmpty, ttwList, schedulingParameters, oh, destructionNumber, maxSizeTabooBank, isTabooBankFIFO)
     
     return init_sol
 
 # Function to run ALNS algorithm
-def runALNS( inital_otList: list, initial_ttwList: list, schedulingParameters: SP, oh: OH, destructionRate: float, maxSizeTabooBank: int):
+def runALNS( inital_otList: list, initial_ttwList: list, schedulingParameters: SP, oh: OH, destructionNumber: int, maxSizeTabooBank: int, maxItr: int, isTabooBankFIFO: bool):
     
     # Format the problem state
-    state = ProblemState(inital_otList, initial_ttwList, oh, destructionRate, schedulingParameters, maxSizeTabooBank)
+    state = ProblemState(inital_otList, initial_ttwList, oh, destructionNumber, schedulingParameters, maxSizeTabooBank, isTabooBankFIFO)
     state.maxObjective = [0,0]
 
     # Create ALNS and add one or more destroy and repair operators
@@ -209,7 +258,7 @@ def runALNS( inital_otList: list, initial_ttwList: list, schedulingParameters: S
     # Configure ALNS
     select = RandomSelect(num_destroy=3, num_repair=4)  # see alns.select for others
     accept = HillClimbing()  # see alns.accept for others
-    stop = MaxIterations(30)   # Create a new MaxRuntime instance for each run MaxRuntime(20)#NoImprovement(100) NoImprovement(10) #
+    stop = MaxIterations(maxItr)   # Create a new MaxRuntime instance for each run MaxRuntime(20)#NoImprovement(100) NoImprovement(10) #
 
     # Run the ALNS algorithm
     result = alns.iterate(state, select, accept, stop)

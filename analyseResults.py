@@ -135,8 +135,9 @@ def plotEllipticalBubble(meanObjectiveP, meanObjectiveIQ, stdObjectiveP, stdObje
 
 
 #destroyRate = 0.4
-testList1 = [9, 5, 4]
+testList1 = [9]
 mP1, sP1, mIQ1, sIQ1, = calculateMeanAndStd(testList1, 10, False)
+print(f"mP1: {mP1}, sP1: {sP1}, mIQ1: {mIQ1}, sIQ1: {sIQ1}")
 #destroyRate = 0.6
 testList2 = [12, 10, 11]
 mP2, sP2, mIQ2, sIQ2  = calculateMeanAndStd(testList2, 10, False)
@@ -149,3 +150,4 @@ plotEllipticalBubble([mP1, mP2, mP3], [mIQ1, mIQ2, mIQ3], [sP1, sP2, sP3], [sIQ1
 
 
 # plotCompareKneePoints(testList, 10)
+
