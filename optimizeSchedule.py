@@ -71,7 +71,7 @@ def checkFeasibility(schedule, captureDuration, transTime):
         
         # Capture duration
         if e1 - s1 < captureDuration:
-            print(f"Schedule is not feasible cause duration, OT: {ot.GT.id}, start: {s1}, end: {e1}, diff: {e1 - s1}")
+            print(f"Schedule is not feasible cause duration, OT: {ot1.GT.id}, start: {s1}, end: {e1}, diff: {e1 - s1}")
             isTrue = False
             counter += 1
         

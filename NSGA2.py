@@ -87,7 +87,7 @@ def runNSGA(
                 # create mutation
                 otList_i = population[i].schedual.copy()
 
-            newIndividual, _ = runALNS(
+            newIndividual, ps = runALNS(
                 otList_i,
                 ttwList.copy(),
                 schedulingParameters, 
@@ -99,7 +99,6 @@ def runNSGA(
             
             best = newIndividual.best_state
             schedual = best.otList
-
             population.append(INSTANCE(len(population) + 1 , best.maxObjective, schedual, best.ttwList.copy()))
 
 
@@ -112,11 +111,7 @@ def runNSGA(
             priority = induvidual.objectiveValues[0]
             imageQuality = induvidual.objectiveValues[1]
             
-            # #scale objectiveVal priority
-            # priority = 100 * ( (priority - minPriority) / diffPriority )
-
-            #nonlinear scaling of imageQuality
-            # imageQuality = math.sin( ((imageQuality-minImageQuality) / diffImageQuality) * (math.pi/2) ) * 100
+           
             if IQNonLinear:
                 imageQuality = ( 1 - math.cos(math.radians(imageQuality)) ) * 100
 

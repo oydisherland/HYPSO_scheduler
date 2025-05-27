@@ -707,50 +707,20 @@ print(objVals)
 
 ### RUN THE TEST #### 
 #stay fixed during all tests
-RepetedRuns = 10
-popSize = 30
+RepetedRuns = 1
+popSize = 1
 
 # Variables that change during different tests
-isTabooBankFIFO = False
+isTabooBankFIFO = True
 iqNonLinear = False
-nsgaRunds = 20
-ALNSRuns = 30
-maxTabBank = 100
-desNumber = 1
+nsgaRunds = 1
+ALNSRuns = 1
+maxTabBank = 10
+desNumber = 6
 
 
 ###################################################################
-testNumber = 1
-for i in range(RepetedRuns):
-    runAlgFormatResults(
-        testName = f"test{testNumber}-run{i}",
-        testNumber = testNumber,
-        ttwList = ttwList,
-        oh = oh,
-        destructionNumber = desNumber, 
-        maxSizeTabooBank = maxTabBank,
-        printResults = False, 
-        saveToFile = True,
-        nRuns = nsgaRunds,
-        popSize = popSize, 
-        schedulingParameters = schedulingParameters,
-        alnsRuns = ALNSRuns,
-        isTabooBankFIFO = isTabooBankFIFO,
-        iqNonLinear= iqNonLinear,
-        ohDurationInDays = ohDurationInDays,
-        ohDelayInHours = ohDelayInHours,
-        hypsoNr = hypsoNr
-    )
-    print(f"Test {i+1}/{RepetedRuns} finished")
-
-schedualedTargetsHistogram(testNumber, RepetedRuns, True, False)
-objectiveSpaceHistogram(testNumber, RepetedRuns, True, False)
-changesInPF = objectiveSpaceHistogram(testNumber, RepetedRuns, True, False)
-saveResultsToFile(testNumber, RepetedRuns, True, False, changesInPF)
-
-###################################################################
-testNumber = 2
-desNumber = 2
+testNumber = 36
 for i in range(RepetedRuns):
     runAlgFormatResults(
         testName = f"test{testNumber}-run{i}",
@@ -772,40 +742,43 @@ for i in range(RepetedRuns):
         hypsoNr = hypsoNr
     )
 print(f"Test {i+1}/{RepetedRuns} finished")
+
 schedualedTargetsHistogram(testNumber, RepetedRuns, True, False)
 objectiveSpaceHistogram(testNumber, RepetedRuns, True, False)
 changesInPF = objectiveSpaceHistogram(testNumber, RepetedRuns, True, False)
-saveResultsToFile(testNumber, RepetedRuns, True, False, changesInPF)
+saveResultsToFile(testNumber, RepetedRuns, True, False, 0)
 
-###################################################################
-testNumber = 3
-desNumber = 3
-for i in range(RepetedRuns):
-    runAlgFormatResults(
-        testName = f"test{testNumber}-run{i}",
-        testNumber = testNumber,
-        ttwList = ttwList,
-        oh = oh,
-        destructionNumber = desNumber, 
-        maxSizeTabooBank = maxTabBank,
-        printResults = False, 
-        saveToFile = True,
-        nRuns = nsgaRunds,
-        popSize = popSize, 
-        schedulingParameters = schedulingParameters,
-        alnsRuns = ALNSRuns,
-        isTabooBankFIFO = isTabooBankFIFO,
-        iqNonLinear= iqNonLinear,
-        ohDurationInDays = ohDurationInDays,
-        ohDelayInHours = ohDelayInHours,
-        hypsoNr = hypsoNr
-    )
-print(f"Test {i+1}/{RepetedRuns} finished")
-schedualedTargetsHistogram(testNumber, RepetedRuns, True, False)
-objectiveSpaceHistogram(testNumber, RepetedRuns, True, False)
-changesInPF = objectiveSpaceHistogram(testNumber, RepetedRuns, True, False)
-saveResultsToFile(testNumber, RepetedRuns, True, False, changesInPF)
+# ###################################################################
+# testNumber = 32
+# ALNSRuns = 30
+# for i in range(RepetedRuns):
+#     runAlgFormatResults(
+#         testName = f"test{testNumber}-run{i}",
+#         testNumber = testNumber,
+#         ttwList = ttwList,
+#         oh = oh,
+#         destructionNumber = desNumber, 
+#         maxSizeTabooBank = maxTabBank,
+#         printResults = False, 
+#         saveToFile = True,
+#         nRuns = nsgaRunds,
+#         popSize = popSize, 
+#         schedulingParameters = schedulingParameters,
+#         alnsRuns = ALNSRuns,
+#         isTabooBankFIFO = isTabooBankFIFO,
+#         iqNonLinear= iqNonLinear,
+#         ohDurationInDays = ohDurationInDays,
+#         ohDelayInHours = ohDelayInHours,
+#         hypsoNr = hypsoNr
+#     )
+# print(f"Test {i+1}/{RepetedRuns} finished")
+# schedualedTargetsHistogram(testNumber, RepetedRuns, True, False)
+# objectiveSpaceHistogram(testNumber, RepetedRuns, True, False)
+# changesInPF = objectiveSpaceHistogram(testNumber, RepetedRuns, True, False)
+# saveResultsToFile(testNumber, RepetedRuns, True, False, changesInPF)
 
 
+
+# print("All tests finished")
 
  
