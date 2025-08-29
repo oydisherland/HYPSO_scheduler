@@ -245,7 +245,7 @@ def runALNS( inital_otList: list, initial_ttwList: list, schedulingParameters: S
     state.maxObjective = [0,0]
 
     # Create ALNS and add one or more destroy and repair operators
-    alns = ALNS.ALNS() # ALNS() # Initialize without a random seed
+    alns = ALNS() # Initialize without a random seed
     alns.add_destroy_operator(destroyRandom)
     alns.add_destroy_operator(destroyGreedyPriority)
     # alns.add_destroy_operator(destroyGreedyImageQuality)
