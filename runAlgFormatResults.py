@@ -1,14 +1,182 @@
 import csv
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.patches import Ellipse
 import json
 import time
 
-from NSGA2 import runNSGA, findKneePoint
-from scheduling_model import SP, OH, OT, GT
-from visualize_schedual import createPlotSchedual, createPlotObjectiveSpace, createPlotKneePointHistogram 
-from get_target_passes import getModelInput
+from algorithm.NSGA2 import runNSGA, findKneePoint
+from scheduling_model import SP, OH, OT, GT, TTW, TW
+from analyse_results.visualize_schedual import createPlotSchedual, createPlotObjectiveSpace, createPlotKneePointHistogram 
+from data_preprocessing.get_target_passes import getModelInput
+from analyse_results.optimizeSchedule import checkFeasibility, improveIQ, findMaxPriority
+from data_preprocessing.objective_functions import objectiveFunctionImageQuality
 from scheduling_model import SP
+from algorithm.rhga import RHGA
+from algorithm.operators import greedyPrioritySort
+
+
+def runGreedyAlgorithm(ttwList, oh, schedulingParameters):
+    otList = []
+    unfeasibleTargets = []
+    ttwListSorted = greedyPrioritySort(ttwList)
+    schedule, objectiveVals = RHGA(ttwListSorted, otList, unfeasibleTargets ,schedulingParameters, oh, False, True)
+
+    optimizedSchedule, _, hasChanged = improveIQ(schedule, ttwList, oh, schedulingParameters)
+    if hasChanged:
+        print("Greedy schedule was improved")
+        return optimizedSchedule, objectiveVals
+    else:
+        return schedule, objectiveVals
+    
+    
+# from analyseResults
+def plotCompareKneePoints(testnr: list, nRuns: int):
+    """
+    Compare the kneepoints of the differents tests, each test  .
+    """
+
+    plt.figure(figsize=(10, 6))
+
+    for i, test in enumerate(testnr):
+        colormap = plt.get_cmap('viridis', len(testnr))
+        bestSolutionsForOneTest = []
+        for run in range(nRuns):
+            algDataFileName = f"results/test{test}/algorithmData/AD_test{test}-run{run}.json"
+            algData = evaluateAlgorithmData(algDataFileName)
+            bestSolution = algData[-1][-1]
+            bestSolutionsForOneTest.append(bestSolution)
+
+        # Extract x and y values from the kneePoints list
+        x_values = [point[0] for point in bestSolutionsForOneTest]  # First dimension of each knee point
+        y_values = [point[1] for point in bestSolutionsForOneTest]  # Second dimension of each knee point
+
+        # Plot the knee points
+        plt.scatter(x_values, y_values, color=colormap(i), marker='o', label=f'Test {test}')
+    
+
+    # Add labels, title, and grid
+    plt.xlabel('Sum of priorities', fontsize=12)
+    plt.ylabel('Image quality', fontsize=12)
+    title = [f"{test} " for test in testnr]
+    plt.title(f"Best solutions for tests: {title}", fontsize=14)
+    plt.grid(True)
+    plt.legend(loc='upper right', fontsize=10)
+
+    # Save or display the plot
+    plt.tight_layout()
+    plt.show()
+    plt.close()
+def calculateMeanAndStd(testnr: list, nRuns: int, plot: bool):
+    
+    ObjectiveP = []
+    ObjectiveIQ = []
+    meanPopP = []
+    meanPopIQ = []
+
+    for test in testnr:
+        bestSolutionsForOneTest = []
+        variancePopP = []
+        variancePopIQ = []
+
+        for run in range(nRuns):
+            algDataFileName = f"results/test{test}/algorithmData/AD_test{test}-run{run}.json"
+            algData = evaluateAlgorithmData(algDataFileName)
+            bestSolution = algData[-1][-1]
+            bestSolutionsForOneTest.append(bestSolution)
+
+            finalPopulation = algData[-1][1]
+            ObjectiveP_pop = []
+            ObjectiveIQ_pop = []
+            for individual in finalPopulation:
+                ObjectiveP_pop.append(individual[0])
+                ObjectiveIQ_pop.append(individual[1])
+            variancePopP.append(np.std(ObjectiveP_pop, axis=None))
+            variancePopIQ.append(np.std(ObjectiveIQ_pop, axis=None))
+
+        # Extract objective values from the kneePoints list
+        ObjectiveP.append([point[0] for point in bestSolutionsForOneTest])
+        ObjectiveIQ.append([point[1] for point in bestSolutionsForOneTest])
+
+        #Calculate the mean of the population variance
+        meanPopP = np.mean(variancePopP, axis=None)
+        meanPopIQ = np.mean(variancePopIQ, axis=None)
+
+    
+    meanObjectiveP = np.mean(ObjectiveP, axis=None)
+    meanObjectiveIQ = np.mean(ObjectiveIQ, axis=None)
+    stdObjectiveP = np.std(ObjectiveP, axis=None)
+    stdObjectiveIQ = np.std(ObjectiveIQ, axis=None)
+    
+    # Plotting the results
+    if plot:
+        plotObjectiveHistogram(ObjectiveP)
+        plotObjectiveHistogram(ObjectiveIQ)
+    bestSolMeanAndStd = [meanObjectiveP, stdObjectiveP, meanObjectiveIQ, stdObjectiveIQ]
+    popMean = [meanPopP, meanPopIQ]
+
+
+    return bestSolMeanAndStd, popMean
+
+def plotObjectiveHistogram(Objective):
+    """
+    Plots a histogram based on the values in ObjectiveP.
+    The y-axis represents the frequency of each bin,
+    and the x-axis represents the values in ObjectiveP.
+    """
+    # Flatten ObjectiveP if it's a 2D list
+    Objective_flat = np.array(Objective).flatten()
+
+    # Create the histogram
+    plt.figure(figsize=(10, 6))
+    plt.hist(Objective_flat, bins=10, color='blue', alpha=0.7, edgecolor='black')
+
+    # Add labels, title, and grid
+    plt.xlabel('Objective Value', fontsize=12)
+    plt.ylabel('Frequency', fontsize=12)
+    plt.title('Histogram of Objective Value', fontsize=14)
+    plt.grid(axis='y', linestyle='--', alpha=0.7)
+
+    # Show the plot
+    plt.tight_layout()
+    plt.show()
+    plt.close()
+def plotEllipticalBubble(meanObjectiveP, meanObjectiveIQ, stdObjectiveP, stdObjectiveIQ, testLabels):
+    """
+    Creates an elliptical bubble plot.
+    - x-axis: meanObjectiveP
+    - y-axis: meanObjectiveIQ
+    - x-radius: stdObjectiveP
+    - y-radius: stdObjectiveIQ
+    """
+    plt.figure(figsize=(10, 6))
+    colormap = plt.get_cmap('viridis', len(meanObjectiveP))
+    # Loop through each test and plot an ellipse
+    for i in range(len(meanObjectiveP)):
+        ellipse = Ellipse(
+            (meanObjectiveP[i], meanObjectiveIQ[i]),  # Center of the ellipse
+            width=0.5 * stdObjectiveP[i],              # Width (2 * std for x-radius)
+            height=0.5 * stdObjectiveIQ[i],            # Height (2 * std for y-radius)
+            alpha=0.5,                               # Transparency
+            edgecolor='black',                       # Border color
+            facecolor=colormap(i)                         # Fill color
+        )
+        plt.gca().add_patch(ellipse)  # Add the ellipse to the plot
+        plt.text(meanObjectiveP[i], meanObjectiveIQ[i], testLabels[i], fontsize=10, ha='center')
+
+    # Add labels, title, and grid
+    plt.xlabel('Mean Objective Priority', fontsize=12)
+    plt.ylabel('Mean Objective Image Quality', fontsize=12)
+    plt.title('Elliptical Bubble Plot', fontsize=14)
+    plt.grid(True)
+
+    # Set axis limits for better visualization
+    plt.xlim(min(meanObjectiveP) - max(stdObjectiveP), max(meanObjectiveP) + max(stdObjectiveP))
+    plt.ylim(min(meanObjectiveIQ) - max(stdObjectiveIQ), max(meanObjectiveIQ) + max(stdObjectiveIQ))
+
+    # Show the plot
+    plt.tight_layout()
+    plt.show()
 
 # Functions that read data from json files and recreate the original data structure
 def evaluateAlgorithmData(algData_filename: str):
@@ -91,6 +259,30 @@ def evaluateBestSchedual( schedual_filename: str):
         schedual.append(scheduledOT)
 
     return schedual
+def evaluateBSTTW(ttwList_filename: str):
+    """ Evaluate the ttwList and recreate printArray from the JSON file """
+    # Load the ttwList data from the JSON file
+
+    with open(ttwList_filename, mode='r') as file:
+        serialized_ttwList = json.load(file)
+
+    # Reconstruct ttwList from the serialized data
+    ttwList = []
+    for entry in serialized_ttwList:
+        groundTarget = entry["Ground Target"]
+        gt = GT(
+            id = groundTarget[0],
+            lat = None,
+            long = None,
+            priority = groundTarget[1],
+            idealIllumination = None
+        )
+        tws = []
+        for tw in entry["Time Windows"]:
+            tws.append(TW(float(tw["start"]), float(tw["end"])))
+        ttwList.append(TTW(gt, tws))
+
+    return ttwList
 
 # Functions to evaluate data
 def schedualedTargetsHistogram(testnr: str, repeatedRuns: int, savetoFile: bool, printPlot: bool):
@@ -141,6 +333,7 @@ def objectiveSpaceHistogram(testnr: str, repeatedRuns: int, savetoFile: bool, pr
     """
     ## Extract all scheduals from the seperate runs
     kneePoints = []
+    allChangesInPF = []
     for runNr in range(repeatedRuns):
         paretoFrontEvolution = []
         changesInParetoFront = []
@@ -167,9 +360,59 @@ def objectiveSpaceHistogram(testnr: str, repeatedRuns: int, savetoFile: bool, pr
 
         kneePointBestSolution = algData[-1][-1]
         kneePoints.append(kneePointBestSolution)
+        allChangesInPF.append(changesInParetoFront)
 
     ### Evaluate the final knee point in all induviduals in population
     plotKneePoints(kneePoints, testnr, savetoFile, printPlot)
+    return allChangesInPF
+def saveResultsToFile(testnr: str, repeatedRuns: int, savetoFile: bool, printPlot: bool, changesInParetoFront: list):
+    
+    kneePointMeanAndStd, finalPopMedianOfStd = calculateMeanAndStd([testnr], repeatedRuns, plot=False)
+    
+    # find Median and std of knee points form all runs in the current test
+    medianPriority, stdPriority, medianIQ, stdIQ = kneePointMeanAndStd
+    kneePointsMedian = [round(medianPriority, 2), round(medianIQ, 2)]
+    kneePointsStd = [round(stdPriority, 2), round(stdIQ, 2)]
+    
+    # find the median of the std of the final population
+    finalPopMedianOfStd = [round(finalPopMedianOfStd[0], 2), round(finalPopMedianOfStd[1], 2)]
+
+    nrOfChangesInPFLastHalf = []
+    runtime = []
+    for i in range(repeatedRuns):
+        #Summerize how much the pareto front has changed over the last half of the NSGA iterations
+        halfLength = len(changesInParetoFront) // 2
+        chenges = sum(changesInParetoFront[i][halfLength:])
+        nrOfChangesInPFLastHalf.append(chenges)
+
+        # Extract the runtime
+        testName = f"test{testNumber}-run{i}"
+        testData_filepath = f"results/test{testNumber}/testData/TD_{testName}.csv"
+        try:
+            # Open and read the CSV file
+            with open(testData_filepath, mode='r') as file:
+                reader = csv.reader(file)
+                for row in reader:
+                    # Check if the row contains the "Runtime" label
+                    if row[0].strip() == "Runtime:":
+                        runtime.append(float(row[1]))
+        except FileNotFoundError:
+            print(f"File not found: {testData_filepath}")
+        except Exception as e:
+            print(f"An error occurred: {e}")
+    nrOfChangesInPFLastHalfMedian = round(np.median(nrOfChangesInPFLastHalf), 2)
+    runtimeMedian = round(np.median(runtime), 2)
+
+    # Save the data to a CSV file
+    testPlan_filename = f"results/testPlan/test{testnr}.csv"
+    with open(testPlan_filename, mode='w', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow(["Evaluation Method", "Value (priority)", "Value(image quality)"])  # Header row
+        writer.writerow(["Knee points median", kneePointsMedian[0], kneePointsMedian[1]])
+        writer.writerow(["Knee points std", kneePointsStd[0], kneePointsStd[1]])
+        writer.writerow(["Final pop median of std", finalPopMedianOfStd[0], finalPopMedianOfStd[1]])
+        writer.writerow(["Changes in PF last half", nrOfChangesInPFLastHalfMedian])
+        writer.writerow(["Runtime median", runtimeMedian])
 
 #Function to create plots
 def plotKneePoints(kneePoints, testnr: str, savetoFile: bool, printPlot: bool):
@@ -260,26 +503,62 @@ def plotParetoFrontEvolution(paretoFrontEvolution, testnr: str, plotname: str, s
     if printPlot:
         plt.show()
     plt.close()
+def plotParetoFrontWithMaxOV(points, maxObjectiveValues, testnr: str, plotname: str, savetoFile: bool, printPlot: bool):
+        # Extract x and y values from objectiveSpace
+    x_values = [point[0] for point in points]
+    y_values = [point[1] for point in points]
+
+    # Create the plot
+    plt.figure(figsize=(10, 6))
+    plt.scatter(x_values, y_values, color='blue', label='Objective Space Points', alpha=0.7)
+
+    # Add horizontal and vertical lines
+    plt.axvline(x=maxObjectiveValues[0], color='green', linestyle='--', label=f'Max Priority ({maxObjectiveValues[0]})')
+    plt.axhline(y=maxObjectiveValues[1], color='red', linestyle='--', label=f'Max Image quality ({round(maxObjectiveValues[1],2)})')
+
+   # Set axis limits to start from 0
+    plt.xlim(0, max(maxObjectiveValues[0], max(x_values)) * 1.1)  # Add 10% padding for better visualization
+    plt.ylim(0, max(maxObjectiveValues[1], max(y_values)) * 1.1)  # Add 10% padding for better visualization
+    
+    # Add labels, title, and legend
+    plt.xlabel('Priority', fontsize=12)
+    plt.ylabel('Image Quality', fontsize=12)
+    plt.title('Objective Space', fontsize=14)
+    plt.legend(loc='center left', bbox_to_anchor=(1, 0.5), fontsize=10)
+    plt.grid(True)
+
+    # Show the plot
+    plt.tight_layout()
+    if savetoFile:
+        plt.savefig(f"results/test{testnr}/plots/analyse/obSpace_wLimits_{plotname}.pdf", format='pdf', dpi=300) 
+    if printPlot:
+        plt.show()
+    plt.close()
+    plt.show()
+
 
 # Run algorithm and save data in json files
 def runAlgFormatResults(testName: str,
                         testNumber: int,
                         ttwList: list,
                         oh: OH,
-                        destructionRate: float,
+                        destructionNumber: int,
                         maxSizeTabooBank: int,
                         printResults, 
                         saveToFile,
                         nRuns: int,
                         popSize: int,
                         schedulingParameters: SP, 
-                        ohDurationInDays: int = 2, 
-                        ohDelayInHours: int = 2,
-                        hypsoNr: int = 1):
+                        alnsRuns: int,
+                        isTabooBankFIFO: bool,
+                        iqNonLinear: bool,
+                        ohDurationInDays: int, 
+                        ohDelayInHours: int,
+                        hypsoNr: int):
     
     start_time = time.time()
 
-    printArray, bestSolution, bestIndex, population = runNSGA(popSize, nRuns, ttwList, schedulingParameters, oh, destructionRate=destructionRate, maxSizeTabooBank=maxSizeTabooBank)
+    printArray, bestSolution, bestIndex, population = runNSGA(popSize, nRuns, ttwList, schedulingParameters, oh, alnsRuns, isTabooBankFIFO, iqNonLinear, destructionNumber, maxSizeTabooBank=maxSizeTabooBank)
 
     end_time = time.time()
     NSGArunTime = end_time - start_time
@@ -306,6 +585,31 @@ def runAlgFormatResults(testName: str,
 
     plotKneePoints_filename = f"results/test{testNumber}/plots/KP_{testName}.pdf"
     createPlotKneePointHistogram(kneePoints, plotKneePoints_filename, printResults)
+
+    # Find max IQ in final population
+    maxIQ = 0
+    for i in range(len(population)):
+        individual = population[i]
+        _, maxImproved, _ = improveIQ(individual.schedual, ttwList, oh, schedulingParameters)
+        newIQ = objectiveFunctionImageQuality(maxImproved, oh)
+        if newIQ > maxIQ:
+            maxIQ = newIQ
+    maxP = findMaxPriority(ttwList, schedulingParameters)
+
+    # create plot of ob space with maxIQ and maxP
+    plotParetoFrontWithMaxOV(objectiveSpace, [maxP, maxIQ], testNumber, testName, saveToFile, printResults)
+
+    #Chekc if best solution can be improved
+    improvedBS, _, canBeImproved = improveIQ(population[bestIndex].schedual, ttwList, oh, schedulingParameters)    
+    if checkFeasibility(improvedBS, schedulingParameters.captureDuration, schedulingParameters.transitionTime):
+        if canBeImproved:
+            print("Best solution can be improved")
+            # save to file
+            bestSchedual_filename = f"results/test{testNumber}/schedual/Imporved_BS_{testName}.json"
+            serializable_schedual = [
+                {"Ground Target": row[0], "Start Time": row[1], "End Time": row[2]} for row in improvedBS
+            ]
+            
 
     
     if not saveToFile:
@@ -359,6 +663,20 @@ def runAlgFormatResults(testName: str,
     with open(bestSchedual_filename, mode='w') as file:
         json.dump(serializable_schedual, file, indent=4)
 
+    ### Save ttwList of best solution to json file
+    ttwList_filename = f"results/test{testNumber}/schedual/TTWL_{testName}.json"
+    serializable_ttwList = []
+    for ttw in population[bestIndex].ttwList:
+        ttwData = {
+            "Ground Target": [ttw.GT.id, ttw.GT.priority]
+,            "Time Windows": [{"start": tw.start, "end": tw.end} for tw in ttw.TWs]
+        }
+        serializable_ttwList.append(ttwData)
+
+    with open(ttwList_filename, mode='w') as file:
+        json.dump(serializable_ttwList, file, indent=4)
+
+
     ### Save fronts, objectiveSpace, and selectedIbjectiveVals and kneepoint to json file
     json_filename = f"results/test{testNumber}/algorithmData/AD_{testName}.json"
     serializable_printArray = []
@@ -382,51 +700,85 @@ ohDurationInDays, ohDelayInHours, hypsoNr = 2, 2, 1
 
 oh, ttwList = getModelInput(schedulingParameters.captureDuration, ohDurationInDays, ohDelayInHours, hypsoNr, startTime)
 
-#### RUN THE TEST ####
+optimizedSchedule, objVals = runGreedyAlgorithm(ttwList, oh, schedulingParameters)
+print(objVals)
+
+
+
+### RUN THE TEST #### 
+#stay fixed during all tests
+RepetedRuns = 2
+popSize = 6
+
 # Variables that change during different tests
-testNumber = 22
-maxTabBank = 50
-desRate = 0.6
-popSize = 20
-nsgaRunds = 40
-RepetedRuns = 10
+isTabooBankFIFO = True
+iqNonLinear = False
+nsgaRunds = 2
+ALNSRuns = 10
+maxTabBank = 10
+desNumber = 6
 
 
-
+###################################################################
+testNumber = 12
 for i in range(RepetedRuns):
     runAlgFormatResults(
         testName = f"test{testNumber}-run{i}",
         testNumber = testNumber,
         ttwList = ttwList,
         oh = oh,
-        destructionRate = desRate, 
+        destructionNumber = desNumber, 
         maxSizeTabooBank = maxTabBank,
         printResults = False, 
         saveToFile = True,
         nRuns = nsgaRunds,
         popSize = popSize, 
-        schedulingParameters = schedulingParameters
+        schedulingParameters = schedulingParameters,
+        alnsRuns = ALNSRuns,
+        isTabooBankFIFO = isTabooBankFIFO,
+        iqNonLinear= iqNonLinear,
+        ohDurationInDays = ohDurationInDays,
+        ohDelayInHours = ohDelayInHours,
+        hypsoNr = hypsoNr
     )
-    print(f"Test {i+1}/{RepetedRuns} finished")
+print(f"Test {i+1}/{RepetedRuns} finished")
 
 schedualedTargetsHistogram(testNumber, RepetedRuns, True, False)
 objectiveSpaceHistogram(testNumber, RepetedRuns, True, False)
+changesInPF = objectiveSpaceHistogram(testNumber, RepetedRuns, True, False)
+saveResultsToFile(testNumber, RepetedRuns, True, False, changesInPF)
+
+# ###################################################################
+# testNumber = 32
+# ALNSRuns = 30
+# for i in range(RepetedRuns):
+#     runAlgFormatResults(
+#         testName = f"test{testNumber}-run{i}",
+#         testNumber = testNumber,
+#         ttwList = ttwList,
+#         oh = oh,
+#         destructionNumber = desNumber, 
+#         maxSizeTabooBank = maxTabBank,
+#         printResults = False, 
+#         saveToFile = True,
+#         nRuns = nsgaRunds,
+#         popSize = popSize, 
+#         schedulingParameters = schedulingParameters,
+#         alnsRuns = ALNSRuns,
+#         isTabooBankFIFO = isTabooBankFIFO,
+#         iqNonLinear= iqNonLinear,
+#         ohDurationInDays = ohDurationInDays,
+#         ohDelayInHours = ohDelayInHours,
+#         hypsoNr = hypsoNr
+#     )
+# print(f"Test {i+1}/{RepetedRuns} finished")
+# schedualedTargetsHistogram(testNumber, RepetedRuns, True, False)
+# objectiveSpaceHistogram(testNumber, RepetedRuns, True, False)
+# changesInPF = objectiveSpaceHistogram(testNumber, RepetedRuns, True, False)
+# saveResultsToFile(testNumber, RepetedRuns, True, False, changesInPF)
 
 
-"""
-How to present the result of the algorithm
-- Objective values of the best solution
-- Objective values of the Pareto front
-- Schedual of the best solution
-- Runtime
-- Objective values of best solution after each main loop iteration 
 
-Input data: 
-- Max Runs in main loop
-- Population size
-- Max captures 
-
-"""
-
+# print("All tests finished")
 
  
