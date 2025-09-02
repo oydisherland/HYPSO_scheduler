@@ -1,5 +1,5 @@
 from scheduling_model import SP, OH, OT
-# from runAlgFormatResults import evaluateBestSchedual, evaluateBSTTW, evaluateAlgorithmData
+from runAlgFormatResults import evaluateBestSchedual, evaluateBSTTW, evaluateAlgorithmData
 from objective_functions import objectiveFunctionImageQuality
 from datetime import datetime
 from operators import greedyPrioritySort

@@ -6,7 +6,6 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Ellipse, Patch
 import matplotlib.colors as mcolors
 from matplotlib import rcParams
-from adjustText import adjust_text
 import math
 
 def darken_color(hex_color, factor=0.7):
