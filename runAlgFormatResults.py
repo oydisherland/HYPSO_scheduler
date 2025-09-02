@@ -5,15 +5,15 @@ from matplotlib.patches import Ellipse
 import json
 import time
 
-from NSGA2 import runNSGA, findKneePoint
+from algorithm.NSGA2 import runNSGA, findKneePoint
 from scheduling_model import SP, OH, OT, GT, TTW, TW
-from visualize_schedual import createPlotSchedual, createPlotObjectiveSpace, createPlotKneePointHistogram 
-from get_target_passes import getModelInput
-from optimizeSchedule import checkFeasibility, improveIQ, findMaxPriority
-from objective_functions import objectiveFunctionImageQuality
+from analyse_results.visualize_schedual import createPlotSchedual, createPlotObjectiveSpace, createPlotKneePointHistogram 
+from data_preprocessing.get_target_passes import getModelInput
+from analyse_results.optimizeSchedule import checkFeasibility, improveIQ, findMaxPriority
+from data_preprocessing.objective_functions import objectiveFunctionImageQuality
 from scheduling_model import SP
-from rhga import RHGA
-from operators import greedyPrioritySort
+from algorithm.rhga import RHGA
+from algorithm.operators import greedyPrioritySort
 
 
 def runGreedyAlgorithm(ttwList, oh, schedulingParameters):
@@ -380,7 +380,7 @@ def saveResultsToFile(testnr: str, repeatedRuns: int, savetoFile: bool, printPlo
     nrOfChangesInPFLastHalf = []
     runtime = []
     for i in range(repeatedRuns):
-        #Summerize how mush the pareto front has chnaged over the last half of the NSGA iterations
+        #Summerize how much the pareto front has changed over the last half of the NSGA iterations
         halfLength = len(changesInParetoFront) // 2
         chenges = sum(changesInParetoFront[i][halfLength:])
         nrOfChangesInPFLastHalf.append(chenges)
@@ -707,20 +707,20 @@ print(objVals)
 
 ### RUN THE TEST #### 
 #stay fixed during all tests
-RepetedRuns = 1
-popSize = 1
+RepetedRuns = 2
+popSize = 6
 
 # Variables that change during different tests
 isTabooBankFIFO = True
 iqNonLinear = False
-nsgaRunds = 1
-ALNSRuns = 1
+nsgaRunds = 2
+ALNSRuns = 10
 maxTabBank = 10
 desNumber = 6
 
 
 ###################################################################
-testNumber = 36
+testNumber = 12
 for i in range(RepetedRuns):
     runAlgFormatResults(
         testName = f"test{testNumber}-run{i}",
@@ -746,7 +746,7 @@ print(f"Test {i+1}/{RepetedRuns} finished")
 schedualedTargetsHistogram(testNumber, RepetedRuns, True, False)
 objectiveSpaceHistogram(testNumber, RepetedRuns, True, False)
 changesInPF = objectiveSpaceHistogram(testNumber, RepetedRuns, True, False)
-saveResultsToFile(testNumber, RepetedRuns, True, False, 0)
+saveResultsToFile(testNumber, RepetedRuns, True, False, changesInPF)
 
 # ###################################################################
 # testNumber = 32
