@@ -15,6 +15,8 @@ from scheduling_model import SP
 from algorithm.rhga import RHGA
 from algorithm.operators import greedyPrioritySort
 
+import data_postprocessing.fromFile_toObject as fromFile_toObjects
+
 
 def runGreedyAlgorithm(ttwList, oh, schedulingParameters):
     otList = []
@@ -43,7 +45,7 @@ def plotCompareKneePoints(testnr: list, nRuns: int):
         bestSolutionsForOneTest = []
         for run in range(nRuns):
             algDataFileName = f"results/test{test}/algorithmData/AD_test{test}-run{run}.json"
-            algData = evaluateAlgorithmData(algDataFileName)
+            algData = fromFile_toObjects.getAlgorithmData(algDataFileName)
             bestSolution = algData[-1][-1]
             bestSolutionsForOneTest.append(bestSolution)
 
@@ -81,7 +83,7 @@ def calculateMeanAndStd(testnr: list, nRuns: int, plot: bool):
 
         for run in range(nRuns):
             algDataFileName = f"results/test{test}/algorithmData/AD_test{test}-run{run}.json"
-            algData = evaluateAlgorithmData(algDataFileName)
+            algData = fromFile_toObjects.getAlgorithmData(algDataFileName)
             bestSolution = algData[-1][-1]
             bestSolutionsForOneTest.append(bestSolution)
 
@@ -178,88 +180,6 @@ def plotEllipticalBubble(meanObjectiveP, meanObjectiveIQ, stdObjectiveP, stdObje
     plt.tight_layout()
     plt.show()
 
-# Functions that read data from json files and recreate the original data structure
-def evaluateAlgorithmData(algData_filename: str):
-    """ Evaluate the algorithm data and recreate printArray from the JSON file """
-    # Load the algorithm data from the JSON file
-
-    with open(algData_filename, mode='r') as file:
-        serialized_data = json.load(file)
-
-    # Reconstruct printArray from the serialized data
-    algData = []
-    for entry in serialized_data:
-        fronts = [np.array(front) for front in entry["fronts"]]  # Convert lists back to NumPy arrays
-        objectiveSpace = [np.array(obj) for obj in entry["objectiveSpace"]]  # Convert lists back to NumPy arrays
-        selectedObjectiveVals = [np.array(val) for val in entry["selectedObjectiveVals"]]  # Convert lists back to NumPy arrays
-        kneePoints = [np.array(point) for point in entry["kneePoint"]]  # Convert lists back to NumPy arrays
-        algData.append((fronts, objectiveSpace, selectedObjectiveVals, kneePoints))
-
-    # Reconstruct Kneepoints from the serialized data
-    # kneePoints = [np.array(entry["kneePoint"]) for entry in serialized_data]
-
-    return algData
-def evaluateSchedualsFinalPop(schedual_filename: str):
-    """ Evaluate the schedual and recreate printArray from the JSON file """
-    # Load the schedual data from the JSON file
-
-    with open(schedual_filename, mode='r') as file:
-        serialized_schedual = json.load(file)
-
-    schedualsFinalPop = []
-    for individSchedual in serialized_schedual:
-        
-        # Reconstruct schedual from the serialized data
-        schedualData = [(entry["Ground Target"], entry["Start Time"], entry["End Time"]) for entry in individSchedual]
-        schedual = []
-        for i in range(len(schedualData)):
-            groundTarget = schedualData[i][0]
-            gt = GT(
-                id = groundTarget[0],
-                lat = float(groundTarget[1]),
-                long = float(groundTarget[2]),
-                priority = int(groundTarget[3]),
-                idealIllumination = int(groundTarget[4])
-            )
-
-            scheduledOT = OT(
-                GT = gt,
-                start = float(schedualData[i][1]),
-                end = float(schedualData[i][2])
-            )
-            schedual.append(scheduledOT)
-        schedualsFinalPop.append(schedual)
-
-    return schedualsFinalPop
-def evaluateBestSchedual( schedual_filename: str):
-    """ Evaluate the schedual and recreate printArray from the JSON file """
-    # Load the schedual data from the JSON file
-
-    with open(schedual_filename, mode='r') as file:
-        serialized_schedual = json.load(file)
-
-    # Reconstruct schedual from the serialized data
-    schedualData = [(entry["Ground Target"], entry["Start Time"], entry["End Time"]) for entry in serialized_schedual]
-    schedual = []
-    for i in range(len(schedualData)):
-        groundTarget = schedualData[i][0]
-        gt = GT(
-            id = groundTarget[0],
-            lat = float(groundTarget[1]),
-            long = float(groundTarget[2]),
-            priority = int(groundTarget[3]),
-            idealIllumination = int(groundTarget[4])
-        )
-
-        scheduledOT = OT(
-            GT = gt,
-            start = float(schedualData[i][1]),
-            end = float(schedualData[i][2])
-        )
-        schedual.append(scheduledOT)
-
-    return schedual
-def evaluateBSTTW(ttwList_filename: str):
     """ Evaluate the ttwList and recreate printArray from the JSON file """
     # Load the ttwList data from the JSON file
 
@@ -294,7 +214,7 @@ def schedualedTargetsHistogram(testnr: str, repeatedRuns: int, savetoFile: bool,
     scheduals = []
     for i in range(repeatedRuns):
         filename_BS = f"results/test{testnr}/schedual/BS_test{testnr}-run{i}.json"
-        scheduals.append(evaluateBestSchedual(filename_BS))
+        scheduals.append(fromFile_toObjects.getSchedualFromFile(filename_BS))
 
 
     ## Evaluates the similarities between the scheduals
@@ -338,7 +258,7 @@ def objectiveSpaceHistogram(testnr: str, repeatedRuns: int, savetoFile: bool, pr
         paretoFrontEvolution = []
         changesInParetoFront = []
         filename_AD = f"results/test{testnr}/algorithmData/AD_test{testnr}-run{runNr}.json"
-        algData = evaluateAlgorithmData(filename_AD)
+        algData = fromFile_toObjects.getAlgorithmData(filename_AD)
 
         ### Evaluate the evolution of the pareto front
         for nsgaLoopNr in range(len(algData)):
@@ -414,7 +334,7 @@ def saveResultsToFile(testnr: str, repeatedRuns: int, savetoFile: bool, printPlo
         writer.writerow(["Changes in PF last half", nrOfChangesInPFLastHalfMedian])
         writer.writerow(["Runtime median", runtimeMedian])
 
-#Function to create plots
+#Function to create plots 
 def plotKneePoints(kneePoints, testnr: str, savetoFile: bool, printPlot: bool):
     """
     Plots the kneePoints list, where each element corresponds to a dot in a 2D plot.
@@ -781,4 +701,16 @@ saveResultsToFile(testNumber, RepetedRuns, True, False, changesInPF)
 
 # print("All tests finished")
 
- 
+testnr = "12"
+testName = f"test{testnr}-run0"
+testData_filepath = f"results/test{testnr}/testData/TD_{testName}.csv"
+schedule_filepath = f"results/test{testnr}/schedual/BS_test{testnr}-run0.json"
+## Extract the schedule from file and reconstruct a list of OTs
+schedual = fromFile_toObjects.getSchedualFromFile(schedule_filepath)
+oh = fromFile_toObjects.getOHFromFile(testData_filepath)
+
+scheduleWDT = fromFile_toObjects.convertSchedualToDateTime(schedual, oh)
+
+for ot in scheduleWDT:
+    print("Capture Start:", ot.start)
+    print("Capture End:", ot.end)

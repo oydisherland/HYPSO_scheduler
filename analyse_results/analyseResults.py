@@ -1,4 +1,4 @@
-from runAlgFormatResults import evaluateAlgorithmData
+from data_postprocessing.fromFile_toObject import getAlgorithmData
 
 import numpy as np
 import csv
@@ -21,7 +21,7 @@ def objectiveSpaceHistogram(testnr: str, repeatedRuns: int):
         paretoFrontEvolution = []
         changesInParetoFront = []
         filename_AD = f"results/test{testnr}/algorithmData/AD_test{testnr}-run{runNr}.json"
-        algData = evaluateAlgorithmData(filename_AD)
+        algData = getAlgorithmData(filename_AD)
 
         ### Evaluate the evolution of the pareto front
         for nsgaLoopNr in range(len(algData)):
@@ -90,7 +90,7 @@ def plotCompareKneePoints(testnr: list, nRuns: int):
         bestSolutionsForOneTest = []
         for run in range(nRuns):
             algDataFileName = f"results/test{test}/algorithmData/AD_test{test}-run{run}.json"
-            algData = evaluateAlgorithmData(algDataFileName)
+            algData = getAlgorithmData(algDataFileName)
             bestSolution = algData[-1][-1]
             bestSolutionsForOneTest.append(bestSolution)
 
@@ -125,7 +125,7 @@ def calculateMeanAndStd(testnr: list, nRuns: int, plot: bool):
         bestSolutionsForOneTest = []
         for run in range(nRuns):
             algDataFileName = f"results/test{test}/algorithmData/AD_test{test}-run{run}.json"
-            algData = evaluateAlgorithmData(algDataFileName)
+            algData = getAlgorithmData(algDataFileName)
             bestSolution = algData[-1][-1]
             bestSolutionsForOneTest.append(bestSolution)
 
