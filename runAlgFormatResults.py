@@ -7,11 +7,10 @@ import time
 
 from algorithm.NSGA2 import runNSGA, findKneePoint
 from scheduling_model import SP, OH, OT, GT, TTW, TW
-from analyse_results.visualize_schedual import createPlotSchedual, createPlotObjectiveSpace, createPlotKneePointHistogram 
+from analyse_results.visualize_schedule import createPlotSchedule, createPlotObjectiveSpace, createPlotKneePointHistogram 
 from data_preprocessing.get_target_passes import getModelInput
 from analyse_results.optimizeSchedule import checkFeasibility, improveIQ, findMaxPriority
 from data_preprocessing.objective_functions import objectiveFunctionImageQuality
-from scheduling_model import SP
 from algorithm.rhga import RHGA
 from algorithm.operators import greedyPrioritySort
 
@@ -44,7 +43,7 @@ def plotCompareKneePoints(testnr: list, nRuns: int):
         colormap = plt.get_cmap('viridis', len(testnr))
         bestSolutionsForOneTest = []
         for run in range(nRuns):
-            algDataFileName = f"results/test{test}/algorithmData/AD_test{test}-run{run}.json"
+            algDataFileName = f"HYPSO_scheduler/results/test{test}/algorithmData/AD_test{test}-run{run}.json"
             algData = fromFile_toObjects.getAlgorithmData(algDataFileName)
             bestSolution = algData[-1][-1]
             bestSolutionsForOneTest.append(bestSolution)
@@ -82,7 +81,7 @@ def calculateMeanAndStd(testnr: list, nRuns: int, plot: bool):
         variancePopIQ = []
 
         for run in range(nRuns):
-            algDataFileName = f"results/test{test}/algorithmData/AD_test{test}-run{run}.json"
+            algDataFileName = f"HYPSO_scheduler/results/test{test}/algorithmData/AD_test{test}-run{run}.json"
             algData = fromFile_toObjects.getAlgorithmData(algDataFileName)
             bestSolution = algData[-1][-1]
             bestSolutionsForOneTest.append(bestSolution)
@@ -180,7 +179,7 @@ def plotEllipticalBubble(meanObjectiveP, meanObjectiveIQ, stdObjectiveP, stdObje
     plt.tight_layout()
     plt.show()
 
-    """ Evaluate the ttwList and recreate printArray from the JSON file """
+    """ Evaluate the ttwList and recreate iterationData from the JSON file """
     # Load the ttwList data from the JSON file
 
     with open(ttwList_filename, mode='r') as file:
@@ -213,14 +212,14 @@ def schedualedTargetsHistogram(testnr: str, repeatedRuns: int, savetoFile: bool,
     ## Extract all scheduals from the seperate runs
     scheduals = []
     for i in range(repeatedRuns):
-        filename_BS = f"results/test{testnr}/schedual/BS_test{testnr}-run{i}.json"
-        scheduals.append(fromFile_toObjects.getSchedualFromFile(filename_BS))
+        filename_BS = f"HYPSO_scheduler/results/test{testnr}/schedule/BS_test{testnr}-run{i}.json"
+        scheduals.append(fromFile_toObjects.getScheduleFromFile(filename_BS))
 
 
     ## Evaluates the similarities between the scheduals
     schedualedTaregts = {}
-    for schedual in scheduals:
-        for target in schedual:
+    for schedule in scheduals:
+        for target in schedule:
             if target.GT.id not in schedualedTaregts:
                 schedualedTaregts[target.GT.id] = 1
                 continue
@@ -242,7 +241,7 @@ def schedualedTargetsHistogram(testnr: str, repeatedRuns: int, savetoFile: bool,
     plt.xticks(rotation=45, ha='right')
     plt.tight_layout()  
     if savetoFile:
-        plt.savefig(f"results/test{testnr}/plots/analyse/schedualedTargetsHistogram.pdf", format='pdf', dpi=300) 
+        plt.savefig(f"HYPSO_scheduler/results/test{testnr}/plots/analyse/schedualedTargetsHistogram.pdf", format='pdf', dpi=300) 
     if printPlot:
         plt.show()
     plt.close()
@@ -257,7 +256,7 @@ def objectiveSpaceHistogram(testnr: str, repeatedRuns: int, savetoFile: bool, pr
     for runNr in range(repeatedRuns):
         paretoFrontEvolution = []
         changesInParetoFront = []
-        filename_AD = f"results/test{testnr}/algorithmData/AD_test{testnr}-run{runNr}.json"
+        filename_AD = f"HYPSO_scheduler/results/test{testnr}/algorithmData/AD_test{testnr}-run{runNr}.json"
         algData = fromFile_toObjects.getAlgorithmData(filename_AD)
 
         ### Evaluate the evolution of the pareto front
@@ -307,7 +306,7 @@ def saveResultsToFile(testnr: str, repeatedRuns: int, savetoFile: bool, printPlo
 
         # Extract the runtime
         testName = f"test{testNumber}-run{i}"
-        testData_filepath = f"results/test{testNumber}/testData/TD_{testName}.csv"
+        testData_filepath = f"HYPSO_scheduler/results/test{testNumber}/testData/TD_{testName}.csv"
         try:
             # Open and read the CSV file
             with open(testData_filepath, mode='r') as file:
@@ -324,7 +323,7 @@ def saveResultsToFile(testnr: str, repeatedRuns: int, savetoFile: bool, printPlo
     runtimeMedian = round(np.median(runtime), 2)
 
     # Save the data to a CSV file
-    testPlan_filename = f"results/testPlan/test{testnr}.csv"
+    testPlan_filename = f"HYPSO_scheduler/results/testPlan/test{testnr}.csv"
     with open(testPlan_filename, mode='w', newline='') as file:
         writer = csv.writer(file)
         writer.writerow(["Evaluation Method", "Value (priority)", "Value(image quality)"])  # Header row
@@ -358,7 +357,7 @@ def plotKneePoints(kneePoints, testnr: str, savetoFile: bool, printPlot: bool):
     # Save or display the plot
     plt.tight_layout()
     if savetoFile:
-        plt.savefig(f"results/test{testnr}/plots/analyse/kneePoints.pdf", format='pdf', dpi=300)
+        plt.savefig(f"HYPSO_scheduler/results/test{testnr}/plots/analyse/kneePoints.pdf", format='pdf', dpi=300)
     if printPlot:
         plt.show()
     plt.close()
@@ -385,7 +384,7 @@ def plotChangesInParetoFront(changesInParetoFront, testnr: str, plotname: str, s
     plt.tight_layout()
     
     if savetoFile:
-        plt.savefig(f"results/test{testnr}/plots/analyse/changesInParetoFront_{plotname}.pdf", format='pdf', dpi=300) 
+        plt.savefig(f"HYPSO_scheduler/results/test{testnr}/plots/analyse/changesInParetoFront_{plotname}.pdf", format='pdf', dpi=300) 
     if printPlot:
         plt.show()
 
@@ -419,7 +418,7 @@ def plotParetoFrontEvolution(paretoFrontEvolution, testnr: str, plotname: str, s
     plt.grid(True)
     plt.tight_layout()
     if savetoFile:
-        plt.savefig(f"results/test{testnr}/plots/analyse/paretofrontEvolution_{plotname}.pdf", format='pdf', dpi=300) 
+        plt.savefig(f"HYPSO_scheduler/results/test{testnr}/plots/analyse/paretofrontEvolution_{plotname}.pdf", format='pdf', dpi=300) 
     if printPlot:
         plt.show()
     plt.close()
@@ -450,7 +449,7 @@ def plotParetoFrontWithMaxOV(points, maxObjectiveValues, testnr: str, plotname: 
     # Show the plot
     plt.tight_layout()
     if savetoFile:
-        plt.savefig(f"results/test{testnr}/plots/analyse/obSpace_wLimits_{plotname}.pdf", format='pdf', dpi=300) 
+        plt.savefig(f"HYPSO_scheduler/results/test{testnr}/plots/analyse/obSpace_wLimits_{plotname}.pdf", format='pdf', dpi=300)
     if printPlot:
         plt.show()
     plt.close()
@@ -478,39 +477,35 @@ def runAlgFormatResults(testName: str,
     
     start_time = time.time()
 
-    printArray, bestSolution, bestIndex, population = runNSGA(popSize, nRuns, ttwList, schedulingParameters, oh, alnsRuns, isTabooBankFIFO, iqNonLinear, destructionNumber, maxSizeTabooBank=maxSizeTabooBank)
+    bestSchedule, iterationData, bestSolution, bestIndex, population = runNSGA(popSize, nRuns, ttwList, schedulingParameters, oh, alnsRuns, isTabooBankFIFO, iqNonLinear, destructionNumber, maxSizeTabooBank=maxSizeTabooBank)
 
     end_time = time.time()
     NSGArunTime = end_time - start_time
     
     kneePoints = []
-    for iteration in range(len(printArray)):
-        fronts, objectiveSpace, selectedObjectiveVals = printArray[iteration]
+    for iteration in range(len(iterationData)):
+        fronts, objectiveSpace, selectedObjectiveVals = iterationData[iteration]
         kneePoint_sub, _ = findKneePoint(fronts, objectiveSpace)
         kneePoints.append(kneePoint_sub)
 
     
 
-    fronts, objectiveSpace, selectedObjectiveVals = printArray[-1]
+    fronts, objectiveSpace, selectedObjectiveVals = iterationData[-1]
     print(f"Best solution: {bestSolution}")
 
     ### Create plots and save to file
-    plotObjectiveSpace_filename = f"results/test{testNumber}/plots/OS_{testName}.pdf"
+    plotObjectiveSpace_filename = f"HYPSO_scheduler/results/test{testNumber}/plots/OS_{testName}.pdf"
     createPlotObjectiveSpace(fronts, objectiveSpace, selectedObjectiveVals, plotObjectiveSpace_filename, printResults)
-    plotSchedual_filename = f"results/test{testNumber}/plots/S_{testName}.pdf"
-    try:
-        createPlotSchedual(population[bestIndex].schedual, plotSchedual_filename, printResults)
-    except IndexError:
-        print(f"BestIndex = {bestIndex} is out of range for population of size {len(population)}")
-
-    plotKneePoints_filename = f"results/test{testNumber}/plots/KP_{testName}.pdf"
+    plotSchedule_filename = f"HYPSO_scheduler/results/test{testNumber}/plots/S_{testName}.pdf"
+    createPlotSchedule(bestSchedule, plotSchedule_filename, printResults)
+    plotKneePoints_filename = f"HYPSO_scheduler/results/test{testNumber}/plots/KP_{testName}.pdf"
     createPlotKneePointHistogram(kneePoints, plotKneePoints_filename, printResults)
 
     # Find max IQ in final population
     maxIQ = 0
     for i in range(len(population)):
         individual = population[i]
-        _, maxImproved, _ = improveIQ(individual.schedual, ttwList, oh, schedulingParameters)
+        _, maxImproved, _ = improveIQ(individual.schedule, ttwList, oh, schedulingParameters)
         newIQ = objectiveFunctionImageQuality(maxImproved, oh)
         if newIQ > maxIQ:
             maxIQ = newIQ
@@ -519,13 +514,13 @@ def runAlgFormatResults(testName: str,
     # create plot of ob space with maxIQ and maxP
     plotParetoFrontWithMaxOV(objectiveSpace, [maxP, maxIQ], testNumber, testName, saveToFile, printResults)
 
-    #Chekc if best solution can be improved
-    improvedBS, _, canBeImproved = improveIQ(population[bestIndex].schedual, ttwList, oh, schedulingParameters)    
+    #Check if best solution can be improved
+    improvedBS, _, canBeImproved = improveIQ(bestSchedule, ttwList, oh, schedulingParameters)    
     if checkFeasibility(improvedBS, schedulingParameters.captureDuration, schedulingParameters.transitionTime):
         if canBeImproved:
             print("Best solution can be improved")
             # save to file
-            bestSchedual_filename = f"results/test{testNumber}/schedual/Imporved_BS_{testName}.json"
+            bestSchedule_filename = f"HYPSO_scheduler/results/test{testNumber}/schedule/Imporved_BS_{testName}.json"
             serializable_schedual = [
                 {"Ground Target": row[0], "Start Time": row[1], "End Time": row[2]} for row in improvedBS
             ]
@@ -537,7 +532,7 @@ def runAlgFormatResults(testName: str,
         return
     
     # Save parameter data from the run to csv file
-    testData_filename = f"results/test{testNumber}/testData/TD_{testName}.csv"
+    testData_filename = f"HYPSO_scheduler/results/test{testNumber}/testData/TD_{testName}.csv"
     with open(testData_filename, mode='w', newline='') as file:
         writer = csv.writer(file)
         writer.writerow(["Observation Horizon (start/end): ", oh.utcStart, oh.utcEnd])
@@ -550,9 +545,9 @@ def runAlgFormatResults(testName: str,
     ### Save all scheduals to json file
     serializable_schedualsFinalPop = []
     for i in range(len(population)//2):
-        # Add the schedual parent and the schedual child after eachother
-        parent = population[i].schedual
-        child = population[i + len(population)//2].schedual
+        # Add the schedule parent and the schedule child after eachother
+        parent = population[i].schedule
+        child = population[i + len(population)//2].schedule
         serializable_induvidual = []
         for row in parent:
             serializable_induvidual.append({
@@ -570,21 +565,21 @@ def runAlgFormatResults(testName: str,
             })
         serializable_schedualsFinalPop.append(serializable_induvidual)
 
-    schedualsFinalPop_filename = f"results/test{testNumber}/schedual/SFP_{testName}.json"
+    schedualsFinalPop_filename = f"HYPSO_scheduler/results/test{testNumber}/schedule/SFP_{testName}.json"
     with open(schedualsFinalPop_filename, mode='w') as file:
         json.dump(serializable_schedualsFinalPop, file, indent=4)
 
-    ### Save best schedual to json file
-    bestSchedual_filename = f"results/test{testNumber}/schedual/BS_{testName}.json"
-    serializable_schedual = [
-        {"Ground Target": row[0], "Start Time": row[1], "End Time": row[2]} for row in population[bestIndex].schedual
+    ### Save best schedule to json file
+    bestSchedule_filename = f"HYPSO_scheduler/results/test{testNumber}/schedule/BS_{testName}.json"
+    serializable_schedule = [
+        {"Ground Target": row[0], "Start Time": row[1], "End Time": row[2]} for row in bestSchedule
     ]
 
-    with open(bestSchedual_filename, mode='w') as file:
-        json.dump(serializable_schedual, file, indent=4)
+    with open(bestSchedule_filename, mode='w') as file:
+        json.dump(serializable_schedule, file, indent=4)
 
     ### Save ttwList of best solution to json file
-    ttwList_filename = f"results/test{testNumber}/schedual/TTWL_{testName}.json"
+    ttwList_filename = f"HYPSO_scheduler/results/test{testNumber}/schedule/TTWL_{testName}.json"
     serializable_ttwList = []
     for ttw in population[bestIndex].ttwList:
         ttwData = {
@@ -598,11 +593,11 @@ def runAlgFormatResults(testName: str,
 
 
     ### Save fronts, objectiveSpace, and selectedIbjectiveVals and kneepoint to json file
-    json_filename = f"results/test{testNumber}/algorithmData/AD_{testName}.json"
-    serializable_printArray = []
-    for i in range(len(printArray)):
-        fronts, objectiveSpace, selectedObjectiveVals = printArray[i]
-        serializable_printArray.append({
+    json_filename = f"HYPSO_scheduler/results/test{testNumber}/algorithmData/AD_{testName}.json"
+    serializable_iterationData = []
+    for i in range(len(iterationData)):
+        fronts, objectiveSpace, selectedObjectiveVals = iterationData[i]
+        serializable_iterationData.append({
             "fronts": [front.tolist() for front in fronts],  # Convert NumPy arrays to lists
             "objectiveSpace": [obj.tolist() for obj in objectiveSpace],  # Convert NumPy arrays to lists
             "selectedObjectiveVals": [val.tolist() for val in selectedObjectiveVals],  # Convert NumPy arrays to lists
@@ -610,7 +605,7 @@ def runAlgFormatResults(testName: str,
         })
 
     with open(json_filename, mode='w') as file:
-        json.dump(serializable_printArray, file, indent=4)
+        json.dump(serializable_iterationData, file, indent=4)
 
 
 #Variables that say fixed during all tests
@@ -703,14 +698,14 @@ saveResultsToFile(testNumber, RepetedRuns, True, False, changesInPF)
 
 testnr = "12"
 testName = f"test{testnr}-run0"
-testData_filepath = f"results/test{testnr}/testData/TD_{testName}.csv"
-schedule_filepath = f"results/test{testnr}/schedual/BS_test{testnr}-run0.json"
+testData_filepath = f"HYPSO_scheduler/results/test{testnr}/testData/TD_{testName}.csv"
+schedule_filepath = f"HYPSO_scheduler/results/test{testnr}/schedule/BS_test{testnr}-run0.json"
 ## Extract the schedule from file and reconstruct a list of OTs
-schedual = fromFile_toObjects.getSchedualFromFile(schedule_filepath)
+schedule = fromFile_toObjects.getScheduleFromFile(schedule_filepath)
 oh = fromFile_toObjects.getOHFromFile(testData_filepath)
 
-scheduleWDT = fromFile_toObjects.convertSchedualToDateTime(schedual, oh)
+scheduleWDT = fromFile_toObjects.convertScheduleToDateTime(schedule, oh)
 
-for ot in scheduleWDT:
-    print("Capture Start:", ot.start)
-    print("Capture End:", ot.end)
+# for ot in scheduleWDT:
+#     print("Capture Start:", ot.start)
+#     print("Capture End:", ot.end)

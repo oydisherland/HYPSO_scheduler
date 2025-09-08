@@ -23,7 +23,7 @@ returns a list (or similar) that can be used in further processing.
 
 # Functions that read data from json files and recreate the original data structure
 
-def getSchedualFromFile(filepath: str):
+def getScheduleFromFile(filepath: str):
     """ Extract the list of scheduled targets from the JSON file, and recreate the GT and OT objects """
 
     try: 
@@ -85,14 +85,14 @@ def getOHFromFile(filepath: str):
     
     return oh
 def getAlgorithmData(filepath: str):
-    """ Extract the algorithm data from the file and recreate printArray list returned by the algorithm """
+    """ Extract the algorithm data from the file and recreate iterationData list returned by the algorithm """
    
     try:
         # Load the algorithm data from the JSON file
         with open(filepath, mode='r') as file:
             serialized_data = json.load(file)
 
-        # Reconstruct printArray from the serialized data
+        # Reconstruct iterationData from the serialized data
         algData = []
         for entry in serialized_data:
             fronts = [np.array(front) for front in entry["fronts"]]  # Convert lists back to NumPy arrays
@@ -184,12 +184,12 @@ def getBSTTW(filepath: str):
 
 # Functions to transform the object 
 
-def convertSchedualToDateTime(schedualWithRelativeTime: list, oh: OH) -> list:
+def convertScheduleToDateTime(scheduleWithRelativeTime: list, oh: OH) -> list:
     """ Convert the time representation in the schedule to the absolute datetime representation, 
     instead of relative to the start of optimization horizon"""
 
-    schedualWithDatetimeObj = []
-    for ot in schedualWithRelativeTime:
+    scheduleWithDatetimeObj = []
+    for ot in scheduleWithRelativeTime:
         # Convert the start and end times of each OT to datetime objects
         captureStart = oh.utcStart + timedelta(seconds=ot.start)
         captureEnd = oh.utcStart + timedelta(seconds=ot.end)
@@ -199,7 +199,7 @@ def convertSchedualToDateTime(schedualWithRelativeTime: list, oh: OH) -> list:
             start=captureStart,
             end=captureEnd
         )
-        schedualWithDatetimeObj.append(otWithDatetime)
-    return schedualWithDatetimeObj
+        scheduleWithDatetimeObj.append(otWithDatetime)
+    return scheduleWithDatetimeObj
 
 
