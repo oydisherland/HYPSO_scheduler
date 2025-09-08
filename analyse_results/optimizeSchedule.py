@@ -1,5 +1,5 @@
 from scheduling_model import SP, OH, OT
-# from runAlgFormatResults import evaluateBestSchedual, evaluateBSTTW, evaluateAlgorithmData
+from data_postprocessing.fromFile_toObject import getAlgorithmData
 from data_preprocessing.objective_functions import objectiveFunctionImageQuality
 from datetime import datetime
 from algorithm.operators import greedyPrioritySort
@@ -149,10 +149,10 @@ def improveIQ(otList, ttwList, oh, sp: SP):
 #     captureDuration = 60
 #     transTime = 90
 #     testName = f"test{testNumber}-run{runNr}"
-#     filename_schedule = f"results/test{testNumber}/schedual/BS_{testName}.json"
-#     filename_ttw = f"results/test{testNumber}/schedual/TTWL_{testName}.json"
+#     filename_schedule = f"results/test{testNumber}/schedule/BS_{testName}.json"
+#     filename_ttw = f"results/test{testNumber}/schedule/TTWL_{testName}.json"
 
-#     schedule = evaluateBestSchedual(filename_schedule)
+#     schedule = evaluateBestSchedule(filename_schedule)
 #     ttwList = evaluateBSTTW(filename_ttw)
 
 #     oh = extractTestDataCSV(testNumber, testName)
@@ -198,7 +198,7 @@ def findMaxPriority(ttwList, sp: SP):
 # # print(f"Schedule is feasible image quality max: {checkFeasibility(maxIQSchedule, cd, tt)}")
 
 # fileName_algdata = f"results/test{testNumber}/algorithmData/AD_test{testNumber}-run{runNr}.json"
-# algData = evaluateAlgorithmData(fileName_algdata)
+# algData = getAlgorithmData(fileName_algdata)
 # fronts, objectiveSpace, selectedObjectiveVals, kneePoints = algData[-1]
 # plotParetoFrontWithMaxOV(objectiveSpace, [PMax, IQMax])
 
