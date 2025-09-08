@@ -1,4 +1,7 @@
+import datetime
+
 from data_postprocessing.fromFile_toObject import getScheduleFromFile
+from data_preprocessing.get_target_passes import getGroundStationTimeWindows
 from scheduling_model import OT, TTW, BT, GSTW
 import matplotlib.pyplot as plt
 import time
@@ -7,15 +10,17 @@ import time
 buffering_time = 900  # seconds
 max_buffer_offset = 12 * 3600  # Maximum offset between a capture and its buffering in seconds
 interTaskTime = 100  # seconds between two tasks to account for transition time
+groundStationFilePath = "data_input/HYPSO_data/ground_stations.csv"
 
-def scheduleTransmissions(otList: list[OT], ttwList: list[TTW]):
+def scheduleTransmissions(otList: list[OT], ttwList: list[TTW], gstwListSorted: list[GSTW]):
     """
     Try to schedule the transmission of each observed target in otList.
     Transmission consists of transmitting to Ground Station and buffering the capture before actually transmitting.
 
     Args:
         otList (list[OT]): List of observation tasks to schedule transmissions for.
-        ttwList (list[TTW]): List of target time windows (not used in current implementation).
+        ttwList (list[TTW]): List of target time windows.
+        gstwListSorted (list[GSTW]): List of ground station time windows with time windows sorted by time.
 
     Returns:
         tuple[bool, list[BT], list[OT]]: A tuple containing:
@@ -27,7 +32,7 @@ def scheduleTransmissions(otList: list[OT], ttwList: list[TTW]):
     otListSorted = sorted(otList, key=lambda x: x.start)
     validScheduleFound = True
     for otToBuffer in otList:
-        bt = generateBufferTaskDirectInsert(otToBuffer, otListSorted, btList, [])
+        bt = generateBufferTaskDirectInsert(otToBuffer, otListSorted, btList, gstwListSorted)
         if bt is not None:
             btList.append(bt)
         else:
@@ -54,7 +59,7 @@ def generateBufferTaskDirectInsert(otToBuffer: OT, otListSorted: list[OT], btLis
     candidateBT = BT(otToBuffer.GT, otToBuffer.end + interTaskTime, otToBuffer.end + buffering_time + interTaskTime)
 
     # First guess is to immediately start buffering after observation
-    if not bufferTaskConflicting(candidateBT, btList, otListSorted, []):
+    if not bufferTaskConflicting(candidateBT, btList, otListSorted, gstwListSorted):
         return candidateBT
 
     # From now on, we will save all the possible candidates and later pick the earliest option
@@ -71,7 +76,7 @@ def generateBufferTaskDirectInsert(otToBuffer: OT, otListSorted: list[OT], btLis
             continue
 
         candidateBT = BT(otToBuffer.GT, ot.end + interTaskTime, ot.end + buffering_time + interTaskTime)
-        if not bufferTaskConflicting(candidateBT, btList, otListSorted, []):
+        if not bufferTaskConflicting(candidateBT, btList, otListSorted, gstwListSorted):
             candidateBTList.append(candidateBT)
             # Observation tasks are sorted by time, so looking further is not necessary
             break
@@ -82,7 +87,7 @@ def generateBufferTaskDirectInsert(otToBuffer: OT, otListSorted: list[OT], btLis
             continue
 
         candidateBT = BT(otToBuffer.GT, bt.end + interTaskTime, bt.end + buffering_time + interTaskTime)
-        if not bufferTaskConflicting(candidateBT, btList, otListSorted, []):
+        if not bufferTaskConflicting(candidateBT, btList, otListSorted, gstwListSorted):
             candidateBTList.append(candidateBT)
 
 
@@ -97,7 +102,7 @@ def generateBufferTaskDirectInsert(otToBuffer: OT, otListSorted: list[OT], btLis
                 continue
 
             candidateBT = BT(otToBuffer.GT, tw.end + interTaskTime, tw.end + buffering_time + interTaskTime)
-            if not bufferTaskConflicting(candidateBT, btList, otListSorted, []):
+            if not bufferTaskConflicting(candidateBT, btList, otListSorted, gstwListSorted):
                 candidateBTList.append(candidateBT)
                 # Time windows are sorted by time, so looking further is not necessary
                 break
@@ -149,7 +154,7 @@ def bufferTaskConflicting(bt: BT, btList: list[BT], otListSorted: list[OT], gstw
 
     return False
 
-def plotSchedule(otList: list[OT], btList: list[BT]):
+def plotSchedule(otList: list[OT], btList: list[BT], gstwList: list[GSTW]):
     # --- Plotting ---
     fig, ax = plt.subplots(figsize=(30, 5))
 
@@ -164,7 +169,6 @@ def plotSchedule(otList: list[OT], btList: list[BT]):
             alpha=1,
             label="OT" if i == 0 else ""
         )
-        # ax.text(start_dt, ot.GT.id, f"{ot.GT.id}", va="center", ha="left", color="blue")
 
     # Buffering Tasks (orange)
     for i, bt in enumerate(btList):
@@ -177,7 +181,19 @@ def plotSchedule(otList: list[OT], btList: list[BT]):
             alpha=0.7,
             label="BT" if i == 0 else ""
         )
-        # ax.text(start_dt, bt.GT.id, f"{bt.GT.id}", va="center", ha="left", color="darkred")
+
+    for gstw in gstwList:
+        for i, tw in enumerate(gstw.TWs):
+            ax.barh(
+                y=1,
+                width=tw.end - tw.start,
+                left=tw.start,
+                height=0.5,
+                color="green",
+                alpha=0.3,
+                label=gstw.GS.id if i == 0 else ""
+            )
+
 
     # Formatting the x-axis
     plt.xlim(0, btList[-1].end + 1000)
@@ -189,10 +205,14 @@ def plotSchedule(otList: list[OT], btList: list[BT]):
 
 otList = getScheduleFromFile("C:/Users/20212052/git/TU/HYPSO_scheduler/BS_test12-run1.json")
 
+startTimeOH = datetime.datetime.now(datetime.timezone.utc)
+endTimeOH = startTimeOH + datetime.timedelta(days=2)
+gstwList = getGroundStationTimeWindows(startTimeOH, endTimeOH, groundStationFilePath, 1)
+
 start_time = time.perf_counter()
-valid, btList, otListModified = scheduleTransmissions(otList, [])
+valid, btList, otListModified = scheduleTransmissions(otList, [], gstwList)
 end_time = time.perf_counter()
 
 print(f"{(end_time - start_time)*1000:.4f} milliseconds")
 
-plotSchedule(otListModified, btList)
+plotSchedule(otListModified, btList, gstwList)
