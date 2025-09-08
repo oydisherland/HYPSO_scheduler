@@ -21,6 +21,43 @@ claculates the datetime objecte corresponding to each capture,
 returns a list (or similar) that can be used in further processing.
 """
 
+# Functions that take in an object and save it in a json file
+
+def saveScheduleInJsonFile(filepath: str, schedule: list):
+    """ Save the schedule data to a JSON file """
+    serializable_schedule = [
+        {"Ground Target": row[0], "Start Time": row[1], "End Time": row[2]} for row in schedule
+    ]
+
+    with open(filepath, mode='w') as file:
+        json.dump(serializable_schedule, file, indent=4)
+def saveTTWListInJsonFile(filepath: str, ttwList: list):
+    """ Save the TTW list data to a JSON file """
+    serializable_ttwList = []
+    for ttw in ttwList:
+        ttwData = {
+            "Ground Target": [ttw.GT.id, ttw.GT.priority],
+            "Time Windows": [{"start": tw.start, "end": tw.end} for tw in ttw.TWs]
+        }
+        serializable_ttwList.append(ttwData)
+
+    with open(filepath, mode='w') as file:
+        json.dump(serializable_ttwList, file, indent=4)
+def saveIterationDataInJsonFile(filepath: str, iterationData: list):
+    """ Save the algorithm data to a JSON file """
+    serializable_iterationData = []
+    for i in range(len(iterationData)):
+        fronts, objectiveSpace, selectedObjectiveVals = iterationData[i]
+        serializable_iterationData.append({
+            "fronts": [front.tolist() for front in fronts],  # Convert NumPy arrays to lists
+            "objectiveSpace": [obj.tolist() for obj in objectiveSpace],  # Convert NumPy arrays to lists
+            "selectedObjectiveVals": [val.tolist() for val in selectedObjectiveVals],  # Convert NumPy arrays to lists
+        })
+
+    with open(filepath, mode='w') as file:
+        json.dump(serializable_iterationData, file, indent=4)
+
+
 # Functions that read data from json files and recreate the original data structure
 
 def getScheduleFromFile(filepath: str):
@@ -84,7 +121,7 @@ def getOHFromFile(filepath: str):
         print(f"An error occurred: {e}")
     
     return oh
-def getAlgorithmData(filepath: str):
+def getIterationData(filepath: str):
     """ Extract the algorithm data from the file and recreate iterationData list returned by the algorithm """
    
     try:
@@ -93,13 +130,12 @@ def getAlgorithmData(filepath: str):
             serialized_data = json.load(file)
 
         # Reconstruct iterationData from the serialized data
-        algData = []
+        iterationData = []
         for entry in serialized_data:
             fronts = [np.array(front) for front in entry["fronts"]]  # Convert lists back to NumPy arrays
             objectiveSpace = [np.array(obj) for obj in entry["objectiveSpace"]]  # Convert lists back to NumPy arrays
             selectedObjectiveVals = [np.array(val) for val in entry["selectedObjectiveVals"]]  # Convert lists back to NumPy arrays
-            kneePoints = [np.array(point) for point in entry["kneePoint"]]  # Convert lists back to NumPy arrays
-            algData.append((fronts, objectiveSpace, selectedObjectiveVals, kneePoints))
+            iterationData.append((fronts, objectiveSpace, selectedObjectiveVals))
 
         # Reconstruct Kneepoints from the serialized data
         # kneePoints = [np.array(entry["kneePoint"]) for entry in serialized_data]
@@ -109,7 +145,7 @@ def getAlgorithmData(filepath: str):
     except Exception as e:
         print(f"An error occurred: {e}")
 
-    return algData
+    return iterationData
 def getFinalPopulation(filepath: str):
     """ Extract from file the schedule corresponding to the final population and recreate the finalPop array,
     that was returned by the algorithm """
@@ -180,7 +216,6 @@ def getBSTTW(filepath: str):
     
     return ttwList
     
-
 
 # Functions to transform the object 
 

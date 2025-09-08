@@ -14,7 +14,7 @@ from data_preprocessing.objective_functions import objectiveFunctionImageQuality
 from algorithm.rhga import RHGA
 from algorithm.operators import greedyPrioritySort
 
-import data_postprocessing.fromFile_toObject as fromFile_toObjects
+import HYPSO_scheduler.data_postprocessing.algorithmData_api as fromFile_toObjects
 
 
 def runGreedyAlgorithm(ttwList, oh, schedulingParameters):
@@ -44,7 +44,7 @@ def plotCompareKneePoints(testnr: list, nRuns: int):
         bestSolutionsForOneTest = []
         for run in range(nRuns):
             algDataFileName = f"HYPSO_scheduler/results/test{test}/algorithmData/AD_test{test}-run{run}.json"
-            algData = fromFile_toObjects.getAlgorithmData(algDataFileName)
+            algData = fromFile_toObjects.getIterationData(algDataFileName)
             bestSolution = algData[-1][-1]
             bestSolutionsForOneTest.append(bestSolution)
 
@@ -82,7 +82,7 @@ def calculateMeanAndStd(testnr: list, nRuns: int, plot: bool):
 
         for run in range(nRuns):
             algDataFileName = f"HYPSO_scheduler/results/test{test}/algorithmData/AD_test{test}-run{run}.json"
-            algData = fromFile_toObjects.getAlgorithmData(algDataFileName)
+            algData = fromFile_toObjects.getIterationData(algDataFileName)
             bestSolution = algData[-1][-1]
             bestSolutionsForOneTest.append(bestSolution)
 
@@ -257,12 +257,12 @@ def objectiveSpaceHistogram(testnr: str, repeatedRuns: int, savetoFile: bool, pr
         paretoFrontEvolution = []
         changesInParetoFront = []
         filename_AD = f"HYPSO_scheduler/results/test{testnr}/algorithmData/AD_test{testnr}-run{runNr}.json"
-        algData = fromFile_toObjects.getAlgorithmData(filename_AD)
+        algData = fromFile_toObjects.getIterationData(filename_AD)
 
         ### Evaluate the evolution of the pareto front
         for nsgaLoopNr in range(len(algData)):
 
-            fronts, objectiveSpace, _,_ = algData[nsgaLoopNr]
+            fronts, objectiveSpace, _ = algData[nsgaLoopNr]
             pf = fronts[0] #paretofront of the current loop
 
             pfSolutions = [objectiveSpace[i] for i in pf]
@@ -277,12 +277,8 @@ def objectiveSpaceHistogram(testnr: str, repeatedRuns: int, savetoFile: bool, pr
         plotChangesInParetoFront(changesInParetoFront, testnr, plotname, savetoFile, printPlot)
         plotParetoFrontEvolution(paretoFrontEvolution, testnr, plotname, savetoFile, printPlot)
 
-        kneePointBestSolution = algData[-1][-1]
-        kneePoints.append(kneePointBestSolution)
-        allChangesInPF.append(changesInParetoFront)
 
-    ### Evaluate the final knee point in all induviduals in population
-    plotKneePoints(kneePoints, testnr, savetoFile, printPlot)
+    ### Evaluate the final knee point in all individuals in population
     return allChangesInPF
 def saveResultsToFile(testnr: str, repeatedRuns: int, savetoFile: bool, printPlot: bool, changesInParetoFront: list):
     
@@ -571,41 +567,17 @@ def runAlgFormatResults(testName: str,
 
     ### Save best schedule to json file
     bestSchedule_filename = f"HYPSO_scheduler/results/test{testNumber}/schedule/BS_{testName}.json"
-    serializable_schedule = [
-        {"Ground Target": row[0], "Start Time": row[1], "End Time": row[2]} for row in bestSchedule
-    ]
+    fromFile_toObjects.saveScheduleInJsonFile(bestSchedule_filename, bestSchedule)
 
-    with open(bestSchedule_filename, mode='w') as file:
-        json.dump(serializable_schedule, file, indent=4)
 
     ### Save ttwList of best solution to json file
     ttwList_filename = f"HYPSO_scheduler/results/test{testNumber}/schedule/TTWL_{testName}.json"
-    serializable_ttwList = []
-    for ttw in population[bestIndex].ttwList:
-        ttwData = {
-            "Ground Target": [ttw.GT.id, ttw.GT.priority]
-,            "Time Windows": [{"start": tw.start, "end": tw.end} for tw in ttw.TWs]
-        }
-        serializable_ttwList.append(ttwData)
-
-    with open(ttwList_filename, mode='w') as file:
-        json.dump(serializable_ttwList, file, indent=4)
+    fromFile_toObjects.saveTTWListInJsonFile(ttwList_filename, population[bestIndex].ttwList)
 
 
-    ### Save fronts, objectiveSpace, and selectedIbjectiveVals and kneepoint to json file
+    ### Save fronts, objectiveSpace, and selectedObjectiveVals to json file
     json_filename = f"HYPSO_scheduler/results/test{testNumber}/algorithmData/AD_{testName}.json"
-    serializable_iterationData = []
-    for i in range(len(iterationData)):
-        fronts, objectiveSpace, selectedObjectiveVals = iterationData[i]
-        serializable_iterationData.append({
-            "fronts": [front.tolist() for front in fronts],  # Convert NumPy arrays to lists
-            "objectiveSpace": [obj.tolist() for obj in objectiveSpace],  # Convert NumPy arrays to lists
-            "selectedObjectiveVals": [val.tolist() for val in selectedObjectiveVals],  # Convert NumPy arrays to lists
-            "kneePoint": kneePoints[i].tolist()  # Convert NumPy array to list
-        })
-
-    with open(json_filename, mode='w') as file:
-        json.dump(serializable_iterationData, file, indent=4)
+    fromFile_toObjects.saveIterationDataInJsonFile(json_filename, iterationData)
 
 
 #Variables that say fixed during all tests

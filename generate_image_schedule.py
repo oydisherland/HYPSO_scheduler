@@ -1,5 +1,6 @@
 import csv
 
+import data_postprocessing.algorithmData_api as AD_api
 from scheduling_model import SP
 from algorithm.NSGA2 import runNSGA
 from data_preprocessing.get_target_passes import getModelInput
@@ -53,3 +54,5 @@ schedule, _, _, _, _ = runNSGA(
     int(inputParameters["maxTabBank"])
 )
 
+AD_api.saveScheduleInJsonFile(f"{inputParameters['testName']}.json", schedule)
+print(AD_api.getScheduleFromFile(f"{inputParameters['testName']}.json"))

@@ -1,3 +1,5 @@
+testName, dummyTest
+
 #scheduling spesific parameters
 maxCaptures, 40
 captureDuration, 60
