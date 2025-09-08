@@ -24,7 +24,7 @@ def csvToDict(filepath):
 
 ### RUN THE ALGORITHM ####
 
-filePath_inputParameters = "HYPSO_scheduler/data_input/input_parameters.csv"
+filePath_inputParameters = "data_input/input_parameters.csv"
 inputParameters = csvToDict(filePath_inputParameters)
 print(inputParameters)
 

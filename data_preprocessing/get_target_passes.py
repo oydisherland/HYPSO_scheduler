@@ -129,7 +129,7 @@ def getModelInput( captureTime: int, ohDurationInDays: int, ohDelayInHours: int,
     endTimeOH = startTimeOH + datetime.timedelta(days=ohDurationInDays)
     print("Start time OH:", startTimeOH, "End time OH:", endTimeOH)
     # Path to the file containing the ground targets data
-    targetsFilePath = 'HYPSO_scheduler/data_input/HYPSO_data/targets.csv'
+    targetsFilePath = 'data_input/HYPSO_data/targets.csv'
 
     # Get the target passes
     allTargetPasses = getAllTargetPasses(captureTime, startTimeOH, endTimeOH, targetsFilePath, hypsoNr)

@@ -10,7 +10,7 @@ def createSatelliteObject(HYPSOnr: int) -> skf.EarthSatellite:
     """
     # HYPSO 1 data
     hypso1TleUrl = 'https://celestrak.org/NORAD/elements/gp.php?CATNR=51053&FORMAT=TLE'
-    hypso1TlePath = 'HYPSO_scheduler/data_input/HYPSO_data/HYPSO-1_TLE.txt'
+    hypso1TlePath = 'data_input/HYPSO_data/HYPSO-1_TLE.txt'
 
     if HYPSOnr == 1:
         # The skyfield API function to create an "EarthSatellite" object.
