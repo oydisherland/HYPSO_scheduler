@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import time
 
 
-buffering_time = 800  # seconds
+buffering_time = 900  # seconds
 max_buffer_offset = 12 * 3600  # Maximum offset between a capture and its buffering in seconds
 interTaskTime = 100  # seconds between two tasks to account for transition time
 
@@ -21,7 +21,7 @@ def scheduleTransmissions(otList: list[OT], ttwList: list[TTW]):
         tuple[bool, list[BT], list[OT]]: A tuple containing:
             - A boolean indicating if a valid schedule was found for all buffering tasks.
             - A list of scheduled buffering tasks (BT).
-            - A possibly changed List of observation tasks (OT) to fit the observation tasks.
+            - A time-sorted list of observation tasks, possibly changed to fit the observation tasks.
     """
     btList: list[BT] = []
     otListSorted = sorted(otList, key=lambda x: x.start)
@@ -149,6 +149,43 @@ def bufferTaskConflicting(bt: BT, btList: list[BT], otListSorted: list[OT], gstw
 
     return False
 
+def plotSchedule(otList: list[OT], btList: list[BT]):
+    # --- Plotting ---
+    fig, ax = plt.subplots(figsize=(30, 5))
+
+    # Observation Tasks (blue)
+    for i, ot in enumerate(otList):
+        ax.barh(
+            y=0,
+            width=ot.end - ot.start,
+            left=ot.start,
+            height=0.5,
+            color="royalblue",
+            alpha=1,
+            label="OT" if i == 0 else ""
+        )
+        # ax.text(start_dt, ot.GT.id, f"{ot.GT.id}", va="center", ha="left", color="blue")
+
+    # Buffering Tasks (orange)
+    for i, bt in enumerate(btList):
+        ax.barh(
+            y=0.5,
+            width=bt.end - bt.start,
+            left=bt.start,
+            height=0.5,
+            color="darkorange",
+            alpha=0.7,
+            label="BT" if i == 0 else ""
+        )
+        # ax.text(start_dt, bt.GT.id, f"{bt.GT.id}", va="center", ha="left", color="darkred")
+
+    # Formatting the x-axis
+    plt.xlim(0, btList[-1].end + 1000)
+    plt.xlabel("Time [s]")
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+
 
 otList = getScheduleFromFile("C:/Users/20212052/git/TU/HYPSO_scheduler/BS_test12-run1.json")
 
@@ -158,38 +195,4 @@ end_time = time.perf_counter()
 
 print(f"{(end_time - start_time)*1000:.4f} milliseconds")
 
-# --- Plotting ---
-fig, ax = plt.subplots(figsize=(30, 5))
-
-# Observation Tasks (blue)
-for i, ot in enumerate(otListModified):
-    ax.barh(
-        y=0,
-        width=ot.end - ot.start,
-        left=ot.start,
-        height=0.5,
-        color="royalblue",
-        alpha=1,
-        label="OT" if i == 0 else ""
-    )
-    # ax.text(start_dt, ot.GT.id, f"{ot.GT.id}", va="center", ha="left", color="blue")
-
-# Buffering Tasks (orange)
-for i, bt in enumerate(btList):
-    ax.barh(
-        y=0.5,
-        width= bt.end - bt.start,
-        left=bt.start,
-        height=0.5,
-        color="darkorange",
-        alpha=0.7,
-        label="BT" if i == 0 else ""
-    )
-    # ax.text(start_dt, bt.GT.id, f"{bt.GT.id}", va="center", ha="left", color="darkred")
-
-# Formatting the x-axis
-plt.xlim(0, btList[-1].end + 1000)
-plt.xlabel("Time [s]")
-plt.legend()
-plt.tight_layout()
-plt.show()
+plotSchedule(otListModified, btList)
