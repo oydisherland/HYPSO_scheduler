@@ -1,8 +1,12 @@
+from data_postprocessing.fromFile_toObject import getScheduleFromFile
 from scheduling_model import OT, TTW, BT, GSTW
+import matplotlib.pyplot as plt
+import time
 
-buffering_time = 15  # seconds
+
+buffering_time = 800  # seconds
 max_buffer_offset = 12 * 3600  # Maximum offset between a capture and its buffering in seconds
-
+interTaskTime = 100  # seconds between two tasks to account for transition time
 
 def scheduleTransmissions(otList: list[OT], ttwList: list[TTW]):
     """
@@ -20,9 +24,10 @@ def scheduleTransmissions(otList: list[OT], ttwList: list[TTW]):
             - A possibly changed List of observation tasks (OT) to fit the observation tasks.
     """
     btList: list[BT] = []
+    otListSorted = sorted(otList, key=lambda x: x.start)
     validScheduleFound = True
     for otToBuffer in otList:
-        bt = generateBufferTaskDirectInsert(otToBuffer, otList, btList, [])
+        bt = generateBufferTaskDirectInsert(otToBuffer, otListSorted, btList, [])
         if bt is not None:
             btList.append(bt)
         else:
@@ -33,16 +38,97 @@ def scheduleTransmissions(otList: list[OT], ttwList: list[TTW]):
     return validScheduleFound, btList, otList
 
 
-def bufferTaskValid(bt: BT, btList: list[BT], otList: list[OT], gstwList: list[GSTW]):
+def generateBufferTaskDirectInsert(otToBuffer: OT, otListSorted: list[OT], btList: list[BT], gstwListSorted: list[GSTW]):
+    """
+    Try to insert the buffering of an observed target directly into the schedule.
+    Insertion is tried at the end of other tasks, so all tasks neatly follow each other.
+    If no valid insertion is found, return None.
+
+    Args:
+        otToBuffer (OT): The observation task to schedule buffering for.
+        otListSorted (list[OT]): List of all observation tasks, sorted by start time
+        btList (list[BT]): List of all already scheduled buffering tasks.
+        gstwListSorted (list[GSTW]): List of all ground station time windows, sorted by start time.
+    """
+
+    candidateBT = BT(otToBuffer.GT, otToBuffer.end + interTaskTime, otToBuffer.end + buffering_time + interTaskTime)
+
+    # First guess is to immediately start buffering after observation
+    if not bufferTaskConflicting(candidateBT, btList, otListSorted, []):
+        return candidateBT
+
+    # From now on, we will save all the possible candidates and later pick the earliest option
+    candidateBTList : list[BT] = []
+
+    # Now try to insert the buffer task at the end of other observation tasks
+    for ot in otListSorted:
+        if ot.end - otToBuffer.end > max_buffer_offset:
+            # Inserting the buffer tasks after this point would be too far from the observation task
+            # Observation tasks are sorted by time, so looking further is not necessary
+            break
+        if ot.end < otToBuffer.end:
+            # Skip if the candidate buffer task would be scheduled before its target observation
+            continue
+
+        candidateBT = BT(otToBuffer.GT, ot.end + interTaskTime, ot.end + buffering_time + interTaskTime)
+        if not bufferTaskConflicting(candidateBT, btList, otListSorted, []):
+            candidateBTList.append(candidateBT)
+            # Observation tasks are sorted by time, so looking further is not necessary
+            break
+
+    # Now try to insert the buffer task at the end of other buffer tasks
+    for bt in btList:
+        if bt.end - otToBuffer.end > max_buffer_offset or bt.end < otToBuffer.end:
+            continue
+
+        candidateBT = BT(otToBuffer.GT, bt.end + interTaskTime, bt.end + buffering_time + interTaskTime)
+        if not bufferTaskConflicting(candidateBT, btList, otListSorted, []):
+            candidateBTList.append(candidateBT)
+
+
+    # Last attempt is to insert after a ground station time window
+    for gstw in gstwListSorted:
+        for tw in gstw.TWs:
+            if tw.end - otToBuffer.end > max_buffer_offset:
+                # Inserting the buffer tasks after this point would be too far from the observation task
+                # Time windows are sorted by time, so looking further is not necessary
+                break
+            if tw.end < otToBuffer.end:
+                continue
+
+            candidateBT = BT(otToBuffer.GT, tw.end + interTaskTime, tw.end + buffering_time + interTaskTime)
+            if not bufferTaskConflicting(candidateBT, btList, otListSorted, []):
+                candidateBTList.append(candidateBT)
+                # Time windows are sorted by time, so looking further is not necessary
+                break
+
+    # Search the earliest candidate in the list
+    if candidateBTList:
+        earliestBT = min(candidateBTList, key=lambda x: x.start)
+        return earliestBT
+
+    # No valid insertions have been found, return None
+    return None
+
+
+def bufferTaskConflicting(bt: BT, btList: list[BT], otListSorted: list[OT], gstwListSorted: list[GSTW]):
     """
     Check if the buffering task overlaps with any other scheduled tasks.
+
+    Args:
+        bt (BT): The buffering task to validate.
+        btList (list[BT]): List of all already scheduled buffering tasks.
+        otListSorted (list[OT]): List of all observation tasks, sorted by start time.
+        gstwListSorted (list[GSTW]): List of all ground station time windows, sorted by start time.
     """
-    # TODO sort the lists chronologically beforehand to be able to break off search early or do binary search
-    for ot in otList:
-        if ot.end < bt.start or ot.start > bt.end:
+    for ot in otListSorted:
+        if ot.start > bt.end:
+            # All following observation tasks will also start after the buffering task has already ended
+            break
+        if ot.end < bt.start:
             continue
         else:
-            return False
+            return True
     for otherBT in btList:
         if otherBT.GT == bt.GT:
             # The task we are comparing is the same buffering task
@@ -50,61 +136,60 @@ def bufferTaskValid(bt: BT, btList: list[BT], otList: list[OT], gstwList: list[G
         if otherBT.end < bt.start or otherBT.start > bt.end:
             continue
         else:
-            return False
-    for gstw in gstwList:
+            return True
+    for gstw in gstwListSorted:
         for tw in gstw.TWs:
-            if tw.end <= bt.start or tw.start >= bt.end:
+            if tw.start > bt.end:
+                # All following time windows will also start after the buffering task has already ended
+                break
+            if tw.end < bt.start:
                 continue
             else:
-                return False
+                return True
 
-    return True
+    return False
 
 
-def generateBufferTaskDirectInsert(otToBuffer: OT, otList: list[OT], btList: list[BT], gstwList: list[GSTW]):
-    """
-    Try to insert the buffering of an observed target directly into the schedule.
-    Insertion is tried at the end of other tasks, so all tasks neatly follow each other.
-    If no valid insertion is found, return None.
-    """
+otList = getScheduleFromFile("C:/Users/20212052/git/TU/HYPSO_scheduler/BS_test12-run1.json")
 
-    # First guess is to immediately start buffering after observation
-    candidateBufferTask = BT(otToBuffer.GT, otToBuffer.end, otToBuffer.end + buffering_time)
-    if bufferTaskValid(candidateBufferTask, btList, otList, []):
-        return candidateBufferTask
+start_time = time.perf_counter()
+valid, btList, otListModified = scheduleTransmissions(otList, [])
+end_time = time.perf_counter()
 
-    # Now try to insert the buffer task at the end of other observation tasks
-    for ot in otList:
-        if ot.end - otToBuffer.end > max_buffer_offset or ot.end < otToBuffer.end:
-            # Skip if the observation task ends too long after the target observation
-            # or if the candidate buffer task would be scheduled before its target observation
-            continue
+print(f"{(end_time - start_time)*1000:.4f} milliseconds")
 
-        candidateBufferTask.start = ot.end
-        candidateBufferTask.end = ot.end + buffering_time
-        if bufferTaskValid(candidateBufferTask, btList, otList, []):
-            return candidateBufferTask
+# --- Plotting ---
+fig, ax = plt.subplots(figsize=(30, 5))
 
-    # Now try to insert the buffer task at the end of other buffer tasks
-    for bt in btList:
-        if bt.end - otToBuffer.end > max_buffer_offset or bt.end < otToBuffer.end:
-            continue
+# Observation Tasks (blue)
+for i, ot in enumerate(otListModified):
+    ax.barh(
+        y=0,
+        width=ot.end - ot.start,
+        left=ot.start,
+        height=0.5,
+        color="royalblue",
+        alpha=1,
+        label="OT" if i == 0 else ""
+    )
+    # ax.text(start_dt, ot.GT.id, f"{ot.GT.id}", va="center", ha="left", color="blue")
 
-        candidateBufferTask.start = bt.end
-        candidateBufferTask.end = bt.end + buffering_time
-        if bufferTaskValid(candidateBufferTask, btList, otList, []):
-            return candidateBufferTask
+# Buffering Tasks (orange)
+for i, bt in enumerate(btList):
+    ax.barh(
+        y=0.5,
+        width= bt.end - bt.start,
+        left=bt.start,
+        height=0.5,
+        color="darkorange",
+        alpha=0.7,
+        label="BT" if i == 0 else ""
+    )
+    # ax.text(start_dt, bt.GT.id, f"{bt.GT.id}", va="center", ha="left", color="darkred")
 
-    # Last attempt is to insert after a ground station time window
-    for gstw in gstwList:
-        for tw in gstw.TWs:
-            if tw.end - otToBuffer.end > max_buffer_offset or tw.end < otToBuffer.end:
-                continue
-
-            candidateBufferTask.start = tw.end
-            candidateBufferTask.end = tw.end + buffering_time
-            if bufferTaskValid(candidateBufferTask, btList, otList, []):
-                return candidateBufferTask
-
-    # No valid insertions have been found, return None
-    return None
+# Formatting the x-axis
+plt.xlim(0, btList[-1].end + 1000)
+plt.xlabel("Time [s]")
+plt.legend()
+plt.tight_layout()
+plt.show()
