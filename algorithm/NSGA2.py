@@ -1,7 +1,5 @@
 import numpy as np
-import random
 import math
-import csv
 import matplotlib.pyplot as plt
 from pymoo.util.nds.non_dominated_sorting import NonDominatedSorting
 from pymoo.operators.survival.rank_and_crowding.metrics import get_crowding_function
@@ -13,7 +11,7 @@ from algorithm.ALNS_algorithm import runALNS, createInitialSolution
 from scheduling_model import SP, OH
 
 
-INSTANCE = namedtuple("INSTANCE", ["id", "objectiveValues", "schedual", "ttwList"])
+INDIVIDUAL = namedtuple("INDIVIDUAL", ["id", "objectiveValues", "schedule", "ttwList"])
 
 def findKneePoint(fronts, objectiveSpace):
         pareto_front_indices = fronts[0]
@@ -37,8 +35,8 @@ def findKneePoint(fronts, objectiveSpace):
         return bestSolution, bestIndex
 
 def runNSGA(
-            popSize: int, 
-            nRuns: int,
+            populationSize: int, 
+            nsga2Runs: int,
             ttwList: list, 
             schedulingParameters: SP,  
             oh: OH,
@@ -49,7 +47,7 @@ def runNSGA(
             maxSizeTabooBank: int,
             optimalTermination: bool=False):
     
-    printarray = []
+    iterationData = []
     population = []
 
     #### Create initial induvidual
@@ -66,18 +64,18 @@ def runNSGA(
         isTabooBankFIFO)
     
     best = result.best_state
-    schedual = best.otList
-    population.append(INSTANCE(0, best.maxObjective, schedual, best.ttwList.copy()))
+    schedule = best.otList
+    population.append(INDIVIDUAL(0, best.maxObjective, schedule, best.ttwList.copy()))
     previousParetoFront = []
     terminationCounter = 0
 
-    print(f"NSGA2 main loop using total of {nRuns} runs: ", end='', flush=True)
+    print(f"NSGA2 main loop using total of {nsga2Runs} runs: ", end='', flush=True)
     ##### Main loop in the NSGA2 algorithm
-    for runNr in range(nRuns):
+    for generation in range(nsga2Runs):
         #### Creating offsprings using ALNS
 
-        iterationNumber = popSize - len(population)
-        for i in range(iterationNumber):
+        nrOfOffsprings = populationSize - len(population)
+        for i in range(nrOfOffsprings):
             # Create mutation of the induvidual population[i], or create initial population
 
             if(i >= len(population)):
@@ -85,9 +83,9 @@ def runNSGA(
                 otList_i = initSolution.otList.copy()
             else:
                 # create mutation
-                otList_i = population[i].schedual.copy()
+                otList_i = population[i].schedule.copy()
 
-            newIndividual, ps = runALNS(
+            newIndividual, _ = runALNS(
                 otList_i,
                 ttwList.copy(),
                 schedulingParameters, 
@@ -98,8 +96,8 @@ def runNSGA(
                 isTabooBankFIFO)
             
             best = newIndividual.best_state
-            schedual = best.otList
-            population.append(INSTANCE(len(population) + 1 , best.maxObjective, schedual, best.ttwList.copy()))
+            schedule = best.otList
+            population.append(INDIVIDUAL(len(population) + 1 , best.maxObjective, schedule, best.ttwList.copy()))
 
 
         #### Selection using non dominated sorting and crowding distance
@@ -120,22 +118,21 @@ def runNSGA(
 
         # Perform non-dominated sorting and extract the fronts from objective space
         nds = NonDominatedSorting()
-        fronts = nds.do(objectiveSpace_minimization, n_stop_if_ranked=10) # not sure what n_stop_if_ranked do!
+        fronts = nds.do(objectiveSpace_minimization, n_stop_if_ranked=None)
 
-        reducedPopSize = popSize // 2 
+        reducedPopulationSize = populationSize // 2
         selected_indices = []
 
         #### Select top 50% of induviduals in population and store their index in selected_indices
         for front in fronts:
 
-            if len(selected_indices) + len(front) <= reducedPopSize:
+            if len(selected_indices) + len(front) <= reducedPopulationSize:
                 ### Add the entire front to the selected solutions
 
                 selected_indices.extend(front)
             else:
                 ### Select the best solutions in current front based on crowding distance
-                
-                n_select = reducedPopSize - len(selected_indices)
+                n_select = reducedPopulationSize - len(selected_indices)
 
                 # Calculate crowding distance for the current front
                 crowding_function = get_crowding_function('cd')
@@ -148,7 +145,7 @@ def runNSGA(
                 selected_indices.extend([x[0] for x in front_with_crowding[:n_select]])
                 break
         
-        ### Store the objective values of the selected solutions in F_selected
+        ### Store the objective values of the selected solutions in selectedObjectiveVals
         selectedObjectiveVals = objectiveSpace[selected_indices]
         newPopulation = []
         for index in selected_indices:
@@ -158,16 +155,18 @@ def runNSGA(
         population = newPopulation
 
         #### Printing results: 
-        print(f"{runNr + 1} | ", end='', flush=True)
-        printarray.append((fronts, objectiveSpace, selectedObjectiveVals))
+        print(f"{generation + 1} | ", end='', flush=True)
+
+        ### Save all data from this iteration in iterationData, to use for analysis of the algorithm
+        iterationData.append((fronts, objectiveSpace, selectedObjectiveVals))
 
         #### Check termination criteria
         if optimalTermination == False:
-            ### Termination criteria: continue iterations for nRuns, main loop ends here
+            ### Termination criteria: continue iterations for nsga2Runs, main loop ends here
             continue
     
         ### Termination criteria: stop algorithm if pareto front has not changed for 2 iterations
-        if runNr > 0:
+        if generation > 0:
             # Check if the Pareto front has not changed
             result = np.isin(previousParetoFront, fronts[0])
 
@@ -177,7 +176,7 @@ def runNSGA(
                     terminationCounter += 1
                 elif terminationCounter == 2:
                     # pareto front has not changed for 2 iterations, stop the algorithm
-                    print(f"Termination criteria met at run {runNr}, break loop with {nRuns - runNr} iterations left")
+                    print(f"Termination criteria met at run {generation}, break loop with {nsga2Runs - generation} iterations left")
                     break
             else:
                 # if pareto front has changed, reset termination counter
@@ -188,5 +187,10 @@ def runNSGA(
     ##### end main loop
 
     bestSolution, bestIndex = findKneePoint(fronts, objectiveSpace)
+    try:
+        bestSchedule = population[bestIndex].schedule
+    except IndexError:
+        print(f"IndexError: bestIndex {bestIndex} and population size {len(population)}")
+        bestSchedule = None
 
-    return printarray, bestSolution, bestIndex, oldPopulation
+    return bestSchedule, iterationData, bestSolution, bestIndex, oldPopulation

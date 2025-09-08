@@ -4,18 +4,18 @@ import matplotlib.pyplot as plt
 from pymoo.visualization.scatter import Scatter
 
 
-def createPlotSchedual(schedual, filename, showPlot):
+def createPlotSchedule(schedule, filename, showPlot):
 
     # Extract data for plotting
-    x_values = [ot.start for ot in schedual]
-    y_values = range(len(schedual))  # Use the index as the y-value
+    x_values = [ot.start for ot in schedule]
+    y_values = range(len(schedule))  # Use the index as the y-value
 
     # Create the plot
     plt.figure(figsize=(10, 6))
     plt.scatter(x_values, y_values, c='blue', label='Observation Tasks')
 
     # Annotate each point with the target ID
-    for i, ot in enumerate(schedual):
+    for i, ot in enumerate(schedule):
         annotation_text = f"{ot.GT.id} ({int(ot.start)})"
         plt.annotate(annotation_text, (x_values[i], y_values[i]), textcoords="offset points", xytext=(0, 10), ha='center')
 

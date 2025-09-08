@@ -149,10 +149,10 @@ def improveIQ(otList, ttwList, oh, sp: SP):
 #     captureDuration = 60
 #     transTime = 90
 #     testName = f"test{testNumber}-run{runNr}"
-#     filename_schedule = f"results/test{testNumber}/schedual/BS_{testName}.json"
-#     filename_ttw = f"results/test{testNumber}/schedual/TTWL_{testName}.json"
+#     filename_schedule = f"results/test{testNumber}/schedule/BS_{testName}.json"
+#     filename_ttw = f"results/test{testNumber}/schedule/TTWL_{testName}.json"
 
-#     schedule = evaluateBestSchedual(filename_schedule)
+#     schedule = evaluateBestSchedule(filename_schedule)
 #     ttwList = evaluateBSTTW(filename_ttw)
 
 #     oh = extractTestDataCSV(testNumber, testName)
