@@ -7,9 +7,9 @@ import time
 
 from algorithm.NSGA2 import runNSGA, findKneePoint
 from scheduling_model import SP, OH, OT, GT, TTW, TW
-from analyse_results.visualize_schedule import createPlotSchedule, createPlotObjectiveSpace, createPlotKneePointHistogram 
+from analyse_results_messydrawer.visualize_schedule import createPlotSchedule, createPlotObjectiveSpace, createPlotKneePointHistogram 
 from data_preprocessing.get_target_passes import getModelInput
-from analyse_results.optimizeSchedule import checkFeasibility, improveIQ, findMaxPriority
+from analyse_results_messydrawer.optimizeSchedule import checkFeasibility, improveIQ, findMaxPriority
 from data_preprocessing.objective_functions import objectiveFunctionImageQuality
 from algorithm.rhga import RHGA
 from algorithm.operators import greedyPrioritySort

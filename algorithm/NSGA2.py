@@ -30,8 +30,8 @@ def findKneePoint(fronts, objectiveSpace):
             selector = HighTradeoffPoints()
             selected = selector.do(pareto_front, n_points=1)
             bestSolution = pareto_front[selected[0]]
-            bestIndex = selected[0]
-        
+            bestIndex = pareto_front_indices[selected[0]]
+
         return bestSolution, bestIndex
 
 def runNSGA(

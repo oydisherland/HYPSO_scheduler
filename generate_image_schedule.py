@@ -1,4 +1,5 @@
 import csv
+import os
 
 import data_postprocessing.algorithmData_api as AD_api
 from scheduling_model import SP
@@ -25,9 +26,9 @@ def csvToDict(filepath):
 
 ### RUN THE ALGORITHM ####
 
-filePath_inputParameters = "HYPSO_scheduler/data_input/input_parameters.csv"
+filePath_inputParameters = os.path.join(os.path.dirname(__file__),"data_input/input_parameters.csv")
 inputParameters = csvToDict(filePath_inputParameters)
-print(inputParameters)
+
 
 oh, ttwList = getModelInput(
     int(inputParameters["captureDuration"]),
@@ -54,5 +55,5 @@ schedule, _, _, _, _ = runNSGA(
     int(inputParameters["maxTabBank"])
 )
 
-AD_api.saveScheduleInJsonFile(f"{inputParameters['testName']}.json", schedule)
-print(AD_api.getScheduleFromFile(f"{inputParameters['testName']}.json"))
+# AD_api.saveScheduleInJsonFile(os.path.join(os.path.dirname(__file__), f"{inputParameters['testName']}.json"), schedule)
+# print(AD_api.getScheduleFromFile(os.path.join(os.path.dirname(__file__), f"{inputParameters['testName']}.json")))
