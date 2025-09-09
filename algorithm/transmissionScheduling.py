@@ -1,7 +1,7 @@
 import copy
 import datetime
 
-from data_postprocessing.fromFile_toObject import getScheduleFromFile
+import data_postprocessing.algorithmData_api as AD_api
 from data_preprocessing.get_target_passes import getGroundStationTimeWindows
 from scheduling_model import OT, TTW, BT, GSTW, TW, GS, DT
 import time
@@ -13,6 +13,7 @@ downlinkDuration = 100  # seconds to downlink a capture
 groundStationFilePath = "data_input/HYPSO_data/ground_stations.csv"
 ohDuration = 48 * 3600  # Duration of the observation horizon in seconds
 maxGSTWAhead = 4  # Maximum number of ground station time windows ahead of the capture to consider when scheduling a buffering task
+hypsoNr = 2  # HYPSO satellite number
 
 
 def scheduleTransmissions(otList: list[OT], ttwList: list[TTW], gstwListSorted: list[GSTW]):
@@ -90,8 +91,9 @@ def generateDownlinkTask(gstw: GSTW, dtList: list[DT], otToDownlink: OT):
     dtStart = gstw.TWs[0].start
     dtEnd = dtStart + downlinkDuration
     candidateDT = DT(otToDownlink.GT, gstw.GS, dtStart, dtEnd)
-    if not downlinkTaskConflicting(candidateDT, dtList):
-        return candidateDT
+    if dtEnd <= gstw.TWs[0].end:
+        if not downlinkTaskConflicting(candidateDT, dtList):
+            return candidateDT
 
     # Now try to start the downlink task at the end of other downlink tasks
     for otherDT in dtList:
@@ -419,13 +421,13 @@ def plotSchedule(otList: list[OT], btList: list[BT], dtList: list[DT], gstwList:
     plt.show()
 
 
-otList = getScheduleFromFile("C:/Users/20212052/git/TU/HYPSO_scheduler/BS_test12-run1.json")
+otList = AD_api.getScheduleFromFile("BS_test12-run1.json")
 
-startTimeOH = datetime.datetime(2025, 9, 9, 11, 0, 0)
+startTimeOH = datetime.datetime(2025, 8, 27, 15, 29, 0)
 startTimeOH = startTimeOH.replace(tzinfo=datetime.timezone.utc)
 endTimeOH = startTimeOH + datetime.timedelta(seconds=ohDuration)
 
-gstwList = getGroundStationTimeWindows(startTimeOH, endTimeOH, groundStationFilePath, 1)
+gstwList = getGroundStationTimeWindows(startTimeOH, endTimeOH, groundStationFilePath, hypsoNr)
 
 start_time = time.perf_counter()
 valid, btList, dtList, otListModified = scheduleTransmissions(otList, [], gstwList)
