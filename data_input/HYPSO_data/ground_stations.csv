@@ -1,3 +1,2 @@
 #Ground Stations are defined as: Name;Latitude;Longitude;MinElevation
-ksatsvalbard;78.2208;15.426;0;
-test; 60;-30;0;
+ksatsvalbard;78.2208;15.4260;5;
