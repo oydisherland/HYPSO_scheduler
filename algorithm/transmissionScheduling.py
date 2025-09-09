@@ -11,6 +11,7 @@ buffering_time = 900  # seconds
 max_buffer_offset = 12 * 3600  # Maximum offset between a capture and its buffering in seconds
 interTaskTime = 100  # seconds between two tasks to account for transition time
 groundStationFilePath = "data_input/HYPSO_data/ground_stations.csv"
+ohDuration = 48*3600  # Duration of the observation horizon in seconds
 
 def scheduleTransmissions(otList: list[OT], ttwList: list[TTW], gstwListSorted: list[GSTW]):
     """
@@ -19,14 +20,14 @@ def scheduleTransmissions(otList: list[OT], ttwList: list[TTW], gstwListSorted: 
 
     Args:
         otList (list[OT]): List of observation tasks to schedule transmissions for.
-        ttwList (list[TTW]): List of target time windows.
+        ttwList (list[TTW]): List of target time windows, which will be consulted when shifting observation tasks to fit buffering.
         gstwListSorted (list[GSTW]): List of ground station time windows with time windows sorted by time.
 
     Returns:
         tuple[bool, list[BT], list[OT]]: A tuple containing:
-            - A boolean indicating if a valid schedule was found for all buffering tasks.
+            - A boolean indicating if a valid transmission schedule was found.
             - A list of scheduled buffering tasks (BT).
-            - A time-sorted list of observation tasks, possibly changed to fit the observation tasks.
+            - A list of observation tasks, possibly changed to fit the observation tasks.
     """
     btList: list[BT] = []
     otListSorted = sorted(otList, key=lambda x: x.start)
@@ -155,11 +156,12 @@ def bufferTaskConflicting(bt: BT, btList: list[BT], otListSorted: list[OT], gstw
     return False
 
 def plotSchedule(otList: list[OT], btList: list[BT], gstwList: list[GSTW]):
-    # --- Plotting ---
+    import matplotlib.pyplot as plt
+
     fig, ax = plt.subplots(figsize=(30, 5))
 
     # Observation Tasks (blue)
-    for i, ot in enumerate(otList):
+    for i, ot in enumerate(otList, start=1):
         ax.barh(
             y=0,
             width=ot.end - ot.start,
@@ -167,11 +169,21 @@ def plotSchedule(otList: list[OT], btList: list[BT], gstwList: list[GSTW]):
             height=0.5,
             color="royalblue",
             alpha=1,
-            label="OT" if i == 0 else ""
+            label="OT" if i == 1 else ""
+        )
+        # Label under the box
+        ax.text(
+            x=ot.start + (ot.end - ot.start) / 2,
+            y=-0.1  - (i%3) * 0.04,  # below y=0 row
+            s=str(i),
+            ha="center",
+            va="top",
+            fontsize=10,
+            color="black"
         )
 
     # Buffering Tasks (orange)
-    for i, bt in enumerate(btList):
+    for i, bt in enumerate(btList, start=1):
         ax.barh(
             y=0.5,
             width=bt.end - bt.start,
@@ -179,11 +191,22 @@ def plotSchedule(otList: list[OT], btList: list[BT], gstwList: list[GSTW]):
             height=0.5,
             color="darkorange",
             alpha=0.7,
-            label="BT" if i == 0 else ""
+            label="BT" if i == 1 else ""
+        )
+        ax.text(
+            x=bt.start + (bt.end - bt.start) / 2,
+            y=0.25,  # below y=0.5 row
+            s=str(i),
+            ha="center",
+            va="top",
+            fontsize=10,
+            color="black"
         )
 
+    # GSTWs (green)
+    counter = 1
     for gstw in gstwList:
-        for i, tw in enumerate(gstw.TWs):
+        for tw in gstw.TWs:
             ax.barh(
                 y=1,
                 width=tw.end - tw.start,
@@ -191,22 +214,32 @@ def plotSchedule(otList: list[OT], btList: list[BT], gstwList: list[GSTW]):
                 height=0.5,
                 color="green",
                 alpha=0.3,
-                label=gstw.GS.id if i == 0 else ""
+                label=gstw.GS.id if counter == 1 else ""
             )
+            ax.text(
+                x=tw.start + (tw.end - tw.start) / 2,
+                y=0.75,  # below y=1 row
+                s=str(counter),
+                ha="center",
+                va="top",
+                fontsize=10,
+                color="black"
+            )
+            counter += 1
 
-
-    # Formatting the x-axis
-    plt.xlim(0, btList[-1].end + 1000)
+    # Formatting
+    plt.xlim(0, ohDuration)
     plt.xlabel("Time [s]")
     plt.legend()
     plt.tight_layout()
     plt.show()
 
 
+
 otList = getScheduleFromFile("C:/Users/20212052/git/TU/HYPSO_scheduler/BS_test12-run1.json")
 
 startTimeOH = datetime.datetime.now(datetime.timezone.utc)
-endTimeOH = startTimeOH + datetime.timedelta(days=2)
+endTimeOH = startTimeOH + datetime.timedelta(seconds= ohDuration)
 gstwList = getGroundStationTimeWindows(startTimeOH, endTimeOH, groundStationFilePath, 1)
 
 start_time = time.perf_counter()
