@@ -1,5 +1,5 @@
 from scheduling_model import SP, OH, OT
-from data_postprocessing.fromFile_toObject import getAlgorithmData
+from HYPSO_scheduler.data_postprocessing.algorithmData_api import getIterationData
 from data_preprocessing.objective_functions import objectiveFunctionImageQuality
 from datetime import datetime
 from algorithm.operators import greedyPrioritySort

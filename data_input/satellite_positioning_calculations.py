@@ -1,5 +1,6 @@
 import skyfield.api as skf
 import datetime 
+import os
 
 
 def createSatelliteObject(HYPSOnr: int) -> skf.EarthSatellite:
@@ -9,12 +10,12 @@ def createSatelliteObject(HYPSOnr: int) -> skf.EarthSatellite:
     - 2 for HYPSO 2
     """
     # HYPSO 1 data
-    hypso1TleUrl = 'https://celestrak.org/NORAD/elements/gp.php?CATNR=51053&FORMAT=TLE'
-    hypso1TlePath = 'data_input/HYPSO_data/HYPSO-1_TLE.txt'
+    hypsoTleUrl = f'https://celestrak.com/NORAD/elements/gp.php?NAME=HYPSO-{HYPSOnr}&FORMAT=TLE'
+    hypsoTlePath = os.path.join(os.path.dirname(__file__), f"HYPSO_data/HYPSO-{HYPSOnr}_TLE.txt")
 
-    if HYPSOnr == 1:
+    if HYPSOnr == 1 or HYPSOnr == 2:
         # The skyfield API function to create an "EarthSatellite" object.
-        skfH1 = skf.load.tle_file(hypso1TleUrl, filename=hypso1TlePath, reload=False)[0]
+        skfH1 = skf.load.tle_file(hypsoTleUrl, filename=hypsoTlePath, reload=False)[0]
         return skfH1
     else:
         raise ValueError("The HYPSO number is not valid")
