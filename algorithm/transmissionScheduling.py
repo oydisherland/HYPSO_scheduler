@@ -2,12 +2,11 @@ import datetime
 
 from data_postprocessing.fromFile_toObject import getScheduleFromFile
 from data_preprocessing.get_target_passes import getGroundStationTimeWindows
-from scheduling_model import OT, TTW, BT, GSTW
-import matplotlib.pyplot as plt
+from scheduling_model import OT, TTW, BT, GSTW, TW, GS
 import time
 
 
-buffering_time = 900  # seconds
+buffering_time = 1500  # seconds
 max_buffer_offset = 12 * 3600  # Maximum offset between a capture and its buffering in seconds
 interTaskTime = 100  # seconds between two tasks to account for transition time
 groundStationFilePath = "data_input/HYPSO_data/ground_stations.csv"
@@ -154,6 +153,52 @@ def bufferTaskConflicting(bt: BT, btList: list[BT], otListSorted: list[OT], gstw
                 return True
 
     return False
+
+def getClosestGSTW(ot: OT, gstwListSorted: list[GSTW], numberOfClosest=1):
+    """
+    Get the closest ground station time windows to the observation task.
+
+    Args:
+        ot (OT): The observation task to find the closest ground station time windows for.
+        gstwListSorted (list[GSTW]): List of all ground station time windows, sorted by start time.
+        numberOfClosest (int, optional): Number of closest ground station time windows to return. Defaults to 1.
+                If there are less than this number of time windows available, all available time windows will be returned.
+
+    Return:
+        list[GSTW]: List of the closest ground station time windows.
+    """
+    # First put the gstwList into a single list of time windows with reference to their ground station
+    # This is not the right output structure, but it is easier to sort and select from
+    allGSTWs: list[tuple[GS, TW]] = []
+    for gstw in gstwListSorted:
+        for tw in gstw.TWs:
+            allGSTWs.append((gstw.GS, tw))
+    allGSTWsSorted = sorted(allGSTWs, key=lambda x: x[1].start)
+
+    # Remove entries before the observation tasks ended
+    allGSTWsSorted = [entry for entry in allGSTWsSorted if entry[1].start >= ot.end]
+
+    if not allGSTWsSorted:
+        return []
+    if len(allGSTWsSorted) < numberOfClosest:
+        numberOfClosest = len(allGSTWsSorted)
+
+    # Put list in GSTW format by grouping by GS
+    groupedList: list[GSTW] = []
+    for entry in allGSTWsSorted:
+        # Try to add the time window to a GSTW with the same GS
+        added = False
+        for gstw in groupedList:
+            if gstw.GS == entry[0]:
+                gstw.TWs.append(entry[1])
+                added = True
+                break
+        if not added:
+            groupedList.append(GSTW(entry[0], [entry[1]]))
+
+
+    return groupedList[:numberOfClosest]
+
 
 def plotSchedule(otList: list[OT], btList: list[BT], gstwList: list[GSTW]):
     import matplotlib.pyplot as plt
