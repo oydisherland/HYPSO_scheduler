@@ -94,7 +94,6 @@ def getGroundStationTimeWindows(startTimeOH: datetime.datetime, endTimeOH: datet
     Returns:
         list[GSTW]: List of ground stations and their time windows.
     """
-    # TODO support hypso 2
 
     # Read data from the provided csv
     try:
@@ -143,7 +142,7 @@ def getGroundStationTimeWindows(startTimeOH: datetime.datetime, endTimeOH: datet
         gstwList.append(GSTW(gs, twList))
 
     if len(gstwList) == 0:
-        raise ValueError("No ground stations found")
+        raise ValueError("No ground station passes found")
 
     return gstwList
 
