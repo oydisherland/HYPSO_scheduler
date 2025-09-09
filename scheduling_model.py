@@ -22,3 +22,15 @@ OT = namedtuple("OT", [ "GT", "start", "end"])
 #Scheduling Parameters for the model
 SP = namedtuple("SP", ["maxCaptures", "captureDuration", "transitionTime"])
 
+#Buffering Task
+BT = namedtuple("BT", ["GT", "start", "end"])
+
+#Ground Station
+GS = namedtuple("GS", ["id", "lat", "long", "minElevation"])
+
+#Ground Station Time Windows
+GSTW = namedtuple("GSTW", ["GS", "TWs"])
+
+#Downlink Task
+DT = namedtuple("DT", ["GT", "GS", "start", "end"])
+
