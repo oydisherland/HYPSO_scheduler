@@ -1,16 +1,19 @@
+import copy
 import datetime
 
 from data_postprocessing.fromFile_toObject import getScheduleFromFile
 from data_preprocessing.get_target_passes import getGroundStationTimeWindows
-from scheduling_model import OT, TTW, BT, GSTW, TW, GS
+from scheduling_model import OT, TTW, BT, GSTW, TW, GS, DT
 import time
 
 
-buffering_time = 1500  # seconds
-max_buffer_offset = 12 * 3600  # Maximum offset between a capture and its buffering in seconds
+bufferingTime = 1500  # seconds
+maxBufferOffset = 12 * 3600  # Maximum offset between a capture and its buffering in seconds
 interTaskTime = 100  # seconds between two tasks to account for transition time
+downlinkDuration = 100 # seconds to downlink a capture
 groundStationFilePath = "data_input/HYPSO_data/ground_stations.csv"
 ohDuration = 48*3600  # Duration of the observation horizon in seconds
+maxGSTWAhead = 4 # Maximum number of ground station time windows ahead of the capture to consider when scheduling a buffering task
 
 def scheduleTransmissions(otList: list[OT], ttwList: list[TTW], gstwListSorted: list[GSTW]):
     """
@@ -20,30 +23,88 @@ def scheduleTransmissions(otList: list[OT], ttwList: list[TTW], gstwListSorted: 
     Args:
         otList (list[OT]): List of observation tasks to schedule transmissions for.
         ttwList (list[TTW]): List of target time windows, which will be consulted when shifting observation tasks to fit buffering.
-        gstwListSorted (list[GSTW]): List of ground station time windows with time windows sorted by time.
+        gstwListSorted (list[GSTW]): List of ground station time windows with time windows corresponding to each GS sorted by time.
 
     Returns:
-        tuple[bool, list[BT], list[OT]]: A tuple containing:
-            - A boolean indicating if a valid transmission schedule was found.
+        tuple[bool, list[BT], list[DT], list[OT]]: A tuple containing:
+
+            - A boolean indicating if a transmission schedule has been found for all observation tasks.
+                If false, there can still be a useful output containing a schedule for the tasks that were able to fit.
             - A list of scheduled buffering tasks (BT).
-            - A list of observation tasks, possibly changed to fit the observation tasks.
+            - A list of scheduled downlink tasks (DT).
+            - A list of observation tasks, possibly changed to fit the buffering and downlinking tasks.
     """
     btList: list[BT] = []
+    dtList: list[DT] = []
+
+    otListMod = copy.copy(otList)
     otListSorted = sorted(otList, key=lambda x: x.start)
-    validScheduleFound = True
+    completeScheduleFound = True
+
     for otToBuffer in otList:
-        bt = generateBufferTaskDirectInsert(otToBuffer, otListSorted, btList, gstwListSorted)
-        if bt is not None:
-            btList.append(bt)
-        else:
+        # For each observation task to buffer, try to buffer it considering the downlink in one of the closest ground station time windows
+        validBTFound = False
+        closestGSTW = getClosestGSTW(otToBuffer, gstwListSorted, maxGSTWAhead)
+        closestGSTWSorted = gstwToSortedTupleList(closestGSTW)
+
+        for entry in closestGSTWSorted:
+            gstw = GSTW(entry[0], [entry[1]])
+            candidateDT = generateDownlinkTask(gstw, dtList, otToBuffer)
+
+            if candidateDT is None:
+                # No valid downlink task could be scheduled in this ground station time window
+                continue
+
+            bt = generateBufferTaskDirectInsert(otToBuffer, gstw, otListSorted, btList, gstwListSorted)
+            if bt is not None:
+                btList.append(bt)
+                dtList.append(candidateDT)
+                validBTFound = True
+                # We found a buffer task and corresponding GSTW to downlink, so we don't need to consider other GSTW
+                break
+
+        if not validBTFound:
+            # No valid GSTW has been found to downlink the buffered data
+            completeScheduleFound = False
             print(
                 f"Could not schedule buffering task for observation of target {otToBuffer.GT.id} at {otToBuffer.start}")
-            validScheduleFound = False
+            otListMod.remove(otToBuffer)
 
-    return validScheduleFound, btList, otList
+    return completeScheduleFound, btList, dtList, otListMod
+
+def generateDownlinkTask(gstw: GSTW, dtList: list[DT], otToDownlink: OT):
+    """
+    Try to schedule a downlink task in the given ground station time window for the given observation task.
+
+    Args:
+        gstw (GSTW): The ground station time window to schedule the downlink task in.
+        dtList (list[DT]): List of all already scheduled downlink tasks.
+        otToDownlink (OT): The observation task to schedule the downlink for.
+
+    Returns:
+        DT: The scheduled downlink task, or None if no valid scheduling was found.
+    """
+
+    # First try to insert the downlink task at the start of the ground station time window
+    dtStart = gstw.TWs[0].start
+    dtEnd = dtStart + downlinkDuration
+    candidateDT = DT(otToDownlink.GT, gstw.GS, dtStart, dtEnd)
+    if not downlinkTaskConflicting(candidateDT, dtList):
+        return candidateDT
+
+    # Now try to start the downlink task at the end of other downlink tasks
+    for otherDT in dtList:
+        dtStart = otherDT.end + interTaskTime
+        dtEnd = dtStart + downlinkDuration
+        candidateDT = DT(otToDownlink.GT, gstw.GS, dtStart, dtEnd)
+        if dtStart >= gstw.TWs[0].start and dtEnd <= gstw.TWs[0].end:
+            if not downlinkTaskConflicting(candidateDT, dtList):
+                return candidateDT
+
+    return None
 
 
-def generateBufferTaskDirectInsert(otToBuffer: OT, otListSorted: list[OT], btList: list[BT], gstwListSorted: list[GSTW]):
+def generateBufferTaskDirectInsert(otToBuffer: OT, gstwToDownlink: GSTW, otListSorted: list[OT], btList: list[BT], gstwListSorted: list[GSTW]):
     """
     Try to insert the buffering of an observed target directly into the schedule.
     Insertion is tried at the end of other tasks, so all tasks neatly follow each other.
@@ -51,15 +112,21 @@ def generateBufferTaskDirectInsert(otToBuffer: OT, otListSorted: list[OT], btLis
 
     Args:
         otToBuffer (OT): The observation task to schedule buffering for.
+        gstwToDownlink (GSTW): The ground station time window to use for downlinking the buffered data.
         otListSorted (list[OT]): List of all observation tasks, sorted by start time
         btList (list[BT]): List of all already scheduled buffering tasks.
+        dtList (list[DT]): List of all already scheduled downlink tasks.
         gstwListSorted (list[GSTW]): List of all ground station time windows, sorted by start time.
     """
 
-    candidateBT = BT(otToBuffer.GT, otToBuffer.end + interTaskTime, otToBuffer.end + buffering_time + interTaskTime)
+    # Candidate buffer task start and end
+    btStart = otToBuffer.end + interTaskTime
+    btEnd = btStart + bufferingTime
+    candidateBT = BT(otToBuffer.GT, btStart, btEnd)
 
     # First guess is to immediately start buffering after observation
-    if not bufferTaskConflicting(candidateBT, btList, otListSorted, gstwListSorted):
+    if not bufferTaskConflicting(candidateBT, btList, otListSorted, gstwListSorted)\
+            and btEnd < gstwToDownlink.TWs[0].start:
         return candidateBT
 
     # From now on, we will save all the possible candidates and later pick the earliest option
@@ -67,15 +134,20 @@ def generateBufferTaskDirectInsert(otToBuffer: OT, otListSorted: list[OT], btLis
 
     # Now try to insert the buffer task at the end of other observation tasks
     for ot in otListSorted:
-        if ot.end - otToBuffer.end > max_buffer_offset:
+        # Candidate buffer task start and end
+        btStart = ot.end + interTaskTime
+        btEnd = btStart + bufferingTime
+
+        if btStart - otToBuffer.end > maxBufferOffset or btEnd > gstwToDownlink.TWs[0].start:
             # Inserting the buffer tasks after this point would be too far from the observation task
+            # or be after the intended downlink window has started.
             # Observation tasks are sorted by time, so looking further is not necessary
             break
         if ot.end < otToBuffer.end:
             # Skip if the candidate buffer task would be scheduled before its target observation
             continue
 
-        candidateBT = BT(otToBuffer.GT, ot.end + interTaskTime, ot.end + buffering_time + interTaskTime)
+        candidateBT = BT(otToBuffer.GT, btStart, btEnd)
         if not bufferTaskConflicting(candidateBT, btList, otListSorted, gstwListSorted):
             candidateBTList.append(candidateBT)
             # Observation tasks are sorted by time, so looking further is not necessary
@@ -83,10 +155,14 @@ def generateBufferTaskDirectInsert(otToBuffer: OT, otListSorted: list[OT], btLis
 
     # Now try to insert the buffer task at the end of other buffer tasks
     for bt in btList:
-        if bt.end - otToBuffer.end > max_buffer_offset or bt.end < otToBuffer.end:
+        # Candidate buffer task start and end
+        btStart = bt.end + interTaskTime
+        btEnd = btStart + bufferingTime
+        if btStart - otToBuffer.end > maxBufferOffset or btStart < otToBuffer.end\
+                or btEnd > gstwToDownlink.TWs[0].start:
             continue
 
-        candidateBT = BT(otToBuffer.GT, bt.end + interTaskTime, bt.end + buffering_time + interTaskTime)
+        candidateBT = BT(otToBuffer.GT, btStart, btEnd)
         if not bufferTaskConflicting(candidateBT, btList, otListSorted, gstwListSorted):
             candidateBTList.append(candidateBT)
 
@@ -94,14 +170,18 @@ def generateBufferTaskDirectInsert(otToBuffer: OT, otListSorted: list[OT], btLis
     # Last attempt is to insert after a ground station time window
     for gstw in gstwListSorted:
         for tw in gstw.TWs:
-            if tw.end - otToBuffer.end > max_buffer_offset:
-                # Inserting the buffer tasks after this point would be too far from the observation task
-                # Time windows are sorted by time, so looking further is not necessary
+            # Candidate buffer task start and end
+            btStart = tw.end + interTaskTime
+            btEnd = btStart + bufferingTime
+            if btStart - otToBuffer.end > maxBufferOffset or btEnd > gstwToDownlink.TWs[0].start:
+            # Inserting the buffer tasks after this point would be too far from the observation task
+            # or be after the intended downlink window has started.
+            # Observation tasks are sorted by time, so looking further is not necessary
                 break
-            if tw.end < otToBuffer.end:
+            if btStart < otToBuffer.end:
                 continue
 
-            candidateBT = BT(otToBuffer.GT, tw.end + interTaskTime, tw.end + buffering_time + interTaskTime)
+            candidateBT = BT(otToBuffer.GT, btStart, btEnd)
             if not bufferTaskConflicting(candidateBT, btList, otListSorted, gstwListSorted):
                 candidateBTList.append(candidateBT)
                 # Time windows are sorted by time, so looking further is not necessary
@@ -154,6 +234,25 @@ def bufferTaskConflicting(bt: BT, btList: list[BT], otListSorted: list[OT], gstw
 
     return False
 
+def downlinkTaskConflicting(dt: DT, dtList: list[DT]):
+    """
+    Check if the downlink task overlaps with any other scheduled downlink tasks.
+
+    Args:
+        dt (DT): The downlink task to validate.
+        dtList (list[DT]): List of all already scheduled downlink tasks.
+    """
+    for otherDT in dtList:
+        if otherDT.GT == dt.GT and otherDT.GS == dt.GS:
+            # The task we are comparing is the same downlink task
+            continue
+        if otherDT.end < dt.start or otherDT.start > dt.end:
+            continue
+        else:
+            return True
+
+    return False
+
 def getClosestGSTW(ot: OT, gstwListSorted: list[GSTW], numberOfClosest=1):
     """
     Get the closest ground station time windows to the observation task.
@@ -169,11 +268,8 @@ def getClosestGSTW(ot: OT, gstwListSorted: list[GSTW], numberOfClosest=1):
     """
     # First put the gstwList into a single list of time windows with reference to their ground station
     # This is not the right output structure, but it is easier to sort and select from
-    allGSTWs: list[tuple[GS, TW]] = []
-    for gstw in gstwListSorted:
-        for tw in gstw.TWs:
-            allGSTWs.append((gstw.GS, tw))
-    allGSTWsSorted = sorted(allGSTWs, key=lambda x: x[1].start)
+
+    allGSTWsSorted = gstwToSortedTupleList(gstwListSorted)
 
     # Remove entries before the observation tasks ended
     allGSTWsSorted = [entry for entry in allGSTWsSorted if entry[1].start >= ot.end]
@@ -182,6 +278,8 @@ def getClosestGSTW(ot: OT, gstwListSorted: list[GSTW], numberOfClosest=1):
         return []
     if len(allGSTWsSorted) < numberOfClosest:
         numberOfClosest = len(allGSTWsSorted)
+
+    allGSTWsSorted = allGSTWsSorted[:numberOfClosest]
 
     # Put list in GSTW format by grouping by GS
     groupedList: list[GSTW] = []
@@ -197,10 +295,27 @@ def getClosestGSTW(ot: OT, gstwListSorted: list[GSTW], numberOfClosest=1):
             groupedList.append(GSTW(entry[0], [entry[1]]))
 
 
-    return groupedList[:numberOfClosest]
+    return groupedList
+
+def gstwToSortedTupleList(gstwList: list[GSTW]):
+    """
+    Convert a list of GSTW (GS, [TWs]) to a list of tuples (GS, TW) sorted by TW start time.
+
+    Args:
+        gstwList (list[GSTW]): List of GSTW to convert.
+
+    Returns:
+        list[tuple[GS, TW]]: List of tuples (GS, TW) sorted
+    """
+    allGSTWs: list[tuple[GS, TW]] = []
+    for gstw in gstwList:
+        for tw in gstw.TWs:
+            allGSTWs.append((gstw.GS, tw))
+
+    return sorted(allGSTWs, key=lambda x: x[1].start)
 
 
-def plotSchedule(otList: list[OT], btList: list[BT], gstwList: list[GSTW]):
+def plotSchedule(otList: list[OT], btList: list[BT], dtList: list[DT], gstwList: list[GSTW]):
     import matplotlib.pyplot as plt
 
     fig, ax = plt.subplots(figsize=(30, 5))
@@ -272,6 +387,27 @@ def plotSchedule(otList: list[OT], btList: list[BT], gstwList: list[GSTW]):
             )
             counter += 1
 
+    # Add DTlist plotting
+    for i, dt in enumerate(dtList, start=1):
+        ax.barh(
+            y=1.5,
+            width=dt.end - dt.start,
+            left=dt.start,
+            height=0.5,
+            color="red",
+            alpha=0.4,
+            label="DT" if i == 1 else ""
+        )
+        ax.text(
+            x=dt.start + (dt.end - dt.start) / 2,
+            y=1.75 - (i%10) * 0.05,  # below y=1.5 row
+            s=str(i),
+            ha="center",
+            va="top",
+            fontsize=10,
+            color="black"
+        )
+
     # Formatting
     plt.xlim(0, ohDuration)
     plt.xlabel("Time [s]")
@@ -283,14 +419,17 @@ def plotSchedule(otList: list[OT], btList: list[BT], gstwList: list[GSTW]):
 
 otList = getScheduleFromFile("C:/Users/20212052/git/TU/HYPSO_scheduler/BS_test12-run1.json")
 
-startTimeOH = datetime.datetime.now(datetime.timezone.utc)
+startTimeOH = datetime.datetime(2025, 9, 9, 11, 0, 0)
+startTimeOH = startTimeOH.replace(tzinfo=datetime.timezone.utc)
 endTimeOH = startTimeOH + datetime.timedelta(seconds= ohDuration)
+
 gstwList = getGroundStationTimeWindows(startTimeOH, endTimeOH, groundStationFilePath, 1)
 
 start_time = time.perf_counter()
-valid, btList, otListModified = scheduleTransmissions(otList, [], gstwList)
+valid, btList, dtList, otListModified = scheduleTransmissions(otList, [], gstwList)
 end_time = time.perf_counter()
 
 print(f"{(end_time - start_time)*1000:.4f} milliseconds")
 
-plotSchedule(otListModified, btList, gstwList)
+
+plotSchedule(otListModified, btList, dtList, gstwList)
