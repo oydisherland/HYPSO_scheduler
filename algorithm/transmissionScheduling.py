@@ -19,6 +19,8 @@ hypsoNr = 2  # HYPSO satellite number
 groundStationFilePath = "data_input/HYPSO_data/ground_stations.csv"
 ohDuration = 48 * 3600  # Duration of the observation horizon in seconds
 
+# TODO maybe remove that the otList and gstwList need to be time sorted everywhere, it might not actually improve performance
+
 
 def scheduleTransmissions(otList: list[OT], ttwList: list[TTW], gstwListSorted: list[GSTW]):
     """
@@ -74,7 +76,7 @@ def scheduleTransmissions(otList: list[OT], ttwList: list[TTW], gstwListSorted: 
             # No valid GSTW has been found to downlink the buffered data
             completeScheduleFound = False
             print(
-                f"Could not schedule buffering task for capture of {otToBuffer.GT.id} at {otToBuffer.start}")
+                f"Transmission scheduling failed for {otToBuffer.GT.id} at {otToBuffer.start}")
             otListMod.remove(otToBuffer)
 
     return completeScheduleFound, btList, dtList, otListMod
@@ -268,6 +270,104 @@ def generateBufferTaskDirectInsert(otToBuffer: OT, gstwToDownlink: GSTW, otListS
     # No valid insertions have been found, return None
     return None
 
+def generateBufferTaskDeletionInsert(otToBuffer: OT, gstwToDownlink: GSTW, otListPrioritySorted: list[OT], btList: list[BT],
+                                   gstwListSorted: list[GSTW]):
+    """
+    Try to insert the buffering of an observed target into the schedule by deleting other observation tasks if necessary.
+
+    Args:
+        otToBuffer (OT): The observation task to schedule buffering for.
+        gstwToDownlink (GSTW): The ground station time window to use for downlinking the buffered data.
+        otListPrioritySorted (list[OT]): List of all observation tasks, sorted by priority (highest priority first)
+        btList (list[BT]): List of all already scheduled buffering tasks.
+        gstwListSorted (list[GSTW]): List of all ground station time windows, sorted by start time.
+
+    Returns:
+        tuple[BT, list[OT]]: A tuple containing:
+
+            - BT: The scheduled buffering task, or None if no valid scheduling was found.
+            - list[OT]: Modified list of observation tasks, with any deleted tasks removed.
+    """
+    # Remove lower priority observation tasks until a valid insertion is found
+    otIndex = otListPrioritySorted.index(otToBuffer)
+    otListLength = len(otListPrioritySorted)
+    nRemove = otListLength - otIndex # The number of observation tasks we can remove
+    found = False
+    for i in range(1,nRemove):
+        otListMod = otListPrioritySorted[:otListLength - i]
+        otListModTimeSorted = sorted(otListMod, key=lambda x: x.start)
+        bt = generateBufferTaskDirectInsert(otToBuffer, gstwToDownlink, otListModTimeSorted, btList, gstwListSorted)
+        if bt is not None:
+            found = True
+            break
+
+    if not found:
+        return None, otListPrioritySorted
+
+    # Only remove the observation tasks that are needed to fit the buffering task
+    otListTimeSorted = sorted(otListPrioritySorted, key=lambda x: x.start)
+    conflictOTs, conflictBTs, conflictGSTWs = getConflictingTasks(bt, btList, otListTimeSorted, gstwListSorted)
+    if conflictBTs or conflictGSTWs:
+        # We can only remove observation tasks, if there are conflicts with other tasks, return None
+        return None, otListPrioritySorted
+
+    # Remove the observation tasks that conflict with the buffering task
+    for conflictOT in conflictOTs:
+        otListPrioritySorted.remove(conflictOT)
+
+    return bt, otListPrioritySorted
+
+def getConflictingTasks(bt: BT, btList: list[BT], otListSorted: list[OT], gstwListSorted: list[GSTW]):
+    """
+    Get the list of tasks that conflict with the given buffering task.
+
+    Args:
+        bt (BT): The buffering task to check for conflicts.
+        btList (list[BT]): List of all already scheduled buffering tasks.
+        otListSorted (list[OT]): List of all observation tasks, sorted by start time.
+        gstwListSorted (list[GSTW]): List of all ground station time windows, sorted by start time.
+
+    Returns:
+        tuple(list[OT], list[BT], list[GSTW]): A tuple containing:
+
+            - list[OT]: List of conflicting observation tasks.
+            - list[BT]: List of conflicting buffering tasks.
+            - list[GSTW]: List of conflicting ground station time windows.
+    """
+    conflictingOTs: list[OT] = []
+    conflictingBTs: list[BT] = []
+    conflictingGSTWs: list[GSTW] = []
+
+    for ot in otListSorted:
+        if ot.start >= bt.end + interTaskTime:
+            # All following observation tasks will also start after the buffering task has already ended
+            break
+        if ot.end + afterCaptureTime <= bt.start:
+            continue
+        else:
+            conflictingOTs.append(ot)
+
+    for otherBT in btList:
+        if otherBT.GT == bt.GT:
+            # The task we are comparing is the same buffering task
+            continue
+        if otherBT.end + interTaskTime <= bt.start or otherBT.start >= bt.end + interTaskTime:
+            continue
+        else:
+            conflictingBTs.append(otherBT)
+
+    for gstw in gstwListSorted:
+        for tw in gstw.TWs:
+            if tw.start >= bt.end + interTaskTime:
+                # All following time windows will also start after the buffering task has already ended
+                break
+            if tw.end + interTaskTime <= bt.start:
+                continue
+            else:
+                conflictingGSTWs.append(gstw)
+
+    return conflictingOTs, conflictingBTs, conflictingGSTWs
+
 
 def bufferTaskConflicting(bt: BT, btList: list[BT], otListSorted: list[OT], gstwListSorted: list[GSTW]):
     """
@@ -278,34 +378,12 @@ def bufferTaskConflicting(bt: BT, btList: list[BT], otListSorted: list[OT], gstw
         btList (list[BT]): List of all already scheduled buffering tasks.
         otListSorted (list[OT]): List of all observation tasks, sorted by start time.
         gstwListSorted (list[GSTW]): List of all ground station time windows, sorted by start time.
-    """
-    for ot in otListSorted:
-        if ot.start >= bt.end + interTaskTime:
-            # All following observation tasks will also start after the buffering task has already ended
-            break
-        if ot.end + afterCaptureTime <= bt.start:
-            continue
-        else:
-            return True
-    for otherBT in btList:
-        if otherBT.GT == bt.GT:
-            # The task we are comparing is the same buffering task
-            continue
-        if otherBT.end + interTaskTime <= bt.start or otherBT.start >= bt.end + interTaskTime:
-            continue
-        else:
-            return True
-    for gstw in gstwListSorted:
-        for tw in gstw.TWs:
-            if tw.start >= bt.end + interTaskTime:
-                # All following time windows will also start after the buffering task has already ended
-                break
-            if tw.end + interTaskTime <= bt.start:
-                continue
-            else:
-                return True
 
-    return False
+    Returns:
+        bool: True if the buffering task conflicts with any other task, False otherwise.
+    """
+    conflictOTs, conflictBTs, conflictGSTWs = getConflictingTasks(bt, btList, otListSorted, gstwListSorted)
+    return conflictOTs or conflictBTs or conflictGSTWs
 
 
 def downlinkTaskConflicting(dt: DT, dtList: list[DT]):
