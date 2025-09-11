@@ -6,12 +6,12 @@ from data_preprocessing.get_target_passes import getGroundStationTimeWindows
 from scheduling_model import OT, TTW, BT, GSTW, TW, GS, DT
 import time
 
-bufferingTime = 1500  # seconds
-afterCaptureTime = 1100  # seconds for processing capture onboard
+bufferingTime = 1500  # seconds (Hypso-2: 1500)
+afterCaptureTime = 1100  # seconds for processing capture onboard (Hypso-2: 1100)
 interTaskTime = 100  # general time between two tasks
 interDownlinkTime = 5  # seconds between two downlink tasks
-downlinkDuration = 217  # seconds to downlink a capture
-transmissionStartTime = 260  # seconds into the transmission window when the transmission can start
+downlinkDuration = 217  # seconds to downlink a capture (Hypso-2: 217)
+transmissionStartTime = 260  # seconds into the transmission window when the transmission can start (Hypso-2: 260)
 maxGSTWAhead = 8  # Maximum number of ground station time windows ahead of the capture to consider when scheduling a buffering task
 maxBufferOffset = 12 * 3600  # Maximum offset between a capture and its buffering in seconds
 
@@ -19,6 +19,10 @@ hypsoNr = 2  # HYPSO satellite number
 groundStationFilePath = "data_input/HYPSO_data/ground_stations.csv"
 ohDuration = 48 * 3600  # Duration of the observation horizon in seconds
 
+# TODO possibly add support for spreading transmission over more than 2 ground station passes
+# TODO re-order transmission tasks such that split up transmission tasks are next to each other
+# TODO make a cleaning sweep re-assigning transmission tasks to buffer tasks that are close to each other, same could be done for captures and their buffering
+# TODO consider that data transmission cannot happen or is at least slower during a capture when in the transmission window
 
 def scheduleTransmissions(otList: list[OT], ttwList: list[TTW], gstwList: list[GSTW]):
     """
@@ -76,24 +80,24 @@ def scheduleTransmissions(otList: list[OT], ttwList: list[TTW], gstwList: list[G
         if not validBTFound:
             # If no valid BT was found using direct insert, try deletion insert
             for i, entry in enumerate(closestGSTWSorted):
-                    gstw = GSTW(entry[0], [entry[1]])
-                    nextGSTW = GSTW(closestGSTWSorted[i + 1][0], [closestGSTWSorted[i + 1][1]]) \
-                        if i + 1 < len(closestGSTWSorted) else None
+                gstw = GSTW(entry[0], [entry[1]])
+                nextGSTW = GSTW(closestGSTWSorted[i + 1][0], [closestGSTWSorted[i + 1][1]]) \
+                    if i + 1 < len(closestGSTWSorted) else None
 
-                    candidateDTList = generateDownlinkTask(gstw, nextGSTW, downlinkDuration, dtList, otToBuffer)
-                    if candidateDTList is None: continue  # No valid downlink task could be scheduled in this ground station time window
+                candidateDTList = generateDownlinkTask(gstw, nextGSTW, downlinkDuration, dtList, otToBuffer)
+                if candidateDTList is None: continue  # No valid downlink task could be scheduled in this ground station time window
 
-                    # Now that we know the downlink task is scheduled, try to schedule the buffering task
-                    otListPrioritySorted = otListMod.copy()  # The priority order considered in this function is the order of otList
-                    bt, otListMod = generateBufferTaskDeletionInsert(otToBuffer, gstw, otListPrioritySorted, btList, gstwList)
-                    # bt = generateBufferTaskDirectInsert(otToBuffer, gstw, otList, btList, gstwList)
-                    if bt is not None:
-                        btList.append(bt)
-                        for candidate in candidateDTList:
-                            dtList.append(candidate)
-                        validBTFound = True
-                        # We found a buffer task and corresponding GSTW to downlink, so we don't need to consider other GSTW
-                        break
+                # Now that we know the downlink task is scheduled, try to schedule the buffering task
+                otListPrioritySorted = otListMod.copy()  # The priority order considered in this function is the order of otList
+                bt, otListMod = generateBufferTaskDeletionInsert(otToBuffer, gstw, otListPrioritySorted, btList, gstwList)
+                # bt = generateBufferTaskDirectInsert(otToBuffer, gstw, otList, btList, gstwList)
+                if bt is not None:
+                    btList.append(bt)
+                    for candidate in candidateDTList:
+                        dtList.append(candidate)
+                    validBTFound = True
+                    # We found a buffer task and corresponding GSTW to downlink, so we don't need to consider other GSTW
+                    break
 
         if not validBTFound:
             # No valid GSTW has been found to downlink the buffered data
