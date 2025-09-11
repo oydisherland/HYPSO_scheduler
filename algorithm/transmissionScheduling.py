@@ -64,9 +64,9 @@ def scheduleTransmissions(otList: list[OT], ttwList: list[TTW], gstwList: list[G
             if candidateDTList is None: continue  # No valid downlink task could be scheduled in this ground station time window
 
             # Now that we know the downlink task is scheduled, try to schedule the buffering task
-            otListPrioritySorted = otListMod.copy() # The priority order considered in this function is the order of otList
+            otListPrioritySorted = otListMod.copy()  # The priority order considered in this function is the order of otList
             bt, otListMod = generateBufferTaskDeletionInsert(otToBuffer, gstw, otListPrioritySorted, btList, gstwList)
-            # bt = generateBufferTaskDirectInsert(otToBuffer, gstw, otListSorted, btList, gstwListSorted)
+            # bt = generateBufferTaskDirectInsert(otToBuffer, gstw, otList, btList, gstwList)
             if bt is not None:
                 btList.append(bt)
                 for candidate in candidateDTList:
@@ -269,8 +269,9 @@ def generateBufferTaskDirectInsert(otToBuffer: OT, gstwToDownlink: GSTW, otList:
     # No valid insertions have been found, return None
     return None
 
-def generateBufferTaskDeletionInsert(otToBuffer: OT, gstwToDownlink: GSTW, otListPrioritySorted: list[OT], btList: list[BT],
-                                   gstwList: list[GSTW]):
+
+def generateBufferTaskDeletionInsert(otToBuffer: OT, gstwToDownlink: GSTW, otListPrioritySorted: list[OT],
+                                     btList: list[BT], gstwList: list[GSTW]):
     """
     Try to insert the buffering of an observed target into the schedule by deleting other observation tasks if necessary.
 
@@ -291,7 +292,7 @@ def generateBufferTaskDeletionInsert(otToBuffer: OT, gstwToDownlink: GSTW, otLis
     otListPrioSorted = otListPrioritySorted.copy()
     otIndex = otListPrioSorted.index(otToBuffer)
     otListLength = len(otListPrioSorted)
-    nRemove = otListLength - otIndex # The number of observation tasks we can remove
+    nRemove = otListLength - otIndex  # The number of observation tasks we can remove
     found = False
     for i in range(0, nRemove):
         otListMod = otListPrioSorted[:otListLength - i]
@@ -312,12 +313,14 @@ def generateBufferTaskDeletionInsert(otToBuffer: OT, gstwToDownlink: GSTW, otLis
     # Remove the observation tasks that conflict with the buffering task
     for conflictOT in conflictOTs:
         # print which task has been removed
-        print(f"Removed observation task {conflictOT.GT.id} at {conflictOT.start} to fit buffering task for {otToBuffer.GT.id} at {otToBuffer.start}")
+        print(
+            f"Removed observation task {conflictOT.GT.id} at {conflictOT.start} to fit buffering task for {otToBuffer.GT.id} at {otToBuffer.start}")
         otListPrioSorted.remove(conflictOT)
 
     return bt, otListPrioSorted
 
-def getConflictingTasks(bt: BT, btList: list[BT], otList: list[OT], gstwList: list[GSTW]):
+
+def getConflictingTasks(bt: BT, btList: list[BT], otList: list[OT], gstwList: list[GSTW], cancelEarly: bool = False):
     """
     Get the list of tasks that conflict with the given buffering task.
 
@@ -326,6 +329,7 @@ def getConflictingTasks(bt: BT, btList: list[BT], otList: list[OT], gstwList: li
         btList (list[BT]): List of all already scheduled buffering tasks.
         otList (list[OT]): List of all observation tasks.
         gstwList (list[GSTW]): List of all ground station time windows.
+        cancelEarly (bool, optional): If True, the function will return as soon as a single conflict is found.
 
     Returns:
         tuple(list[OT], list[BT], list[GSTW]): A tuple containing:
@@ -343,6 +347,7 @@ def getConflictingTasks(bt: BT, btList: list[BT], otList: list[OT], gstwList: li
             continue
         else:
             conflictingOTs.append(ot)
+            if cancelEarly: return conflictingOTs, conflictingBTs, conflictingGSTWs
 
     for otherBT in btList:
         if otherBT.GT == bt.GT:
@@ -352,6 +357,7 @@ def getConflictingTasks(bt: BT, btList: list[BT], otList: list[OT], gstwList: li
             continue
         else:
             conflictingBTs.append(otherBT)
+            if cancelEarly: return conflictingOTs, conflictingBTs, conflictingGSTWs
 
     for gstw in gstwList:
         for tw in gstw.TWs:
@@ -359,6 +365,7 @@ def getConflictingTasks(bt: BT, btList: list[BT], otList: list[OT], gstwList: li
                 continue
             else:
                 conflictingGSTWs.append(gstw)
+                if cancelEarly: return conflictingOTs, conflictingBTs, conflictingGSTWs
 
     return conflictingOTs, conflictingBTs, conflictingGSTWs
 
@@ -376,7 +383,7 @@ def bufferTaskConflicting(bt: BT, btList: list[BT], otList: list[OT], gstwList: 
     Returns:
         bool: True if the buffering task conflicts with any other task, False otherwise.
     """
-    conflictOTs, conflictBTs, conflictGSTWs = getConflictingTasks(bt, btList, otList, gstwList)
+    conflictOTs, conflictBTs, conflictGSTWs = getConflictingTasks(bt, btList, otList, gstwList, True)
     return conflictOTs or conflictBTs or conflictGSTWs
 
 
