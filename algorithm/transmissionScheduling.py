@@ -63,10 +63,8 @@ def scheduleTransmissions(otList: list[OT], ttwList: list[TTW], gstwList: list[G
             candidateDTList = generateDownlinkTask(gstw, nextGSTW, downlinkDuration, dtList, otToBuffer)
             if candidateDTList is None: continue  # No valid downlink task could be scheduled in this ground station time window
 
-            # Now that we know the downlink task is scheduled, try to schedule the buffering task
-            otListPrioritySorted = otListMod.copy()  # The priority order considered in this function is the order of otList
-            bt, otListMod = generateBufferTaskDeletionInsert(otToBuffer, gstw, otListPrioritySorted, btList, gstwList)
-            # bt = generateBufferTaskDirectInsert(otToBuffer, gstw, otList, btList, gstwList)
+            bt = generateBufferTaskDirectInsert(otToBuffer, gstw, otList, btList, gstwList)
+
             if bt is not None:
                 btList.append(bt)
                 for candidate in candidateDTList:
@@ -74,6 +72,28 @@ def scheduleTransmissions(otList: list[OT], ttwList: list[TTW], gstwList: list[G
                 validBTFound = True
                 # We found a buffer task and corresponding GSTW to downlink, so we don't need to consider other GSTW
                 break
+
+        if not validBTFound:
+            # If no valid BT was found using direct insert, try deletion insert
+            for i, entry in enumerate(closestGSTWSorted):
+                    gstw = GSTW(entry[0], [entry[1]])
+                    nextGSTW = GSTW(closestGSTWSorted[i + 1][0], [closestGSTWSorted[i + 1][1]]) \
+                        if i + 1 < len(closestGSTWSorted) else None
+
+                    candidateDTList = generateDownlinkTask(gstw, nextGSTW, downlinkDuration, dtList, otToBuffer)
+                    if candidateDTList is None: continue  # No valid downlink task could be scheduled in this ground station time window
+
+                    # Now that we know the downlink task is scheduled, try to schedule the buffering task
+                    otListPrioritySorted = otListMod.copy()  # The priority order considered in this function is the order of otList
+                    bt, otListMod = generateBufferTaskDeletionInsert(otToBuffer, gstw, otListPrioritySorted, btList, gstwList)
+                    # bt = generateBufferTaskDirectInsert(otToBuffer, gstw, otList, btList, gstwList)
+                    if bt is not None:
+                        btList.append(bt)
+                        for candidate in candidateDTList:
+                            dtList.append(candidate)
+                        validBTFound = True
+                        # We found a buffer task and corresponding GSTW to downlink, so we don't need to consider other GSTW
+                        break
 
         if not validBTFound:
             # No valid GSTW has been found to downlink the buffered data
