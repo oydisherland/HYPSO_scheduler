@@ -12,7 +12,7 @@ interTaskTime = 100  # general time between two tasks
 interDownlinkTime = 5  # seconds between two downlink tasks
 downlinkDuration = 217  # seconds to downlink a capture
 transmissionStartTime = 260  # seconds into the transmission window when the transmission can start
-maxGSTWAhead = 6  # Maximum number of ground station time windows ahead of the capture to consider when scheduling a buffering task
+maxGSTWAhead = 8  # Maximum number of ground station time windows ahead of the capture to consider when scheduling a buffering task
 maxBufferOffset = 12 * 3600  # Maximum offset between a capture and its buffering in seconds
 
 hypsoNr = 2  # HYPSO satellite number
@@ -26,6 +26,7 @@ def scheduleTransmissions(otList: list[OT], ttwList: list[TTW], gstwListSorted: 
     """
     Try to schedule the transmission of each observed target in otList.
     Transmission consists of transmitting to Ground Station and buffering the capture before actually transmitting.
+    The observation tasks will be considered in the order that they are provided, so sorting by priority is recommended.
 
     Args:
         otList (list[OT]): List of observation tasks to schedule transmissions for.
@@ -45,10 +46,12 @@ def scheduleTransmissions(otList: list[OT], ttwList: list[TTW], gstwListSorted: 
     dtList: list[DT] = []
 
     otListMod = copy.copy(otList)
-    otListSorted = sorted(otList, key=lambda x: x.start)
     completeScheduleFound = True
 
     for otToBuffer in otList:
+        # Check if this observation task has not been deleted
+        if otToBuffer not in otListMod:
+            continue
         # For each observation task to buffer, try to buffer it considering the downlink in one of the closest ground station time windows
         validBTFound = False
         closestGSTW = getClosestGSTW(otToBuffer, gstwListSorted, maxGSTWAhead)
@@ -56,14 +59,16 @@ def scheduleTransmissions(otList: list[OT], ttwList: list[TTW], gstwListSorted: 
 
         for i, entry in enumerate(closestGSTWSorted):
             gstw = GSTW(entry[0], [entry[1]])
-            nextGSTW = GSTW(closestGSTWSorted[i + 1][0], [closestGSTWSorted[i + 1][1]]) if i + 1 < len(
-                closestGSTWSorted) else None
+            nextGSTW = GSTW(closestGSTWSorted[i + 1][0], [closestGSTWSorted[i + 1][1]]) \
+                if i + 1 < len(closestGSTWSorted) else None
 
             candidateDTList = generateDownlinkTask(gstw, nextGSTW, downlinkDuration, dtList, otToBuffer)
             if candidateDTList is None: continue  # No valid downlink task could be scheduled in this ground station time window
 
             # Now that we know the downlink task is scheduled, try to schedule the buffering task
-            bt = generateBufferTaskDirectInsert(otToBuffer, gstw, otListSorted, btList, gstwListSorted)
+            otListPrioritySorted = otListMod.copy() # The priority order considered in this function is the order of otList
+            bt, otListMod = generateBufferTaskDeletionInsert(otToBuffer, gstw, otListPrioritySorted, btList, gstwListSorted)
+            # bt = generateBufferTaskDirectInsert(otToBuffer, gstw, otListSorted, btList, gstwListSorted)
             if bt is not None:
                 btList.append(bt)
                 for candidate in candidateDTList:
@@ -289,12 +294,13 @@ def generateBufferTaskDeletionInsert(otToBuffer: OT, gstwToDownlink: GSTW, otLis
             - list[OT]: Modified list of observation tasks, with any deleted tasks removed.
     """
     # Remove lower priority observation tasks until a valid insertion is found
-    otIndex = otListPrioritySorted.index(otToBuffer)
-    otListLength = len(otListPrioritySorted)
+    otListPrioSorted = otListPrioritySorted.copy()
+    otIndex = otListPrioSorted.index(otToBuffer)
+    otListLength = len(otListPrioSorted)
     nRemove = otListLength - otIndex # The number of observation tasks we can remove
     found = False
-    for i in range(1,nRemove):
-        otListMod = otListPrioritySorted[:otListLength - i]
+    for i in range(0, nRemove):
+        otListMod = otListPrioSorted.copy()[:otListLength - i]
         otListModTimeSorted = sorted(otListMod, key=lambda x: x.start)
         bt = generateBufferTaskDirectInsert(otToBuffer, gstwToDownlink, otListModTimeSorted, btList, gstwListSorted)
         if bt is not None:
@@ -302,20 +308,22 @@ def generateBufferTaskDeletionInsert(otToBuffer: OT, gstwToDownlink: GSTW, otLis
             break
 
     if not found:
-        return None, otListPrioritySorted
+        return None, otListPrioSorted
 
     # Only remove the observation tasks that are needed to fit the buffering task
-    otListTimeSorted = sorted(otListPrioritySorted, key=lambda x: x.start)
+    otListTimeSorted = sorted(otListPrioSorted, key=lambda x: x.start)
     conflictOTs, conflictBTs, conflictGSTWs = getConflictingTasks(bt, btList, otListTimeSorted, gstwListSorted)
     if conflictBTs or conflictGSTWs:
         # We can only remove observation tasks, if there are conflicts with other tasks, return None
-        return None, otListPrioritySorted
+        return None, otListPrioSorted
 
     # Remove the observation tasks that conflict with the buffering task
     for conflictOT in conflictOTs:
-        otListPrioritySorted.remove(conflictOT)
+        # print which task has been removed
+        print(f"Removed observation task {conflictOT.GT.id} at {conflictOT.start} to fit buffering task for {otToBuffer.GT.id} at {otToBuffer.start}")
+        otListPrioSorted.remove(conflictOT)
 
-    return bt, otListPrioritySorted
+    return bt, otListPrioSorted
 
 def getConflictingTasks(bt: BT, btList: list[BT], otListSorted: list[OT], gstwListSorted: list[GSTW]):
     """
@@ -592,7 +600,8 @@ def plotSchedule(otListMod: list[OT], otList: list[OT], btList: list[BT], dtList
     plt.show()
 
 
-otList = AD_api.getScheduleFromFile("BS_test12-run1.json")  # observation task list sorted by priority
+otList = AD_api.getScheduleFromFile("BS_test12-run1.json")  # observation task
+otListPrioSorted = sorted(otList, key=lambda x: x.GT.priority, reverse=True)
 
 startTimeOH = datetime.datetime(2025, 8, 27, 15, 29, 0)
 startTimeOH = startTimeOH.replace(tzinfo=datetime.timezone.utc)
@@ -601,9 +610,9 @@ endTimeOH = startTimeOH + datetime.timedelta(seconds=ohDuration)
 gstwList = getGroundStationTimeWindows(startTimeOH, endTimeOH, groundStationFilePath, hypsoNr)
 
 start_time = time.perf_counter()
-valid, btList, dtList, otListModified = scheduleTransmissions(otList, [], gstwList)
+valid, btList, dtList, otListModified = scheduleTransmissions(otListPrioSorted, [], gstwList)
 end_time = time.perf_counter()
 
 print(f"{(end_time - start_time) * 1000:.4f} milliseconds")
 
-plotSchedule(otListModified, otList, btList, dtList, gstwList)
+plotSchedule(otListModified, otListPrioSorted, btList, dtList, gstwList)
