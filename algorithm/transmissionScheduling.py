@@ -14,6 +14,7 @@ downlinkDuration = 217  # seconds to downlink a capture (Hypso-2: 217)
 transmissionStartTime = 260  # seconds into the transmission window when the transmission can start (Hypso-2: 260)
 maxGSTWAhead = 8  # Maximum number of ground station time windows ahead of the capture to consider when scheduling a buffering task
 maxBufferOffset = 12 * 3600  # Maximum offset between a capture and its buffering in seconds
+minGSWindowTime = transmissionStartTime + 0.1 * downlinkDuration # Minimum length of a ground station time window to consider it for downlinking
 
 hypsoNr = 2  # HYPSO satellite number
 groundStationFilePath = "data_input/HYPSO_data/ground_stations.csv"
@@ -171,7 +172,7 @@ def generatePartialDownlinkTask(gstw: GSTW, downlinkTime: float, dtList: list[DT
             - bool: True if only a partial downlink task was scheduled, False if the full downlink task was scheduled.
     """
     # First check if the ground station pass is long enough for downlinking at least some of the data
-    if gstw.TWs[0].end - gstw.TWs[0].start < transmissionStartTime + downlinkTime * 0.1:
+    if gstw.TWs[0].end - gstw.TWs[0].start < minGSWindowTime:
         return None, True
 
     # First try to insert the downlink task at the start of the ground station time window
@@ -624,7 +625,7 @@ startTimeOH = datetime.datetime(2025, 8, 27, 15, 29, 0)
 startTimeOH = startTimeOH.replace(tzinfo=datetime.timezone.utc)
 endTimeOH = startTimeOH + datetime.timedelta(seconds=ohDuration)
 
-gstwList = getGroundStationTimeWindows(startTimeOH, endTimeOH, groundStationFilePath, hypsoNr)
+gstwList = getGroundStationTimeWindows(startTimeOH, endTimeOH, minGSWindowTime, groundStationFilePath, hypsoNr)
 
 start_time = time.perf_counter()
 valid, btList, dtList, otListModified = scheduleTransmissions(otListPrioSorted, [], gstwList)

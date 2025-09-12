@@ -80,14 +80,15 @@ def getAllTargetPasses(captureTimeSeconds: int, startTimeOH: datetime.datetime, 
     return allTargetPasses
 
 
-def getGroundStationTimeWindows(startTimeOH: datetime.datetime, endTimeOH: datetime.datetime, groundStationsFilePath: str,
-                                hypsoNr: int):
+def getGroundStationTimeWindows(startTimeOH: datetime.datetime, endTimeOH: datetime.datetime, minWindowLength: float,
+                                groundStationsFilePath: str, hypsoNr: int):
     """
     Get the time windows when the satellite passes over one of the ground stations.
 
     Args:
         startTimeOH (datetime): Start time of the observation horizon.
         endTimeOH (datetime): End time of the observation horizon.
+        minWindowLength (float): Minimum length of a time window in seconds.
         groundStationsFilePath (str): Path to the ground stations file.
         hypsoNr (int): HYPSO satellite number.
 
@@ -137,7 +138,8 @@ def getGroundStationTimeWindows(startTimeOH: datetime.datetime, endTimeOH: datet
                 # The pass i -> i+2 corresponds to a time window
                 startTime = (passes[i][0] - startTimeOH).total_seconds()
                 endTime = (passes[i + 2][0] - startTimeOH).total_seconds()
-                twList.append(TW(startTime, endTime))
+                if endTime - startTime >= minWindowLength:
+                    twList.append(TW(startTime, endTime))
 
         gstwList.append(GSTW(gs, twList))
 
