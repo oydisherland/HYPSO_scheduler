@@ -430,6 +430,7 @@ def generateBufferTaskSlideInsert(otToBuffer: OT, gstwToDownlink: GSTW, otList: 
             btListModified = btListCandidate
 
     # After the shifting has been successful, try to insert the buffering task directly
+    # TODO, actually display if the gap has been made big enough to fit a buffer task
     bt = generateBufferTaskDirectInsert(otToBuffer, gstwToDownlink, otListModified, btListModified, gstwList)
     if bt is not None:
         print("Successfully inserted buffering task by shifting observation tasks")
