@@ -56,7 +56,8 @@ def scheduleTransmissions(otList: list[OT], ttwList: list[TTW], gstwList: list[G
 
     for otToBuffer in otList:
         # Check if this observation task has not been deleted
-        if otToBuffer not in otListMod:
+        # The task could have been shifted, so only check if the ground target corresponds
+        if not any(ot.GT == otToBuffer.GT for ot in otListMod):
             continue
         # For each observation task to buffer, try to buffer it considering the downlink in one of the closest ground station time windows
         validBTFound = False
@@ -115,7 +116,8 @@ def scheduleTransmissions(otList: list[OT], ttwList: list[TTW], gstwList: list[G
             completeScheduleFound = False
             print(
                 f"Transmission scheduling failed for {otToBuffer.GT.id} at {otToBuffer.start}")
-            otListMod.remove(otToBuffer)
+            # Remove the currently considered observation task by checking if ground target matches
+            otListMod = [ot for ot in otListMod if ot.GT != otToBuffer.GT]
 
     return completeScheduleFound, btList, dtList, otListMod
 
