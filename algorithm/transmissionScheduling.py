@@ -3,15 +3,15 @@ import datetime
 
 import data_postprocessing.algorithmData_api as AD_api
 from data_preprocessing.get_target_passes import getGroundStationTimeWindows
-from scheduling_model import OT, TTW, BT, GSTW, TW, GS, DT
+from scheduling_model import OT, TTW, BT, GSTW, TW, GS, DT, GT
 import time
 
-bufferingTime = 1800  # seconds (Hypso-2: 1500)
-afterCaptureTime = 140  # seconds for processing capture onboard (Hypso-2: 1100)
+bufferingTime = 1500  # seconds (Hypso-2: 1500)
+afterCaptureTime = 1100  # seconds for processing capture onboard (Hypso-2: 1100)
 interTaskTime = 100  # general time between two tasks
-interDownlinkTime = 5  # seconds between two downlink tasks
-downlinkDuration = 2  # seconds to downlink a capture (Hypso-2: 217)
-transmissionStartTime = 6  # seconds into the transmission window when the transmission can start (Hypso-2: 260)
+interDownlinkTime = 20  # seconds between two downlink tasks
+downlinkDuration = 217  # seconds to downlink a capture (Hypso-2: 217)
+transmissionStartTime = 260  # seconds into the transmission window when the transmission can start (Hypso-2: 260)
 
 maxGSTWAhead = 8  # Maximum number of ground station time windows ahead of the capture to consider when scheduling a buffering task
 maxBufferOffset = 12 * 3600  # Maximum offset between a capture and its buffering in seconds
@@ -334,6 +334,9 @@ def generateBufferTaskSlideInsert(otToBuffer: OT, gstwToDownlink: GSTW, otList: 
     btListModified = btList.copy()
     otToBufferShifted = otToBuffer
 
+    shiftBackwardPossible = True
+    shiftForwardPossible = True
+
     shiftWindow = TW(otToBuffer.end, gstwToDownlink.TWs[0].start)  # Time window in which we can shift
 
     # Find the largest gap that exists in this window, this is where we will try to make room to fit the buffer
@@ -346,6 +349,9 @@ def generateBufferTaskSlideInsert(otToBuffer: OT, gstwToDownlink: GSTW, otList: 
             closestOTBeforeGap = ot
             break
 
+    if closestOTBeforeGap is None:
+        shiftBackwardPossible = False
+
     # Get the closest observation task after the gapwindow
     closestOTAfterGap = None
     for ot in sorted(otListOriginal, key=lambda x: x.start):
@@ -353,9 +359,8 @@ def generateBufferTaskSlideInsert(otToBuffer: OT, gstwToDownlink: GSTW, otList: 
             closestOTAfterGap = ot
             break
 
-    if closestOTBeforeGap is None or closestOTAfterGap is None:
-        print("Error: During sliding insertion, no observation tasks before or after the gap found")
-        return None, otListOriginal, btListOriginal
+    if closestOTAfterGap is None:
+        shiftForwardPossible = False
 
     # Get the closest GSTW before the gap window
     closestGSTWBeforeGap = None
@@ -366,8 +371,7 @@ def generateBufferTaskSlideInsert(otToBuffer: OT, gstwToDownlink: GSTW, otList: 
 
     # A ground station time window cannot be shifted,
     # so if that is the first non-buffer task after the gap, we cannot shift in that direction
-    shiftBackwardPossible = True
-    if closestGSTWBeforeGap is not None:
+    if closestGSTWBeforeGap is not None and shiftBackwardPossible:
         if closestGSTWBeforeGap.TWs[0].end > closestOTBeforeGap.end:
             shiftBackwardPossible = False
 
@@ -378,10 +382,12 @@ def generateBufferTaskSlideInsert(otToBuffer: OT, gstwToDownlink: GSTW, otList: 
             closestGSTWAfterGap = GSTW(gstw[0], [gstw[1]])
             break
 
-    shiftForwardPossible = True
-    if closestGSTWAfterGap is not None:
+    if closestGSTWAfterGap is not None and shiftForwardPossible:
         if closestGSTWAfterGap.TWs[0].start < closestOTAfterGap.start:
             shiftForwardPossible = False
+
+    if not shiftForwardPossible and not shiftBackwardPossible:
+        return None, otListOriginal, btListOriginal
 
     maxShift = 0
     if shiftBackwardPossible:
@@ -399,7 +405,10 @@ def generateBufferTaskSlideInsert(otToBuffer: OT, gstwToDownlink: GSTW, otList: 
 
     # First try to shift the lowest priority task in the corresponding direction, then the highest priority task
     # while taking into account if the shift is possible
-    backwardShiftFirst = closestOTBeforeGap.GT.priority < closestOTAfterGap.GT.priority
+    if shiftBackwardPossible and shiftForwardPossible:
+        backwardShiftFirst = closestOTBeforeGap.GT.priority < closestOTAfterGap.GT.priority
+    else:
+        backwardShiftFirst = shiftBackwardPossible
 
     operations = [("backward", shiftBackwardPossible), ("forward", shiftForwardPossible)] if backwardShiftFirst \
         else [("forward", shiftForwardPossible), ("backward", shiftBackwardPossible)]
@@ -1084,8 +1093,8 @@ otListPrioSorted = sorted(otList, key=lambda x: x.GT.priority, reverse=True)
 # Create TTW list by adding some time before and after each observation task
 ttwList: list[TTW] = []
 for ot in otList:
-    ttwStart = max(0, ot.start - 500)
-    ttwEnd = min(ohDuration, ot.end + 500)
+    ttwStart = max(0, ot.start - 50)
+    ttwEnd = min(ohDuration, ot.end + 50)
     ttwList.append(TTW(ot.GT, [TW(ttwStart, ttwEnd)]))
 
 startTimeOH = datetime.datetime(2025, 8, 27, 15, 29, 0)
