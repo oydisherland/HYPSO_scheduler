@@ -55,6 +55,9 @@ def scheduleTransmissions(otList: list[OT], ttwList: list[TTW], gstwList: list[G
     completeScheduleFound = True
 
     for otToBuffer in otList:
+        # TODO fix that otToBuffer is currently the non shifted version, in meantime it might have been shifted
+        # TODO Maybe this could be fixed by iterating over the modified version somehow
+        # TODO Or we could just do the GT matching thing like below
         # Check if this observation task has not been deleted
         # The task could have been shifted, so only check if the ground target corresponds
         if not any(ot.GT == otToBuffer.GT for ot in otListMod):
