@@ -12,9 +12,11 @@ interTaskTime = 100  # general time between two tasks
 interDownlinkTime = 5  # seconds between two downlink tasks
 downlinkDuration = 2  # seconds to downlink a capture (Hypso-2: 217)
 transmissionStartTime = 6  # seconds into the transmission window when the transmission can start (Hypso-2: 260)
+
 maxGSTWAhead = 8  # Maximum number of ground station time windows ahead of the capture to consider when scheduling a buffering task
 maxBufferOffset = 12 * 3600  # Maximum offset between a capture and its buffering in seconds
-minGSWindowTime = transmissionStartTime + 0.1 * downlinkDuration # Minimum length of a ground station time window to consider it for downlinking
+minGSWindowTime = transmissionStartTime + 0.1 * downlinkDuration  # Minimum length of a ground station time window to consider it for downlinking
+slidingInsertIterations = 5  # Number of attempts that should be made for each sliding insertion of buffers
 
 hypsoNr = 2  # HYPSO satellite number
 groundStationFilePath = "data_input/HYPSO_data/ground_stations.csv"
@@ -97,7 +99,8 @@ def scheduleTransmissions(otList: list[OT], ttwList: list[TTW], gstwList: list[G
 
                 bt = generateBufferTaskDirectInsert(otToBuffer, gstw, otListMod, btList, gstwList)
                 if bt is None:
-                    bt, otListMod, btList = generateBufferTaskSlideInsert(otToBuffer, gstw, otListMod, btList, gstwList, ttwList)
+                    bt, otListMod, btList = generateBufferTaskSlideInsert(otToBuffer, gstw, otListMod, btList, gstwList,
+                                                                          ttwList)
 
                 if bt is not None:
                     btList.append(bt)
@@ -331,7 +334,7 @@ def generateBufferTaskSlideInsert(otToBuffer: OT, gstwToDownlink: GSTW, otList: 
     btListModified = btList.copy()
     otToBufferShifted = otToBuffer
 
-    shiftWindow = TW(otToBuffer.end, gstwToDownlink.TWs[0].start) # Time window in which we can shift
+    shiftWindow = TW(otToBuffer.end, gstwToDownlink.TWs[0].start)  # Time window in which we can shift
 
     # Find the largest gap that exists in this window, this is where we will try to make room to fit the buffer
     gapLength, gapTW = getLargestTimeGap(shiftWindow, otListOriginal, btListOriginal, gstwList)
@@ -380,72 +383,45 @@ def generateBufferTaskSlideInsert(otToBuffer: OT, gstwToDownlink: GSTW, otList: 
         if closestGSTWAfterGap.TWs[0].start < closestOTAfterGap.start:
             shiftForwardPossible = False
 
+    maxShift = 0
     if shiftBackwardPossible:
-        # Shift the closest observation task before the gap backward to increase the gap width
-        shiftedOTBeforeGap, backwardShift = shiftOT(closestOTBeforeGap, ttwList, False)
-        otListCandidate = otListModified.copy()
-        otIndex = otListCandidate.index(closestOTBeforeGap)
-        otListCandidate[otIndex] = shiftedOTBeforeGap
-
-        # Shift all buffers before the gap backward
-        btListCandidate = btList.copy()
-        for i, bt in enumerate(btListOriginal):
-            if closestOTBeforeGap.start <= bt.start <= gapTW.start:
-                btListCandidate[i] = BT(bt.GT, bt.start - backwardShift, bt.end - backwardShift)
-
-        # Check all buffers for conflict
-        conflictingBuffer = False
-        for bt in btListCandidate:
-            if bufferTaskConflicting(bt, btListCandidate, otListCandidate, gstwList):
-                conflictingBuffer = True
-                break
-
-        if not conflictingBuffer and not observationTaskConflicting(shiftedOTBeforeGap, btListCandidate, otListCandidate, gstwList):
-            # The backward shift did not result in conflicts, so we can save the results
-            otListModified = otListCandidate.copy()
-            btListModified = btListCandidate.copy()
-            if shiftedOTBeforeGap.GT == otToBuffer.GT:
-                otToBufferShifted = shiftedOTBeforeGap
-
+        maxShift += getMaxShift(closestOTBeforeGap, ttwList, False)
     if shiftForwardPossible:
-        shiftedOTAfterGap, forwardShift = shiftOT(closestOTAfterGap, ttwList, True)
-        otListCandidate = otListModified.copy()
-        otIndex = otListCandidate.index(closestOTAfterGap)
-        otListCandidate[otIndex] = shiftedOTAfterGap
+        maxShift += getMaxShift(closestOTAfterGap, ttwList, True)
 
-        # Now shift all the buffer tasks after the gap forward
-        btListTimeSorted = sorted(btListModified, key=lambda x: x.start)
-        btListCandidate = btListModified.copy()
-        previousBT = btListTimeSorted[0]
-        for i, bt in enumerate(btListTimeSorted):
-            if bt.start > closestOTAfterGap.end:
-                if bt.start - closestOTAfterGap.end == afterCaptureTime:
-                    # This is the first buffer after the gap window
-                    btListIndex = btListCandidate.index(bt)
-                    btListCandidate[btListIndex] = BT(bt.GT, bt.start + forwardShift, bt.end + forwardShift)
-                elif bt.start - previousBT.end == interTaskTime:
-                    # This is one of the buffers in the stack of buffers after the gap
-                    btListIndex = btListCandidate.index(bt)
-                    btListCandidate[btListIndex] = BT(bt.GT, bt.start + forwardShift, bt.end + forwardShift)
-                else:
-                    # This is the first buffer after the gap that is not part of the chain of buffers after the capture, so we stop here
-                    break
+    # Make an estimate of the shift that is needed
+    # The processing time after other tasks are included in the gap length, but not the processing time of the buffering itself
+    shiftNeeded = bufferingTime + interTaskTime - gapLength
 
-            previousBT = btListTimeSorted[i]
+    # Check if increasing the gap width by shifting will make the buffer fit
+    if shiftNeeded > maxShift:
+        return None, otListOriginal, btListOriginal
 
-        # Check all buffers for conflict
-        conflictingBuffer = False
-        for bt in btListCandidate:
-            if bufferTaskConflicting(bt, btListCandidate, otListCandidate, gstwList):
-                conflictingBuffer = True
-                break
+    # First try to shift the lowest priority task in the corresponding direction, then the highest priority task
+    # while taking into account if the shift is possible
+    backwardShiftFirst = closestOTBeforeGap.GT.priority < closestOTAfterGap.GT.priority
 
-        if not conflictingBuffer and not observationTaskConflicting(shiftedOTAfterGap, btListCandidate, otListCandidate, gstwList):
-            # Forward shift has been successful, so we can save the results
-            otListModified = otListCandidate.copy()
-            btListModified = btListCandidate.copy()
-            if shiftedOTAfterGap.GT == otToBuffer.GT:
-                otToBufferShifted = shiftedOTAfterGap
+    operations = [("backward", shiftBackwardPossible), ("forward", shiftForwardPossible)] if backwardShiftFirst \
+        else [("forward", shiftForwardPossible), ("backward", shiftBackwardPossible)]
+
+    for op, enabled in operations:
+        if not enabled:
+            continue
+        if op == "backward":
+            otToBufferShifted, otListModified, btListModified, backwardShift = backwardScheduleShift(
+                closestOTBeforeGap, otToBuffer, gapTW, otListModified, btListModified, ttwList, shiftNeeded,
+                slidingInsertIterations
+            )
+            shiftNeeded -= backwardShift
+        else:
+            otListModified, btListModified, forwardShift = forwardScheduleShift(
+                closestOTAfterGap, otListModified, btListModified, ttwList, shiftNeeded, slidingInsertIterations
+            )
+            shiftNeeded -= forwardShift
+
+    # If we still need to shift, then the shifting was not successful
+    if shiftNeeded > 0:
+        return None, otListOriginal, btListOriginal
 
     # After the shifting has been successful, try to insert the buffering task directly
     bt = generateBufferTaskDirectInsert(otToBufferShifted, gstwToDownlink, otListModified, btListModified, gstwList)
@@ -454,8 +430,6 @@ def generateBufferTaskSlideInsert(otToBuffer: OT, gstwToDownlink: GSTW, otList: 
         return bt, otListModified, btListModified
     else:
         return None, otListOriginal, btListOriginal
-
-
 
 
 def generateBufferTaskDeletionInsert(otToBuffer: OT, gstwToDownlink: GSTW, otListPrioritySorted: list[OT],
@@ -575,6 +549,7 @@ def bufferTaskConflicting(bt: BT, btList: list[BT], otList: list[OT], gstwList: 
     conflictOTs, conflictBTs, conflictGSTWs = getConflictingTasks(bufferTimeWindow, btListOther, otList, gstwList, True)
     return bool(conflictOTs or conflictBTs or conflictGSTWs)
 
+
 def observationTaskConflicting(ot: OT, btList: list[BT], otList: list[OT], gstwList: list[GSTW]):
     """
     Check if the observation task overlaps with any other scheduled tasks.
@@ -592,7 +567,8 @@ def observationTaskConflicting(ot: OT, btList: list[BT], otList: list[OT], gstwL
     observationTimeWindow = TW(ot.start, ot.end + afterCaptureTime)
     # Remove instances of the observation task itself from the list
     otListOther = [otherOT for otherOT in otList if otherOT != ot]
-    conflictOTs, conflictBTs, conflictGSTWs = getConflictingTasks(observationTimeWindow, btList, otListOther, gstwList, True)
+    conflictOTs, conflictBTs, conflictGSTWs = getConflictingTasks(observationTimeWindow, btList, otListOther, gstwList,
+                                                                  True)
     return bool(conflictOTs or conflictBTs or conflictGSTWs)
 
 
@@ -611,6 +587,227 @@ def downlinkTaskConflicting(dt: DT, dtList: list[DT]):
             return True
 
     return False
+
+
+def backwardScheduleShift(otToShift: OT, otToBuffer: OT, gapTW: TW, otList: list[OT], btList: list[BT],
+                          ttwList: list[TTW], shiftAmount: float = float('Infinity'), iterations: int = 1):
+    """
+    Try to shift an observation task and the bufferings right after it to an earlier time.
+    The observation task that we are trying to shift should happen before the gap in the schedule occurs,
+    that's why we try to shift it to an earlier time.
+
+    Args:
+        otToShift (OT): The observation task to shift.
+        otToBuffer (OT): The observation task for which the buffering is being scheduled.
+        gapTW (TW): The time window representing the gap in the schedule to create space for the buffering.
+        otList (list[OT]): List of all observation tasks
+        btList (list[BT]): List of all already scheduled buffering tasks.
+        ttwList (list[TTW]): List of target time windows.
+        shiftAmount (float, optional): The absolute amount of time in seconds to shift the task. The task will never be shifted outside its target time window.
+        iterations (int, optional): The number of iteration for trying to shift, the shift in each iteration is the total shift divided by the number of iterations.
+
+    Returns:
+        tuple[OT, list[OT], list[BT], float]: A tuple containing:
+
+            - OT: The (possibly) shifted observation task for which the buffering should be scheduled.
+                This task is shifted if the otToShift and otToBuffer happen to be the same task.
+            - list[OT]: Modified list of observation tasks, with any shifted tasks updated.
+            - list[BT]: Modified list of buffering tasks, with any shifted tasks updated.
+            - float: The amount of seconds the task was shifted
+    """
+    # Start by trying to shift the full amount, if that fails, try smaller shifts
+    n = max(iterations, 1)
+    for i in range(n):
+        factor = 1 - i / n  # Fraction of the shift to try
+        otToBufferShifted, otListModified, btListModified, backwardShift = backwardScheduleShiftPartial(
+            otToShift, otToBuffer, gapTW, otList, btList, ttwList, shiftAmount * factor
+        )
+        if backwardShift > 0:
+            break
+
+    return otToBufferShifted, otListModified, btListModified, backwardShift
+
+
+def backwardScheduleShiftPartial(otToShift: OT, otToBuffer: OT, gapTW: TW, otList: list[OT], btList: list[BT],
+                                 ttwList: list[TTW], shiftAmount: float = float('Infinity')):
+    # Shift the closest observation task before the gap backward to increase the gap width
+    shiftedOTBeforeGap, backwardShift = shiftOT(otToShift, ttwList, False, shiftAmount)
+    otListCandidate = otList.copy()
+    otIndex = otListCandidate.index(otToShift)
+    otListCandidate[otIndex] = shiftedOTBeforeGap
+
+    # Shift all buffers before the gap backward
+    btListCandidate = btList.copy()
+    for i, bt in enumerate(btList):
+        if otToShift.start <= bt.start <= gapTW.start:
+            btListCandidate[i] = BT(bt.GT, bt.start - backwardShift, bt.end - backwardShift)
+
+    # Check all buffers for conflict
+    conflictingBuffer = False
+    for bt in btListCandidate:
+        if bufferTaskConflicting(bt, btListCandidate, otListCandidate, gstwList):
+            conflictingBuffer = True
+            break
+
+    if not conflictingBuffer and not observationTaskConflicting(shiftedOTBeforeGap, btListCandidate, otListCandidate,
+                                                                gstwList):
+        # The backward shift did not result in conflicts, so we can save the results
+        otListModified = otListCandidate.copy()
+        btListModified = btListCandidate.copy()
+        otToBufferShifted = shiftedOTBeforeGap if shiftedOTBeforeGap.GT == otToBuffer.GT else otToBuffer
+
+        return otToBufferShifted, otListModified, btListModified, backwardShift
+    else:
+        return otToBuffer, otList, btList, 0
+
+
+def forwardScheduleShift(otToShift: OT, otList: list[OT], btList: list[BT],
+                         ttwList: list[TTW], shiftAmount: float = float('Infinity'), iterations: int = 1):
+    """
+    Try to shift an observation task and the bufferings right after it to a later time.
+    The observation task that we are trying to shift should happen after the gap in the schedule occurs,
+    that's why we try to shift it to a later time.
+
+    Args:
+        otToShift (OT): The observation task to shift.
+        otList (list[OT]): List of all observation tasks
+        btList (list[BT]): List of all already scheduled buffering tasks.
+        ttwList (list[TTW]): List of target time windows.
+        shiftAmount (float, optional): The absolute amount of time in seconds to shift the task. The task will never be shifted outside its target time window.
+        iterations (int, optional): The number of iteration for trying to shift, the shift in each iteration is the total shift divided by the number of iterations.
+
+    Returns:
+        tuple[list[OT], list[BT]]: A tuple containing:
+
+            - list[OT]: Modified list of observation tasks, with any shifted tasks updated.
+            - list[BT]: Modified list of buffering tasks, with any shifted tasks updated.
+            - float: The amount of seconds the task was shifted
+    """
+    # Start by trying to shift the full amount, if that fails, try smaller shifts
+    n = max(iterations, 1)
+    for i in range(n):
+        factor = 1 - i / n  # Fraction of the shift to try
+        otListModified, btListModified, forwardShift = forwardScheduleShiftPartial(
+            otToShift, otList, btList, ttwList, shiftAmount * factor
+        )
+        if forwardShift > 0:
+            break
+
+    return otListModified, btListModified, forwardShift
+
+
+def forwardScheduleShiftPartial(otToShift: OT, otList: list[OT], btList: list[BT],
+                                ttwList: list[TTW], shiftAmount: float = float('Infinity')):
+    shiftedOTAfterGap, forwardShift = shiftOT(otToShift, ttwList, True, shiftAmount)
+    otListCandidate = otList.copy()
+    otIndex = otListCandidate.index(otToShift)
+    otListCandidate[otIndex] = shiftedOTAfterGap
+
+    # Now shift all the buffer tasks after the gap forward
+    btListTimeSorted = sorted(btList, key=lambda x: x.start)
+    btListCandidate = btList.copy()
+    previousBT = btListTimeSorted[0]
+    for i, bt in enumerate(btListTimeSorted):
+        if bt.start > otToShift.end:
+            if bt.start - otToShift.end == afterCaptureTime:
+                # This is the first buffer after the gap window
+                btListIndex = btListCandidate.index(bt)
+                btListCandidate[btListIndex] = BT(bt.GT, bt.start + forwardShift, bt.end + forwardShift)
+            elif bt.start - previousBT.end == interTaskTime:
+                # This is one of the buffers in the stack of buffers after the gap
+                btListIndex = btListCandidate.index(bt)
+                btListCandidate[btListIndex] = BT(bt.GT, bt.start + forwardShift, bt.end + forwardShift)
+            else:
+                # This is the first buffer after the gap that is not part of the chain of buffers after the capture, so we stop here
+                break
+
+        previousBT = btListTimeSorted[i]
+
+    # Check all buffers for conflict
+    conflictingBuffer = False
+    for bt in btListCandidate:
+        if bufferTaskConflicting(bt, btListCandidate, otListCandidate, gstwList):
+            conflictingBuffer = True
+            break
+
+    if not conflictingBuffer and not observationTaskConflicting(shiftedOTAfterGap, btListCandidate, otListCandidate,
+                                                                gstwList):
+        # Forward shift has been successful, so we can save the results
+        return otListCandidate, btListCandidate, forwardShift
+    else:
+        return otList, btList, 0
+
+
+def shiftOT(ot: OT, ttwList: list[TTW], shiftForward: bool = True, shiftAmount: float = float('Infinity')):
+    """
+    Shift an observation task forward or backward in time.
+
+    Args:
+        ot (OT): The observation task to shift.
+        ttwList (list[TTW]): List of target time windows, which will be consulted when shifting observation tasks to fit buffering.
+        shiftForward (bool, optional): If True, the task will be shifted forward in time. If False, it will be shifted backward. Defaults to True.
+        shiftAmount (float, optional): The absolute amount of time in seconds to shift the task. The task will never be shifted outside its target time window.
+
+    Returns:
+        tuple[OT, float]: Tuple containing:
+
+            - OT: The shifted observation task. If no valid shifting was possible, the original task will be returned.
+            - float: The actual amount of time in seconds the task was shifted.
+    """
+    # First find the corresponding time window from the list
+    otTW = None
+    for ttw in ttwList:
+        if ttw.GT == ot.GT:
+            for tw in ttw.TWs:
+                if tw.start <= ot.start and tw.end >= ot.end:
+                    otTW = tw
+                    break
+
+    if otTW is None:
+        print(f"Observation task {ot.GT.id} at {ot.start} is not included in the target time windows list")
+        return ot, 0
+
+    if shiftForward:
+        maxShift = otTW.end - ot.end
+        actualShift = min(abs(shiftAmount), maxShift)
+        newOT = OT(ot.GT, ot.start + actualShift, ot.end + actualShift)
+    else:
+        maxShift = ot.start - otTW.start
+        actualShift = min(abs(shiftAmount), maxShift)
+        newOT = OT(ot.GT, ot.start - actualShift, ot.end - actualShift)
+
+    return newOT, actualShift
+
+
+def getMaxShift(ot: OT, ttwList: list[TTW], shiftForward: bool = True):
+    """
+    Get the maximum amount of time an observation task can be shifted forward or backward in time.
+
+    Args:
+        ot (OT): The observation task to check.
+        ttwList (list[TTW]): List of target time windows, which will be consulted when shifting observation tasks to fit buffering.
+        shiftForward (bool, optional): If True, the task will be shifted forward in time. If False, it will be shifted backward. Defaults to True.
+
+    Returns:
+        float: The maximum amount of time in seconds the task can be shifted.
+    """
+    # First find the corresponding time window from the list
+    otTW = None
+    for ttw in ttwList:
+        if ttw.GT == ot.GT:
+            for tw in ttw.TWs:
+                if tw.start <= ot.start and tw.end >= ot.end:
+                    otTW = tw
+                    break
+
+    if otTW is None:
+        print(f"Observation task {ot.GT.id} at {ot.start} is not included in the target time windows list")
+        return 0
+
+    if shiftForward:
+        return otTW.end - ot.end
+    else:
+        return ot.start - otTW.start
 
 
 def getClosestGSTW(ot: OT, gstwList: list[GSTW], numberOfClosest=1):
@@ -674,10 +871,12 @@ def gstwToSortedTupleList(gstwList: list[GSTW]):
 
     return sorted(allGSTWs, key=lambda x: x[1].start)
 
+
 def getLargestTimeGap(searchWindow: TW, otList: list[OT], btList: list[BT], gstwList: list[GSTW]):
     """
     Get the largest time gap between scheduled tasks.
     This will take into account the processing or waiting time that is needed after each specific task.
+    The processing time of the task that needs to be inserted into the gap is not considered here.
 
     Args:
         searchWindow (TW): The time window to search for the largest time gap in.
@@ -714,10 +913,11 @@ def getLargestTimeGap(searchWindow: TW, otList: list[OT], btList: list[BT], gstw
 
     return largestGap, TW(begin, end)
 
+
 def mergeToTimeWindowList(otList: list[OT], btList: list[BT], gstwList: list[GSTW]):
     """
     Merge the observation tasks, buffering tasks and ground station time windows into a single list of time windows.
-    The time windows in the list will include the processing and waiting times for each task
+    The time windows in the list will include the processing and waiting times after each task.
 
     Args:
         otList (list[OT]): List of observation tasks.
@@ -738,48 +938,9 @@ def mergeToTimeWindowList(otList: list[OT], btList: list[BT], gstwList: list[GST
 
     return sorted(twList, key=lambda x: x.start)
 
-def shiftOT(ot: OT, ttwList: list[TTW], shiftForward: bool = True, shiftAmount: float = float('Infinity')):
-    """
-    Shift an observation task forward or backward in time.
 
-    Args:
-        ot (OT): The observation task to shift.
-        ttwList (list[TTW]): List of target time windows, which will be consulted when shifting observation tasks to fit buffering.
-        shiftForward (bool, optional): If True, the task will be shifted forward in time. If False, it will be shifted backward. Defaults to True.
-        shiftAmount (float, optional): The absolute amount of time in seconds to shift the task. The task will never be shifted outside its target time window.
-
-    Returns:
-        A tuple(OT, float) containing:
-
-            OT: The shifted observation task. If no valid shifting was possible, the original task will be returned.
-            float: The actual amount of time in seconds the task was shifted.
-    """
-    # First find the corresponding time window from the list
-    otTW = None
-    for ttw in ttwList:
-        if ttw.GT == ot.GT:
-            for tw in ttw.TWs:
-                if tw.start <= ot.start and tw.end >= ot.end:
-                    otTW = tw
-                    break
-
-    if otTW is None:
-        print(f"Observation task {ot.GT.id} at {ot.start} is not included in the target time windows list")
-        return ot, 0
-
-    actualShift = 0
-    if shiftForward:
-        maxShift = otTW.end - ot.end
-        actualShift = min(abs(shiftAmount), maxShift)
-        newOT = OT(ot.GT, ot.start + actualShift, ot.end + actualShift)
-    else:
-        maxShift = ot.start - otTW.start
-        actualShift = min(abs(shiftAmount), maxShift)
-        newOT = OT(ot.GT, ot.start - actualShift, ot.end - actualShift)
-
-    return newOT, actualShift
-
-def plotSchedule(otListMod: list[OT], otList: list[OT], btList: list[BT], dtList: list[DT], gstwList: list[GSTW], ttwList: list[TTW]):
+def plotSchedule(otListMod: list[OT], otList: list[OT], btList: list[BT], dtList: list[DT], gstwList: list[GSTW],
+                 ttwList: list[TTW]):
     import matplotlib.pyplot as plt
 
     fig, ax = plt.subplots(figsize=(30, 5))
@@ -923,8 +1084,8 @@ otListPrioSorted = sorted(otList, key=lambda x: x.GT.priority, reverse=True)
 # Create TTW list by adding some time before and after each observation task
 ttwList: list[TTW] = []
 for ot in otList:
-    ttwStart = max(0, ot.start - 50)
-    ttwEnd = min(ohDuration, ot.end + 50)
+    ttwStart = max(0, ot.start - 500)
+    ttwEnd = min(ohDuration, ot.end + 500)
     ttwList.append(TTW(ot.GT, [TW(ttwStart, ttwEnd)]))
 
 startTimeOH = datetime.datetime(2025, 8, 27, 15, 29, 0)
