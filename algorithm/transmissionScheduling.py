@@ -230,7 +230,6 @@ def generateBufferTaskDirectInsert(otToBuffer: OT, gstwToDownlink: GSTW, otList:
         gstwToDownlink (GSTW): The ground station time window to use for downlinking the buffered data.
         otList (list[OT]): List of all observation tasks
         btList (list[BT]): List of all already scheduled buffering tasks.
-        dtList (list[DT]): List of all already scheduled downlink tasks.
         gstwList (list[GSTW]): List of all ground station time windows.
 
     Returns:
