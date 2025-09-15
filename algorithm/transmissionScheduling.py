@@ -97,8 +97,7 @@ def scheduleTransmissions(otList: list[OT], ttwList: list[TTW], gstwList: list[G
 
                 bt = generateBufferTaskDirectInsert(otToBuffer, gstw, otListMod, btList, gstwList)
                 if bt is None:
-                    bt, otListMod, btListMod = generateBufferTaskSlideInsert(otToBuffer, gstw, otListMod, btList, gstwList, ttwList)
-                    btList = btListMod
+                    bt, otListMod, btList = generateBufferTaskSlideInsert(otToBuffer, gstw, otListMod, btList, gstwList, ttwList)
 
                 if bt is not None:
                     btList.append(bt)
@@ -330,6 +329,7 @@ def generateBufferTaskSlideInsert(otToBuffer: OT, gstwToDownlink: GSTW, otList: 
     otListModified = otList.copy()
     btListOriginal = btList.copy()
     btListModified = btList.copy()
+    otToBufferShifted = otToBuffer
 
     shiftWindow = TW(otToBuffer.end, gstwToDownlink.TWs[0].start) # Time window in which we can shift
 
@@ -361,10 +361,11 @@ def generateBufferTaskSlideInsert(otToBuffer: OT, gstwToDownlink: GSTW, otList: 
             closestGSTWBeforeGap = GSTW(gstw[0], [gstw[1]])
             break
 
+    # A ground station time window cannot be shifted,
+    # so if that is the first non-buffer task after the gap, we cannot shift in that direction
     shiftBackwardPossible = True
     if closestGSTWBeforeGap is not None:
         if closestGSTWBeforeGap.TWs[0].end > closestOTBeforeGap.end:
-            print("GSTW is closer than OT at the beginning of the gap, so we cannot shift here")
             shiftBackwardPossible = False
 
     # Get the closest GSTW after the gap window
@@ -377,12 +378,14 @@ def generateBufferTaskSlideInsert(otToBuffer: OT, gstwToDownlink: GSTW, otList: 
     shiftForwardPossible = True
     if closestGSTWAfterGap is not None:
         if closestGSTWAfterGap.TWs[0].start < closestOTAfterGap.start:
-            print("GSTW is closer than OT at the end of the gap, so we cannot shift here")
             shiftForwardPossible = False
 
     if shiftBackwardPossible:
         # Shift the closest observation task before the gap backward to increase the gap width
         shiftedOTBeforeGap, backwardShift = shiftOT(closestOTBeforeGap, ttwList, False)
+        otListCandidate = otListModified.copy()
+        otIndex = otListCandidate.index(closestOTBeforeGap)
+        otListCandidate[otIndex] = shiftedOTBeforeGap
 
         # Shift all buffers before the gap backward
         btListCandidate = btList.copy()
@@ -390,20 +393,30 @@ def generateBufferTaskSlideInsert(otToBuffer: OT, gstwToDownlink: GSTW, otList: 
             if closestOTBeforeGap.start <= bt.start <= gapTW.start:
                 btListCandidate[i] = BT(bt.GT, bt.start - backwardShift, bt.end - backwardShift)
 
-        if not observationTaskConflicting(shiftedOTBeforeGap, btListCandidate, otListModified, gstwList):
+        # Check all buffers for conflict
+        conflictingBuffer = False
+        for bt in btListCandidate:
+            if bufferTaskConflicting(bt, btListCandidate, otListCandidate, gstwList):
+                conflictingBuffer = True
+                break
+
+        if not conflictingBuffer and not observationTaskConflicting(shiftedOTBeforeGap, btListCandidate, otListCandidate, gstwList):
             # The backward shift did not result in conflicts, so we can save the results
-            otIndex = otListModified.index(closestOTBeforeGap)
-            otListModified[otIndex] = shiftedOTBeforeGap
-            btListModified = btListCandidate
+            otListModified = otListCandidate.copy()
+            btListModified = btListCandidate.copy()
+            if shiftedOTBeforeGap.GT == otToBuffer.GT:
+                otToBufferShifted = shiftedOTBeforeGap
 
     if shiftForwardPossible:
         shiftedOTAfterGap, forwardShift = shiftOT(closestOTAfterGap, ttwList, True)
+        otListCandidate = otListModified.copy()
+        otIndex = otListCandidate.index(closestOTAfterGap)
+        otListCandidate[otIndex] = shiftedOTAfterGap
 
         # Now shift all the buffer tasks after the gap forward
         btListTimeSorted = sorted(btListModified, key=lambda x: x.start)
         btListCandidate = btListModified.copy()
         previousBT = btListTimeSorted[0]
-        successfulShift = False
         for i, bt in enumerate(btListTimeSorted):
             if bt.start > closestOTAfterGap.end:
                 if bt.start - closestOTAfterGap.end == afterCaptureTime:
@@ -416,22 +429,26 @@ def generateBufferTaskSlideInsert(otToBuffer: OT, gstwToDownlink: GSTW, otList: 
                     btListCandidate[btListIndex] = BT(bt.GT, bt.start + forwardShift, bt.end + forwardShift)
                 else:
                     # This is the first buffer after the gap that is not part of the chain of buffers after the capture, so we stop here
-                    # We do have to do a check on the last buffer that is shifted to prevent conflicts
-                    previousBTShifted = BT(previousBT.GT, previousBT.start + forwardShift, previousBT.end + forwardShift)
-                    successfulShift = not bufferTaskConflicting(previousBTShifted, btListCandidate, otListModified, gstwList)
                     break
 
             previousBT = btListTimeSorted[i]
 
-        if successfulShift:
+        # Check all buffers for conflict
+        conflictingBuffer = False
+        for bt in btListCandidate:
+            if bufferTaskConflicting(bt, btListCandidate, otListCandidate, gstwList):
+                conflictingBuffer = True
+                break
+
+        if not conflictingBuffer and not observationTaskConflicting(shiftedOTAfterGap, btListCandidate, otListCandidate, gstwList):
             # Forward shift has been successful, so we can save the results
-            otIndex = otListModified.index(closestOTAfterGap)
-            otListModified[otIndex] = shiftedOTAfterGap
-            btListModified = btListCandidate
+            otListModified = otListCandidate.copy()
+            btListModified = btListCandidate.copy()
+            if shiftedOTAfterGap.GT == otToBuffer.GT:
+                otToBufferShifted = shiftedOTAfterGap
 
     # After the shifting has been successful, try to insert the buffering task directly
-    # TODO, actually display if the gap has been made big enough to fit a buffer task
-    bt = generateBufferTaskDirectInsert(otToBuffer, gstwToDownlink, otListModified, btListModified, gstwList)
+    bt = generateBufferTaskDirectInsert(otToBufferShifted, gstwToDownlink, otListModified, btListModified, gstwList)
     if bt is not None:
         print("Successfully inserted buffering task by shifting observation tasks")
         return bt, otListModified, btListModified
@@ -476,7 +493,8 @@ def generateBufferTaskDeletionInsert(otToBuffer: OT, gstwToDownlink: GSTW, otLis
         return None, otListPrioSorted
 
     # Only remove the observation tasks that are needed to fit the buffering task
-    conflictOTs, conflictBTs, conflictGSTWs = getConflictingTasks(bt, btList, otListPrioSorted, gstwList)
+    bufferTimeWindow = TW(bt.start, bt.end + interTaskTime)
+    conflictOTs, conflictBTs, conflictGSTWs = getConflictingTasks(bufferTimeWindow, btList, otListPrioSorted, gstwList)
     if conflictBTs or conflictGSTWs:
         # We can only remove observation tasks, if there are conflicts with other tasks, return None
         return None, otListPrioSorted
@@ -491,12 +509,12 @@ def generateBufferTaskDeletionInsert(otToBuffer: OT, gstwToDownlink: GSTW, otLis
     return bt, otListPrioSorted
 
 
-def getConflictingTasks(bt: BT, btList: list[BT], otList: list[OT], gstwList: list[GSTW], cancelEarly: bool = False):
+def getConflictingTasks(tw: TW, btList: list[BT], otList: list[OT], gstwList: list[GSTW], cancelEarly: bool = False):
     """
-    Get the list of tasks that conflict with the given buffering task.
+    Get the list of tasks that conflict with the given time window.
 
     Args:
-        bt (BT): The buffering task to check for conflicts.
+        tw (TW): The time window to check for conflicts.
         btList (list[BT]): List of all already scheduled buffering tasks.
         otList (list[OT]): List of all observation tasks.
         gstwList (list[GSTW]): List of all ground station time windows.
@@ -514,25 +532,22 @@ def getConflictingTasks(bt: BT, btList: list[BT], otList: list[OT], gstwList: li
     conflictingGSTWs: list[GSTW] = []
 
     for ot in otList:
-        if ot.start >= bt.end + interTaskTime or ot.end + afterCaptureTime <= bt.start:
+        if ot.start >= tw.end or ot.end + afterCaptureTime <= tw.start:
             continue
         else:
             conflictingOTs.append(ot)
             if cancelEarly: return conflictingOTs, conflictingBTs, conflictingGSTWs
 
     for otherBT in btList:
-        if otherBT.GT == bt.GT:
-            # The task we are comparing is the same buffering task
-            continue
-        if otherBT.start >= bt.end + interTaskTime or otherBT.end + interTaskTime <= bt.start:
+        if otherBT.start >= tw.end or otherBT.end + interTaskTime <= tw.start:
             continue
         else:
             conflictingBTs.append(otherBT)
             if cancelEarly: return conflictingOTs, conflictingBTs, conflictingGSTWs
 
     for gstw in gstwList:
-        for tw in gstw.TWs:
-            if tw.start >= bt.end + interTaskTime or tw.end + interTaskTime <= bt.start:
+        for gstw_tw in gstw.TWs:
+            if gstw_tw.start >= tw.end or gstw_tw.end + interTaskTime <= tw.start:
                 continue
             else:
                 conflictingGSTWs.append(gstw)
@@ -554,8 +569,11 @@ def bufferTaskConflicting(bt: BT, btList: list[BT], otList: list[OT], gstwList: 
     Returns:
         bool: True if the buffering task conflicts with any other task, False otherwise.
     """
-    conflictOTs, conflictBTs, conflictGSTWs = getConflictingTasks(bt, btList, otList, gstwList, True)
-    return conflictOTs or conflictBTs or conflictGSTWs
+    bufferTimeWindow = TW(bt.start, bt.end + interTaskTime)
+    # Remove the buffer task from the list to prevent self conflict
+    btListOther = [otherBT for otherBT in btList if otherBT != bt]
+    conflictOTs, conflictBTs, conflictGSTWs = getConflictingTasks(bufferTimeWindow, btListOther, otList, gstwList, True)
+    return bool(conflictOTs or conflictBTs or conflictGSTWs)
 
 def observationTaskConflicting(ot: OT, btList: list[BT], otList: list[OT], gstwList: list[GSTW]):
     """
@@ -570,10 +588,12 @@ def observationTaskConflicting(ot: OT, btList: list[BT], otList: list[OT], gstwL
     Returns:
         bool: True if the observation task conflicts with any other task, False otherwise.
     """
-    # Trick to use the existing function is to convert observation task to buffer task
-    otAsBT = BT(ot.GT, ot.start, ot.end)
-    conflictOTs, conflictBTs, conflictGSTWs = getConflictingTasks(otAsBT, btList, otList, gstwList, True)
-    return conflictOTs or conflictBTs or conflictGSTWs
+
+    observationTimeWindow = TW(ot.start, ot.end + afterCaptureTime)
+    # Remove instances of the observation task itself from the list
+    otListOther = [otherOT for otherOT in otList if otherOT != ot]
+    conflictOTs, conflictBTs, conflictGSTWs = getConflictingTasks(observationTimeWindow, btList, otListOther, gstwList, True)
+    return bool(conflictOTs or conflictBTs or conflictGSTWs)
 
 
 def downlinkTaskConflicting(dt: DT, dtList: list[DT]):
@@ -900,11 +920,11 @@ def plotSchedule(otListMod: list[OT], otList: list[OT], btList: list[BT], dtList
 otList = AD_api.getScheduleFromFile("BS_test12-run1.json")  # observation task
 otListPrioSorted = sorted(otList, key=lambda x: x.GT.priority, reverse=True)
 
-# Create TTW list by adding 150 seconds before and after each observation task
+# Create TTW list by adding some time before and after each observation task
 ttwList: list[TTW] = []
 for ot in otList:
-    ttwStart = max(0, ot.start - 300)
-    ttwEnd = min(ohDuration, ot.end + 500)
+    ttwStart = max(0, ot.start - 50)
+    ttwEnd = min(ohDuration, ot.end + 50)
     ttwList.append(TTW(ot.GT, [TW(ttwStart, ttwEnd)]))
 
 startTimeOH = datetime.datetime(2025, 8, 27, 15, 29, 0)
@@ -920,12 +940,3 @@ end_time = time.perf_counter()
 print(f"{(end_time - start_time) * 1000:.4f} milliseconds")
 
 plotSchedule(otListModified, otListPrioSorted, btList, dtList, gstwList, ttwList)
-
-# Sort the otList by time and display the times between each capture
-otListTimeSorted = sorted(otList, key=lambda x: x.start)
-timeDiffList = []
-for i in range(1, len(otListTimeSorted)):
-    timeDiff = otListTimeSorted[i].start - otListTimeSorted[i - 1].end
-    if 1650 < timeDiff < 1960:
-        timeDiffList.append(timeDiff)
-        print(f"Time between capture {i} and {i+1}: {timeDiff} seconds")
