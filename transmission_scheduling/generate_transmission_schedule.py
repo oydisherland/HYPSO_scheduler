@@ -47,6 +47,11 @@ print("Starting second attempt")
 # Try to schedule the transmission again
 valid, btList, dtList, otListModified = scheduleTransmissions(otListPrioSorted, ttwList, gstwList, p, otListModified, btList, dtList)
 
+btList = sorted(btList, key=lambda x: x.GT.priority, reverse=True)
+dtList = sorted(dtList, key=lambda x: x.GT.priority, reverse=True)
+otListModified = sorted(otListModified, key=lambda x: x.GT.priority, reverse=True)
+
+
 print(f"{(end_time - start_time) * 1000:.4f} milliseconds")
 
 plotSchedule(otListModified, otListPrioSorted, btList, dtList, gstwList, ttwList, p)
