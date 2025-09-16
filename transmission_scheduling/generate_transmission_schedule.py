@@ -453,7 +453,8 @@ def generateBufferTaskSlideInsert(otToBuffer: OT, gstwToDownlink: GSTW, otList: 
     # After the shifting has been successful, try to insert the buffering task directly
     bt = generateBufferTaskDirectInsert(otToBufferShifted, gstwToDownlink, otListModified, btListModified, gstwList)
     if bt is not None:
-        print("Successfully inserted buffering task by shifting observation tasks")
+        id = otListOriginal.index(otToBuffer) + 1
+        print(f"Successfully inserted task {id} by shifting observation tasks")
         return bt, otListModified, btListModified
     else:
         return None, otListOriginal, btListOriginal
@@ -503,8 +504,9 @@ def generateBufferTaskDeletionInsert(otToBuffer: OT, gstwToDownlink: GSTW, otLis
     # Remove the observation tasks that conflict with the buffering task
     for conflictOT in conflictOTs:
         # print which task has been removed
+        id = otListPrioSorted.index(conflictOT) + 1
         print(
-            f"Removed observation task {conflictOT.GT.id} at {conflictOT.start} to fit buffering task for {otToBuffer.GT.id} at {otToBuffer.start}")
+            f"Removed observation task {id} at {conflictOT.start} to fit buffering task for {otToBuffer.GT.id} at {otToBuffer.start}")
         otListPrioSorted.remove(conflictOT)
 
     return bt, otListPrioSorted
