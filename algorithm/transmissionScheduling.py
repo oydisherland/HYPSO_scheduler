@@ -51,17 +51,21 @@ def scheduleTransmissions(otList: list[OT], ttwList: list[TTW], gstwList: list[G
     btList: list[BT] = []
     dtList: list[DT] = []
 
-    otListMod = copy.copy(otList) # This is the list of observation tasks that will be kept updated as tasks are deleted or shifted
+    otListMod = otList.copy() # This is the list of observation tasks that will be kept updated as tasks are deleted or shifted
     completeScheduleFound = True
 
-    for otToBuffer in otList:
-        # TODO fix that otToBuffer is currently the non shifted version, in meantime it might have been shifted
-        # TODO Maybe this could be fixed by iterating over the modified version somehow
-        # TODO Or we could just do the GT matching thing like below
-        # Check if this observation task has not been deleted
-        # The task could have been shifted, so only check if the ground target corresponds
-        if not any(ot.GT == otToBuffer.GT for ot in otListMod):
+    for otOriginal in otList:
+        # First match the original OT to the most recently updated version that has been possibly shifted or deleted
+        otToBuffer = None
+        for ot in otListMod:
+            if ot.GT == otOriginal.GT:
+                otToBuffer = ot
+                break
+
+        # If we could not find the OT in the modified list, it has been deleted, and we can continue to the next OT
+        if otToBuffer is None:
             continue
+
         # For each observation task to buffer, try to buffer it considering the downlink in one of the closest ground station time windows
         validBTFound = False
         closestGSTW = getClosestGSTW(otToBuffer, gstwList, maxGSTWAhead)
@@ -120,7 +124,7 @@ def scheduleTransmissions(otList: list[OT], ttwList: list[TTW], gstwList: list[G
             print(
                 f"Transmission scheduling failed for {otToBuffer.GT.id} at {otToBuffer.start}")
             # Remove the currently considered observation task by checking if ground target matches
-            otListMod = [ot for ot in otListMod if ot.GT != otToBuffer.GT]
+            otListMod.remove(otToBuffer)
 
     return completeScheduleFound, btList, dtList, otListMod
 
@@ -346,7 +350,7 @@ def generateBufferTaskSlideInsert(otToBuffer: OT, gstwToDownlink: GSTW, otList: 
     # Find the largest gap that exists in this window, this is where we will try to make room to fit the buffer
     gapLength, gapTW = getLargestTimeGap(shiftWindow, otListOriginal, btListOriginal, gstwList)
 
-    # Get the closest observation task before the gapwindow
+    # Get the closest observation task before the gap window
     closestOTBeforeGap = None
     for ot in sorted(otListOriginal, key=lambda x: x.start, reverse=True):
         if ot.end <= gapTW.start:
@@ -356,7 +360,7 @@ def generateBufferTaskSlideInsert(otToBuffer: OT, gstwToDownlink: GSTW, otList: 
     if closestOTBeforeGap is None:
         shiftBackwardPossible = False
 
-    # Get the closest observation task after the gapwindow
+    # Get the closest observation task after the gap window
     closestOTAfterGap = None
     for ot in sorted(otListOriginal, key=lambda x: x.start):
         if ot.start >= gapTW.end:
@@ -1097,8 +1101,8 @@ otListPrioSorted = sorted(otList, key=lambda x: x.GT.priority, reverse=True)
 # Create TTW list by adding some time before and after each observation task
 ttwList: list[TTW] = []
 for ot in otList:
-    ttwStart = max(0, ot.start - 50)
-    ttwEnd = min(ohDuration, ot.end + 50)
+    ttwStart = max(0, ot.start - 500)
+    ttwEnd = min(ohDuration, ot.end + 500)
     ttwList.append(TTW(ot.GT, [TW(ttwStart, ttwEnd)]))
 
 startTimeOH = datetime.datetime(2025, 8, 27, 15, 29, 0)
