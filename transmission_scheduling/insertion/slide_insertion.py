@@ -103,9 +103,9 @@ class SlideInsertion(InsertionInterface):
 
         maxShift = 0
         if shiftBackwardPossible:
-            maxShift += self.getMaxShift(closestOTBeforeGap, ttwList, False)
+            maxShift += getMaxShift(closestOTBeforeGap, ttwList, False)
         if shiftForwardPossible:
-            maxShift += self.getMaxShift(closestOTAfterGap, ttwList, True)
+            maxShift += getMaxShift(closestOTAfterGap, ttwList, True)
 
         # Make an estimate of the shift that is needed
         # The processing time after other tasks are included in the gap length, but not the processing time of the buffering itself
@@ -148,8 +148,8 @@ class SlideInsertion(InsertionInterface):
         # After the shifting has been successful, try to insert the buffering task directly
         bt, _, _ = self.direct_insert.generateBuffer(otToBufferShifted, gstwToDownlink, otListModified, btListModified, gstwList)
         if bt is not None:
-            id = otListOriginal.index(otToBuffer) + 1
-            print(f"Successfully inserted task {id} by shifting observation tasks")
+            taskID = otListOriginal.index(otToBuffer) + 1
+            print(f"Successfully inserted task {taskID} by shifting observation tasks")
             return bt, otListModified, btListModified
         else:
             return None, otListOriginal, btListOriginal
@@ -183,6 +183,11 @@ class SlideInsertion(InsertionInterface):
                 - float: The amount of seconds the task was shifted
         """
         # Start by trying to shift the full amount, if that fails, try smaller shifts
+        otToBufferShifted = otToBuffer
+        otListModified = otList.copy()
+        btListModified = btList.copy()
+        backwardShift = 0
+
         n = max(iterations, 1)
         for i in range(n):
             factor = 1 - i / n  # Fraction of the shift to try
@@ -199,7 +204,7 @@ class SlideInsertion(InsertionInterface):
         p = self.p
 
         # Shift the closest observation task before the gap backward to increase the gap width
-        shiftedOTBeforeGap, backwardShift = self.shiftOT(otToShift, ttwList, False, shiftAmount)
+        shiftedOTBeforeGap, backwardShift = shiftOT(otToShift, ttwList, False, shiftAmount)
         otListCandidate = otList.copy()
         otIndex = otListCandidate.index(otToShift)
         otListCandidate[otIndex] = shiftedOTBeforeGap
@@ -251,6 +256,10 @@ class SlideInsertion(InsertionInterface):
                 - list[BT]: Modified list of buffering tasks, with any shifted tasks updated.
                 - float: The amount of seconds the task was shifted
         """
+        otListModified = otList.copy()
+        btListModified = btList.copy()
+        forwardShift = 0
+
         # Start by trying to shift the full amount, if that fails, try smaller shifts
         n = max(iterations, 1)
         for i in range(n):
@@ -267,7 +276,7 @@ class SlideInsertion(InsertionInterface):
                                     ttwList: list[TTW], shiftAmount: float = float('Infinity')):
         p = self.p
 
-        shiftedOTAfterGap, forwardShift = self.shiftOT(otToShift, ttwList, True, shiftAmount)
+        shiftedOTAfterGap, forwardShift = shiftOT(otToShift, ttwList, True, shiftAmount)
         otListCandidate = otList.copy()
         otIndex = otListCandidate.index(otToShift)
         otListCandidate[otIndex] = shiftedOTAfterGap
@@ -306,75 +315,6 @@ class SlideInsertion(InsertionInterface):
         else:
             return otList, btList, 0
 
-    def shiftOT(self, ot: OT, ttwList: list[TTW], shiftForward: bool = True, shiftAmount: float = float('Infinity')):
-        """
-        Shift an observation task forward or backward in time.
-
-        Args:
-            ot (OT): The observation task to shift.
-            ttwList (list[TTW]): List of target time windows, which will be consulted when shifting observation tasks to fit buffering.
-            shiftForward (bool, optional): If True, the task will be shifted forward in time. If False, it will be shifted backward. Defaults to True.
-            shiftAmount (float, optional): The absolute amount of time in seconds to shift the task. The task will never be shifted outside its target time window.
-
-        Returns:
-            tuple[OT, float]: Tuple containing:
-
-                - OT: The shifted observation task. If no valid shifting was possible, the original task will be returned.
-                - float: The actual amount of time in seconds the task was shifted.
-        """
-        # First find the corresponding time window from the list
-        otTW = None
-        for ttw in ttwList:
-            if ttw.GT == ot.GT:
-                for tw in ttw.TWs:
-                    if tw.start <= ot.start and tw.end >= ot.end:
-                        otTW = tw
-                        break
-
-        if otTW is None:
-            print(f"Observation task {ot.GT.id} at {ot.start} is not included in the target time windows list")
-            return ot, 0
-
-        if shiftForward:
-            maxShift = otTW.end - ot.end
-            actualShift = min(abs(shiftAmount), maxShift)
-            newOT = OT(ot.GT, ot.start + actualShift, ot.end + actualShift)
-        else:
-            maxShift = ot.start - otTW.start
-            actualShift = min(abs(shiftAmount), maxShift)
-            newOT = OT(ot.GT, ot.start - actualShift, ot.end - actualShift)
-
-        return newOT, actualShift
-
-    def getMaxShift(self, ot: OT, ttwList: list[TTW], shiftForward: bool = True):
-        """
-        Get the maximum amount of time an observation task can be shifted forward or backward in time.
-
-        Args:
-            ot (OT): The observation task to check.
-            ttwList (list[TTW]): List of target time windows, which will be consulted when shifting observation tasks to fit buffering.
-            shiftForward (bool, optional): If True, the task will be shifted forward in time. If False, it will be shifted backward. Defaults to True.
-
-        Returns:
-            float: The maximum amount of time in seconds the task can be shifted.
-        """
-        # First find the corresponding time window from the list
-        otTW = None
-        for ttw in ttwList:
-            if ttw.GT == ot.GT:
-                for tw in ttw.TWs:
-                    if tw.start <= ot.start and tw.end >= ot.end:
-                        otTW = tw
-                        break
-
-        if otTW is None:
-            print(f"Observation task {ot.GT.id} at {ot.start} is not included in the target time windows list")
-            return 0
-
-        if shiftForward:
-            return otTW.end - ot.end
-        else:
-            return ot.start - otTW.start
 
     def getLargestTimeGap(self, searchWindow: TW, otList: list[OT], btList: list[BT], gstwList: list[GSTW]):
         """
@@ -444,3 +384,75 @@ class SlideInsertion(InsertionInterface):
                 twList.append(TW(tw.start, tw.end + p.interTaskTime))
 
         return sorted(twList, key=lambda x: x.start)
+
+
+def shiftOT(ot: OT, ttwList: list[TTW], shiftForward: bool = True, shiftAmount: float = float('Infinity')):
+    """
+    Shift an observation task forward or backward in time.
+
+    Args:
+        ot (OT): The observation task to shift.
+        ttwList (list[TTW]): List of target time windows, which will be consulted when shifting observation tasks to fit buffering.
+        shiftForward (bool, optional): If True, the task will be shifted forward in time. If False, it will be shifted backward. Defaults to True.
+        shiftAmount (float, optional): The absolute amount of time in seconds to shift the task. The task will never be shifted outside its target time window.
+
+    Returns:
+        tuple[OT, float]: Tuple containing:
+
+            - OT: The shifted observation task. If no valid shifting was possible, the original task will be returned.
+            - float: The actual amount of time in seconds the task was shifted.
+    """
+    # First find the corresponding time window from the list
+    otTW = None
+    for ttw in ttwList:
+        if ttw.GT == ot.GT:
+            for tw in ttw.TWs:
+                if tw.start <= ot.start and tw.end >= ot.end:
+                    otTW = tw
+                    break
+
+    if otTW is None:
+        print(f"Observation task {ot.GT.id} at {ot.start} is not included in the target time windows list")
+        return ot, 0
+
+    if shiftForward:
+        maxShift = otTW.end - ot.end
+        actualShift = min(abs(shiftAmount), maxShift)
+        newOT = OT(ot.GT, ot.start + actualShift, ot.end + actualShift)
+    else:
+        maxShift = ot.start - otTW.start
+        actualShift = min(abs(shiftAmount), maxShift)
+        newOT = OT(ot.GT, ot.start - actualShift, ot.end - actualShift)
+
+    return newOT, actualShift
+
+
+def getMaxShift(ot: OT, ttwList: list[TTW], shiftForward: bool = True):
+    """
+    Get the maximum amount of time an observation task can be shifted forward or backward in time.
+
+    Args:
+        ot (OT): The observation task to check.
+        ttwList (list[TTW]): List of target time windows, which will be consulted when shifting observation tasks to fit buffering.
+        shiftForward (bool, optional): If True, the task will be shifted forward in time. If False, it will be shifted backward. Defaults to True.
+
+    Returns:
+        float: The maximum amount of time in seconds the task can be shifted.
+    """
+    # First find the corresponding time window from the list
+    otTW = None
+    for ttw in ttwList:
+        if ttw.GT == ot.GT:
+            for tw in ttw.TWs:
+                if tw.start <= ot.start and tw.end >= ot.end:
+                    otTW = tw
+                    break
+
+    if otTW is None:
+        print(f"Observation task {ot.GT.id} at {ot.start} is not included in the target time windows list")
+        return 0
+
+    if shiftForward:
+        return otTW.end - ot.end
+    else:
+        return ot.start - otTW.start

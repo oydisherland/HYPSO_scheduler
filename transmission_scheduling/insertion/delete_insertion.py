@@ -43,6 +43,7 @@ class DeleteInsertion(InsertionInterface):
         otListLength = len(otListPrioSorted)
         nRemove = otListLength - otIndex  # The number of observation tasks we can remove
         found = False
+        bt = None
         for i in range(0, nRemove):
             otListMod = otListPrioSorted[:otListLength - i]
             bt, _, _ = self.direct_insert.generateBuffer(otToBuffer, gstwToDownlink, otListMod, btList, gstwList)
