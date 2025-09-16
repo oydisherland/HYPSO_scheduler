@@ -19,8 +19,6 @@ from util import plotSchedule
 parametersFilePath = "../data_input/input_parameters.csv"
 p = getInputParams(parametersFilePath)
 
-groundStationFilePath = "data_input/HYPSO_data/ground_stations.csv"
-
 otList = AD_api.getScheduleFromFile("BS_test12-run1.json")  # observation task
 otListPrioSorted = sorted(otList, key=lambda x: x.GT.priority, reverse=True)
 
@@ -35,6 +33,7 @@ startTimeOH = datetime.datetime(2025, 8, 27, 15, 29, 0)
 startTimeOH = startTimeOH.replace(tzinfo=datetime.timezone.utc)
 endTimeOH = startTimeOH + datetime.timedelta(seconds=p.ohDuration)
 
+groundStationFilePath = "data_input/HYPSO_data/ground_stations.csv"
 gstwList = getGroundStationTimeWindows(startTimeOH, endTimeOH, p.minGSWindowTime, groundStationFilePath, p.hypsoNr)
 
 start_time = time.perf_counter()
