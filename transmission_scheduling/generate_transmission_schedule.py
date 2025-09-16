@@ -5,7 +5,6 @@ from data_preprocessing.get_target_passes import getGroundStationTimeWindows
 from scheduling_model import OT, TTW, BT, GSTW, TW, DT
 import time
 
-from conflict_checks import downlinkTaskConflicting
 import insertion
 from input_parameters import getInputParams
 from transmission_scheduling.generate_downlink import generateDownlinkTask
