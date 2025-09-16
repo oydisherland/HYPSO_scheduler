@@ -1,15 +1,15 @@
 testName, dummyTest
 
-#scheduling spesific parameters
+# Imaging scheduling specific parameters
 maxCaptures, 40
 captureDuration, 60
 transitionTime, 90
 startTimeOH, 2025-04-01 16:47:49.990785
 durationInDaysOH, 2
 delayInHoursOH, 2
-hypsoNr, 1
+hypsoNr, 2
 
-# Algorithm spesific parameters
+# Algorithm specific parameters
 populationSize, 6
 isTabooBankFIFO, True
 iqNonLinear, False
@@ -17,3 +17,16 @@ NSGA2Runds, 2
 ALNSRuns, 10
 maxTabBank, 10
 desNumber, 6
+
+# Transmission timing parameters
+bufferingTime, 1500
+afterCaptureTime, 1100
+interTaskTime, 100
+interDownlinkTime, 20
+downlinkDuration, 217
+transmissionStartTime, 260
+
+# Transmission scheduling parameters
+maxGSTWAhead, 8
+maxBufferOffset, 43200
+slidingInsertIterations, 5

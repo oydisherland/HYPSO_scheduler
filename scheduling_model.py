@@ -33,4 +33,3 @@ GSTW = namedtuple("GSTW", ["GS", "TWs"])
 
 #Downlink Task
 DT = namedtuple("DT", ["GT", "GS", "start", "end"])
-
