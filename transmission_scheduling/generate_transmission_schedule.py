@@ -40,6 +40,13 @@ start_time = time.perf_counter()
 valid, btList, dtList, otListModified = scheduleTransmissions(otListPrioSorted, ttwList, gstwList, p)
 end_time = time.perf_counter()
 
+p.maxGSTWAhead = 10
+
+print("Starting second attempt")
+
+# Try to schedule the transmission again
+valid, btList, dtList, otListModified = scheduleTransmissions(otListPrioSorted, ttwList, gstwList, p, otListModified, btList, dtList)
+
 print(f"{(end_time - start_time) * 1000:.4f} milliseconds")
 
 plotSchedule(otListModified, otListPrioSorted, btList, dtList, gstwList, ttwList, p)
