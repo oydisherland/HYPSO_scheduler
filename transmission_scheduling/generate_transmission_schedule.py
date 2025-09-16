@@ -8,6 +8,7 @@ import time
 from conflict_checks import downlinkTaskConflicting
 import insertion
 from input_parameters import getInputParams
+from transmission_scheduling.generate_downlink import generateDownlinkTask
 from util import plotSchedule, getClosestGSTW, gstwToSortedTupleList
 
 
@@ -42,6 +43,7 @@ def scheduleTransmissions(otList: list[OT], ttwList: list[TTW], gstwList: list[G
     directInsert = insertion.DirectInsertion(p)
     slideInsert = insertion.SlideInsertion(p)
     deleteInsert = insertion.DeleteInsertion(p)
+    insertList: list[insertion.InsertionInterface] = [directInsert, slideInsert, deleteInsert]
 
     btList: list[BT] = []
     dtList: list[DT] = []
@@ -61,64 +63,24 @@ def scheduleTransmissions(otList: list[OT], ttwList: list[TTW], gstwList: list[G
         if otToBuffer is None:
             continue
 
-        # For each observation task to buffer, try to buffer it considering the downlink in one of the closest ground station time windows
         validBTFound = False
         closestGSTW = getClosestGSTW(otToBuffer, gstwList, p.maxGSTWAhead)
         closestGSTWSorted = gstwToSortedTupleList(closestGSTW)
 
-        for i, entry in enumerate(closestGSTWSorted):
-            gstw = GSTW(entry[0], [entry[1]])
-            nextGSTW = GSTW(closestGSTWSorted[i + 1][0], [closestGSTWSorted[i + 1][1]]) \
-                if i + 1 < len(closestGSTWSorted) else None
-
-            candidateDTList = generateDownlinkTask(gstw, nextGSTW, p.downlinkDuration, dtList, otToBuffer)
-            if candidateDTList is None: continue  # No valid downlink task could be scheduled in this ground station time window
-
-            bt, _, _ = directInsert.generateBuffer(otToBuffer, gstw, otListMod, btList, gstwList)
-
-            if bt is not None:
-                btList.append(bt)
-                for candidate in candidateDTList:
-                    dtList.append(candidate)
-                validBTFound = True
-                # We found a buffer task and corresponding GSTW to downlink, so we don't need to consider other GSTW
+        for insertMethod in insertList:
+            if validBTFound:
+                # If a valid buffer task has been found we don't need to look further
                 break
-
-        if not validBTFound:
-            # If no valid BT was found using direct insert, try deletion insert
+            # Iterate over the closest ground station passes and try to buffer it before the pass
             for i, entry in enumerate(closestGSTWSorted):
                 gstw = GSTW(entry[0], [entry[1]])
                 nextGSTW = GSTW(closestGSTWSorted[i + 1][0], [closestGSTWSorted[i + 1][1]]) \
                     if i + 1 < len(closestGSTWSorted) else None
 
-                candidateDTList = generateDownlinkTask(gstw, nextGSTW, p.downlinkDuration, dtList, otToBuffer)
+                candidateDTList = generateDownlinkTask(gstw, nextGSTW, p.downlinkDuration, dtList, otToBuffer, p)
                 if candidateDTList is None: continue  # No valid downlink task could be scheduled in this ground station time window
 
-                # Now that we know the downlink task is scheduled, try to schedule the buffering task
-                bt, otListMod, btList = slideInsert.generateBuffer(otToBuffer, gstw, otListMod, btList, gstwList,
-                                                                      ttwList)
-
-                if bt is not None:
-                    btList.append(bt)
-                    for candidate in candidateDTList:
-                        dtList.append(candidate)
-                    validBTFound = True
-                    # We found a buffer task and corresponding GSTW to downlink, so we don't need to consider other GSTW
-                    break
-
-        if not validBTFound:
-            # If no valid BT was found using direct insert, try deletion insert
-            for i, entry in enumerate(closestGSTWSorted):
-                gstw = GSTW(entry[0], [entry[1]])
-                nextGSTW = GSTW(closestGSTWSorted[i + 1][0], [closestGSTWSorted[i + 1][1]]) \
-                    if i + 1 < len(closestGSTWSorted) else None
-
-                candidateDTList = generateDownlinkTask(gstw, nextGSTW, p.downlinkDuration, dtList, otToBuffer)
-                if candidateDTList is None: continue  # No valid downlink task could be scheduled in this ground station time window
-
-                # Now that we know the downlink task is scheduled, try to schedule the buffering task
-                otListPrioritySorted = otListMod.copy()  # The provided otList should already be priority sorted
-                bt, otListMod, _  = deleteInsert.generateBuffer(otToBuffer, gstw, otListPrioritySorted, btList, gstwList)
+                bt, otListMod, btList = insertMethod.generateBuffer(otToBuffer, gstw, otListMod, btList, gstwList, ttwList)
 
                 if bt is not None:
                     btList.append(bt)
@@ -138,125 +100,31 @@ def scheduleTransmissions(otList: list[OT], ttwList: list[TTW], gstwList: list[G
 
     return completeScheduleFound, btList, dtList, otListMod
 
+def getInputs():
+    parametersFilePath = "../data_input/input_parameters.csv"
+    p = getInputParams(parametersFilePath)
 
-def generateDownlinkTask(gstw: GSTW, nextGSTW: GSTW, downlinkTime: float, dtList: list[DT], otToDownlink: OT):
-    """
-    Tries to schedule an entire downlink of an observation task in two given ground station time windows.
-    Returns a list of downlink task with either one entry if the task fit within the first window
-    or two if it needs to be spread over two windows.
+    groundStationFilePath = "data_input/HYPSO_data/ground_stations.csv"
 
-    Args:
-        gstw (GSTW): The ground station time window to schedule the downlink task in.
-        nextGSTW (GSTW): The next ground station time window to schedule the remaining downlink task in, if necessary.
-        downlinkTime (float): The length in seconds of the downlink task to schedule.
-        dtList (list[DT]): List of all already scheduled downlink tasks.
-        otToDownlink (OT): The observation task to schedule the downlink for.
+    otList = AD_api.getScheduleFromFile("BS_test12-run1.json")  # observation task
+    otListPrioSorted = sorted(otList, key=lambda x: x.GT.priority, reverse=True)
 
-    Returns:
-        list[DT]: A list of scheduled downlink tasks, or None if no valid scheduling was found.
-    """
-    candidateDT, isPartialSchedule = generatePartialDownlinkTask(gstw, downlinkTime, dtList, otToDownlink)
-    candidateList = [candidateDT]
+    # Create TTW list by adding some time before and after each observation task
+    ttwList: list[TTW] = []
+    for ot in otList:
+        ttwStart = max(0, ot.start - 50)
+        ttwEnd = min(p.ohDuration, ot.end + 50)
+        ttwList.append(TTW(ot.GT, [TW(ttwStart, ttwEnd)]))
 
-    if candidateDT is None:
-        # No valid downlink task could be scheduled in this ground station time window
-        return None
+    startTimeOH = datetime.datetime(2025, 8, 27, 15, 29, 0)
+    startTimeOH = startTimeOH.replace(tzinfo=datetime.timezone.utc)
+    endTimeOH = startTimeOH + datetime.timedelta(seconds=p.ohDuration)
 
-    if not isPartialSchedule:
-        # The full downlink was scheduled in the first GSTW
-        return candidateList
+    gstwList = getGroundStationTimeWindows(startTimeOH, endTimeOH, p.minGSWindowTime, groundStationFilePath, p.hypsoNr)
 
-    if nextGSTW is None:
-        # No next GSTW was provided, so we cannot schedule the remaining part of the downlink task
-        return None
+    return otListPrioSorted, ttwList, gstwList, p
 
-    # Now we know the first part of the downlink task was scheduled, try to schedule the remaining part in the next GSTW
-    remainingDownlinkTime = p.downlinkDuration - (candidateDT.end - candidateDT.start)
-    candidateDT2, isPartialSchedule = generatePartialDownlinkTask(nextGSTW, remainingDownlinkTime, dtList, otToDownlink)
-
-    if isPartialSchedule or candidateDT2 is None:
-        return None
-    else:
-        # We can schedule the remaining part of the downlink task in the next GSTW
-        # Merge the two downlink tasks into one
-        candidateList.append(candidateDT2)
-        return candidateList
-
-
-def generatePartialDownlinkTask(gstw: GSTW, downlinkTime: float, dtList: list[DT], otToDownlink: OT):
-    """
-    Try to schedule downlink tasks in the given ground station time window for the given observation task.
-    If the downlink task cannot fit in the schedule, try to schedule a partial downlink task.
-
-    Args:
-        gstw (GSTW): The ground station time window to schedule the downlink task in.
-        downlinkTime (float): The length in seconds of the downlink task to schedule.
-        dtList (list[DT]): List of all already scheduled downlink tasks.
-        otToDownlink (OT): The observation task to schedule the downlink for.
-
-    Returns:
-        tuple[DT, bool]: A tuple containing:
-
-            - DT: The scheduled downlink tasks, or None if no valid scheduling was found.
-            - bool: True if only a partial downlink task was scheduled, False if the full downlink task was scheduled.
-    """
-    # First check if the ground station pass is long enough for downlinking at least some of the data
-    if gstw.TWs[0].end - gstw.TWs[0].start < p.minGSWindowTime:
-        return None, True
-
-    # First try to insert the downlink task at the start of the ground station time window
-    dtStart = gstw.TWs[0].start + p.transmissionStartTime
-    dtEnd = dtStart + downlinkTime
-    candidateDT = DT(otToDownlink.GT, gstw.GS, dtStart, dtEnd)
-    if dtEnd <= gstw.TWs[0].end:
-        if not downlinkTaskConflicting(candidateDT, dtList):
-            return candidateDT, False
-    else:
-        # Try to schedule a partial downlink task
-        dtEnd = gstw.TWs[0].end
-        candidateDT = DT(otToDownlink.GT, gstw.GS, dtStart, dtEnd)
-        if not downlinkTaskConflicting(candidateDT, dtList):
-            return candidateDT, True
-
-    # Now try to start the downlink task at the end of other downlink tasks
-    for otherDT in dtList:
-        dtStart = otherDT.end + p.interDownlinkTime
-        dtEnd = dtStart + downlinkTime
-        candidateDT = DT(otToDownlink.GT, gstw.GS, dtStart, dtEnd)
-
-        if dtStart >= gstw.TWs[0].start and dtEnd <= gstw.TWs[0].end:
-            if not downlinkTaskConflicting(candidateDT, dtList):
-                return candidateDT, False
-        elif gstw.TWs[0].start <= dtStart <= gstw.TWs[0].end < dtEnd:
-            # Try to schedule a partial downlink task
-            dtEnd = gstw.TWs[0].end
-            candidateDT = DT(otToDownlink.GT, gstw.GS, dtStart, dtEnd)
-            if not downlinkTaskConflicting(candidateDT, dtList):
-                return candidateDT, True
-
-    return None, True
-
-
-parametersFilePath = "../data_input/input_parameters.csv"
-p = getInputParams(parametersFilePath)
-
-groundStationFilePath = "data_input/HYPSO_data/ground_stations.csv"
-
-otList = AD_api.getScheduleFromFile("BS_test12-run1.json")  # observation task
-otListPrioSorted = sorted(otList, key=lambda x: x.GT.priority, reverse=True)
-
-# Create TTW list by adding some time before and after each observation task
-ttwList: list[TTW] = []
-for ot in otList:
-    ttwStart = max(0, ot.start - 50)
-    ttwEnd = min(p.ohDuration, ot.end + 50)
-    ttwList.append(TTW(ot.GT, [TW(ttwStart, ttwEnd)]))
-
-startTimeOH = datetime.datetime(2025, 8, 27, 15, 29, 0)
-startTimeOH = startTimeOH.replace(tzinfo=datetime.timezone.utc)
-endTimeOH = startTimeOH + datetime.timedelta(seconds=p.ohDuration)
-
-gstwList = getGroundStationTimeWindows(startTimeOH, endTimeOH, p.minGSWindowTime, groundStationFilePath, p.hypsoNr)
+otListPrioSorted, ttwList, gstwList, p = getInputs()
 
 start_time = time.perf_counter()
 valid, btList, dtList, otListModified = scheduleTransmissions(otListPrioSorted, ttwList, gstwList)
