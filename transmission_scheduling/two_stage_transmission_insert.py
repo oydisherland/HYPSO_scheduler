@@ -59,7 +59,7 @@ def twoStageTransmissionScheduling(otList: list[OT], ttwList: list[TTW], gstwLis
         valid, btList, dtList, otListScheduled = scheduleTransmissions(otListReInsert, ttwList, gstwList, p,
                                                                        otListScheduled, btList, dtList)
         n_after = len(otListScheduled)
-        print(f"Succesfully re-inserted {n_after - n_before} observation tasks out of {len(otListReInsert)}")
+        print(f"Successfully re-inserted {n_after - n_before} observation tasks out of {len(otListReInsert)}")
 
     return valid, btList, dtList, otListScheduled
 
