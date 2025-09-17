@@ -1,5 +1,6 @@
 import csv
 import os
+import warnings
 from dataclasses import dataclass, fields, MISSING
 
 
@@ -21,7 +22,7 @@ class TransmissionParams:
         minGSWindowTime: Minimum time a ground station window must have to be considered for scheduling in seconds
         ohDuration: Observation horizon duration in seconds
         hypsoNr: Hyperspectral satellite number (1 or 2)
-
+        captureDuration: Duration of a capture in seconds
     """
     bufferingTime: float = 0.0
     afterCaptureTime: float = 0.0
@@ -35,6 +36,17 @@ class TransmissionParams:
     minGSWindowTime: float = 0.0
     ohDuration: float = 0.0
     hypsoNr: int = 1
+    captureDuration: float = 0.0
+
+    # Warning should be thrown because these parameters should not be changed after initialization
+    def __setattr__(self, name, value):
+        if name in self.__dict__:
+            warnings.warn(
+                f"Transmission Parameter field '{name}' has been modified after initialization. This is not recommended.",
+                UserWarning,
+                stacklevel=2
+            )
+        super().__setattr__(name, value)
 
 def getInputParams(relativeFilePath: str) -> TransmissionParams:
     """
@@ -66,8 +78,11 @@ def getInputParams(relativeFilePath: str) -> TransmissionParams:
 
     p = TransmissionParams(**filtered)
 
-    p.minGSWindowTime = p.transmissionStartTime + 0.1 * p.downlinkDuration
-    p.ohDuration = 24 * 3600 * float(paramsDict["durationInDaysOH"])
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=UserWarning)
+        p.minGSWindowTime = p.transmissionStartTime + 0.1 * p.downlinkDuration
+        p.ohDuration = 24 * 3600 * float(paramsDict["durationInDaysOH"])
+
     return p
 
 def csvToDict(filepath):

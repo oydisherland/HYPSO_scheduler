@@ -1,3 +1,5 @@
+import copy
+
 from scheduling_model import OT, TTW, GSTW, BT, DT
 from transmission_scheduling import insertion
 from transmission_scheduling.conflict_checks import observationTaskConflicting
@@ -6,8 +8,86 @@ from transmission_scheduling.input_parameters import TransmissionParams
 from transmission_scheduling.util import getClosestGSTW, gstwToSortedTupleList
 
 
+def twoStageTransmissionScheduling(otList: list[OT], ttwList: list[TTW], gstwList: list[GSTW],
+                                   parameters: TransmissionParams) -> tuple[bool, list[BT], list[DT], list[OT]]:
+    """
+    Try to schedule the transmission of each observed target in otList.
+    Transmission consists of transmitting to Ground Station and buffering the capture before actually transmitting.
+    The observation tasks will be considered in the order that they are provided, so sorting by priority is recommended.
+
+    The first phase will try to insert the bufferings and transmissions with several strategies.
+    The second phase will try to re-insert the observation tasks that could not be scheduled in the first phase.
+    This re-insertion is attempted at other target time windows (other passes of the satellite over the target)
+
+    Args:
+        otList (list[OT]): List of observation tasks to schedule transmissions for.
+        ttwList (list[TTW]): List of target time windows, which will be consulted when shifting observation tasks to fit buffering.
+        gstwList (list[GSTW]): List of ground station time windows with time windows corresponding to each GS.
+        parameters (TransmissionParams): Parameters for the transmission scheduling.
+
+    Returns:
+        tuple[bool, list[BT], list[DT], list[OT]]: A tuple containing:
+
+            - A boolean indicating if a transmission schedule has been found for all observation tasks.
+                If false, there can still be a useful output containing a schedule for the tasks that were able to fit.
+            - A list of scheduled buffering tasks (BT).
+            - A list of scheduled downlink tasks (DT).
+            - A list of observation tasks, possibly changed to fit the buffering and downlinking tasks.
+    """
+    p = parameters
+    valid, btList, dtList, otListScheduled = scheduleTransmissions(otList, ttwList, gstwList, p)
+
+    if valid:
+        # A full schedule has been found in the first attempt, so we can return
+        return valid, btList, dtList, otListScheduled
+
+    # Find the observation tasks that could not be scheduled
+    otListUnscheduled = otList.copy()
+    ttwListUnscheduled = copy.deepcopy(ttwList)
+    for otScheduled in otListScheduled:
+        for ttw in ttwList:
+            if ttw.GT == otScheduled.GT:
+                ttwListUnscheduled.remove(ttw)
+                break
+        for ot in otList:
+            if ot.GT == otScheduled.GT:
+                otListUnscheduled.remove(ot)
+                break
+
+    # Remove the time windows that we have already tried to schedule
+    for ttw in ttwListUnscheduled:
+        for otUnscheduled in otListUnscheduled:
+            if ttw.GT == otUnscheduled.GT:
+                for tw in ttw.TWs:
+                    if otUnscheduled.start >= tw.start and otUnscheduled.end <= tw.end:
+                        ttw.TWs.remove(tw)
+                        break
+                break
+
+    # Try to find other time windows that are free to schedule the observation tasks
+    otListReInsert: list[OT] = []
+    for ttw in ttwListUnscheduled:
+        for tw in ttw.TWs:
+            halfTime = (tw.start + tw.end) / 2
+            # The new observation task will be centered, the insertion algorithms could always shift it if needed
+            otCandidate = OT(ttw.GT, halfTime - p.captureDuration / 2, halfTime + p.captureDuration / 2)
+            if not observationTaskConflicting(otCandidate, btList, otListScheduled, gstwList, p):
+                otListReInsert.append(otCandidate)
+                break
+
+    print("======= Starting re-insertion phase for unscheduled observation tasks =======")
+    n_before = len(otListScheduled)
+    valid, btList, dtList, otListScheduled = scheduleTransmissions(otListReInsert, ttwList, gstwList, p,
+                                                                   otListScheduled, btList, dtList)
+    n_after = len(otListScheduled)
+    print(f"Succesfully re-inserted {n_after - n_before} observation tasks out of {len(otListReInsert)}")
+    return valid, btList, dtList, otListScheduled
+
+
+
 def scheduleTransmissions(otList: list[OT], ttwList: list[TTW], gstwList: list[GSTW], parameters: TransmissionParams,
-                          existingOTList: list[OT] = None, existingBTList: list[BT] = None, existingDTList: list[DT] = None):
+                          existingOTList: list[OT] = None, existingBTList: list[BT] = None,
+                          existingDTList: list[DT] = None) -> tuple[bool, list[BT], list[DT], list[OT]]:
     """
     Try to schedule the transmission of each observed target in otList.
     Transmission consists of transmitting to Ground Station and buffering the capture before actually transmitting.
@@ -41,7 +121,7 @@ def scheduleTransmissions(otList: list[OT], ttwList: list[TTW], gstwList: list[G
     btList: list[BT] = existingBTList.copy() if existingBTList is not None else []
     dtList: list[DT] = existingDTList.copy() if existingDTList is not None else []
 
-    otListMod = otList.copy() # This is the list of observation tasks that will be kept updated as tasks are deleted or shifted
+    otListMod = otList.copy()  # This is the list of observation tasks that will be kept updated as tasks are deleted or shifted
 
     # Merge the existing observation tasks into the new list based on ground target
     # We will assume that the existing observation tasks are more up to date than otList
@@ -58,9 +138,8 @@ def scheduleTransmissions(otList: list[OT], ttwList: list[TTW], gstwList: list[G
                     break
 
         # There might be some observation tasks left in the existing list that are not in otList
-        # We will add them as highest priority to the list, make it less likely for them to be modified or deleted
+        # We will add them as highest priority to the list, making it less likely for them to be modified or deleted
         otListMod = existingOTListCopy + otListMod
-
 
     completeScheduleFound = True
 
@@ -107,7 +186,8 @@ def scheduleTransmissions(otList: list[OT], ttwList: list[TTW], gstwList: list[G
                 candidateDTList = generateDownlinkTask(gstw, nextGSTW, p.downlinkDuration, dtList, otToBuffer, p)
                 if candidateDTList is None: continue  # No valid downlink task could be scheduled in this ground station time window
 
-                bt, otListMod, btList = insertMethod.generateBuffer(otToBuffer, gstw, otListMod, btList, gstwList, ttwList)
+                bt, otListMod, btList = insertMethod.generateBuffer(otToBuffer, gstw, otListMod, btList, gstwList,
+                                                                    ttwList)
 
                 if bt is not None:
                     btList.append(bt)
@@ -120,8 +200,7 @@ def scheduleTransmissions(otList: list[OT], ttwList: list[TTW], gstwList: list[G
         if not validBTFound:
             # No valid GSTW has been found to downlink the buffered data
             completeScheduleFound = False
-            print(
-                f"Transmission scheduling failed for {otToBuffer.GT.id} at {otToBuffer.start}")
+            print(f"Transmission scheduling failed for {otToBuffer.GT.id} at {otToBuffer.start}")
             # Remove the currently considered observation task by checking if ground target matches
             otListMod.remove(otToBuffer)
 

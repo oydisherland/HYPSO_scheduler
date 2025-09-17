@@ -6,7 +6,7 @@ from scheduling_model import TTW, TW
 import time
 
 from input_parameters import getInputParams
-from transmission_scheduling.three_stage_transmission_insert import scheduleTransmissions
+from transmission_scheduling.two_stage_transmission_insert import scheduleTransmissions, twoStageTransmissionScheduling
 from util import plotSchedule
 
 
@@ -27,7 +27,9 @@ ttwList: list[TTW] = []
 for ot in otList:
     ttwStart = max(0, ot.start - 50)
     ttwEnd = min(p.ohDuration, ot.end + 50)
-    ttwList.append(TTW(ot.GT, [TW(ttwStart, ttwEnd)]))
+    ttwStart2 = max(0, ot.start + 12000)
+    ttwEnd2 = min(p.ohDuration, ot.end + 12100)
+    ttwList.append(TTW(ot.GT, [TW(ttwStart, ttwEnd), TW(ttwStart2, ttwEnd2)]))
 
 startTimeOH = datetime.datetime(2025, 8, 27, 15, 29, 0)
 startTimeOH = startTimeOH.replace(tzinfo=datetime.timezone.utc)
@@ -37,15 +39,8 @@ groundStationFilePath = "data_input/HYPSO_data/ground_stations.csv"
 gstwList = getGroundStationTimeWindows(startTimeOH, endTimeOH, p.minGSWindowTime, groundStationFilePath, p.hypsoNr)
 
 start_time = time.perf_counter()
-valid, btList, dtList, otListModified = scheduleTransmissions(otListPrioSorted, ttwList, gstwList, p)
+valid, btList, dtList, otListModified = twoStageTransmissionScheduling(otListPrioSorted, ttwList, gstwList, p)
 end_time = time.perf_counter()
-
-p.maxGSTWAhead = 10
-
-print("Starting second attempt")
-
-# Try to schedule the transmission again
-valid, btList, dtList, otListModified = scheduleTransmissions(otListPrioSorted, ttwList, gstwList, p, otListModified, btList, dtList)
 
 btList = sorted(btList, key=lambda x: x.GT.priority, reverse=True)
 dtList = sorted(dtList, key=lambda x: x.GT.priority, reverse=True)
