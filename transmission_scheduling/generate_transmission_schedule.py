@@ -6,7 +6,7 @@ from scheduling_model import TTW, TW
 import time
 
 from input_parameters import getInputParams
-from transmission_scheduling.two_stage_transmission_insert import scheduleTransmissions, twoStageTransmissionScheduling
+from transmission_scheduling.two_stage_transmission_insert import twoStageTransmissionScheduling
 from util import plotSchedule
 
 
@@ -29,7 +29,9 @@ for ot in otList:
     ttwEnd = min(p.ohDuration, ot.end + 50)
     ttwStart2 = max(0, ot.start + 12000)
     ttwEnd2 = min(p.ohDuration, ot.end + 12100)
-    ttwList.append(TTW(ot.GT, [TW(ttwStart, ttwEnd), TW(ttwStart2, ttwEnd2)]))
+    ttwStart3 = max(0, ot.start + 6000)
+    ttwEnd3 = min(p.ohDuration, ot.end + 6100)
+    ttwList.append(TTW(ot.GT, [TW(ttwStart, ttwEnd), TW(ttwStart2, ttwEnd2), TW(ttwStart3, ttwEnd3)]))
 
 startTimeOH = datetime.datetime(2025, 8, 27, 15, 29, 0)
 startTimeOH = startTimeOH.replace(tzinfo=datetime.timezone.utc)

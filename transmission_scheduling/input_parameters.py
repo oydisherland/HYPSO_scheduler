@@ -19,6 +19,7 @@ class TransmissionParams:
         maxGSTWAhead Maximum number of ground station time windows ahead of the capture to consider when scheduling a buffering task
         maxBufferOffset: # Maximum offset between a capture and its buffering in seconds
         slidingInsertIterations: Number of iterations for sliding insert algorithm
+        reInsertIterations: Number of iterations for re-insertion algorithm
         minGSWindowTime: Minimum time a ground station window must have to be considered for scheduling in seconds
         ohDuration: Observation horizon duration in seconds
         hypsoNr: Hyperspectral satellite number (1 or 2)
@@ -33,6 +34,7 @@ class TransmissionParams:
     maxGSTWAhead: int = 0
     maxBufferOffset: float = 0.0
     slidingInsertIterations: int = 1
+    reInsertIterations: int = 1
     minGSWindowTime: float = 0.0
     ohDuration: float = 0.0
     hypsoNr: int = 1
@@ -90,7 +92,7 @@ def csvToDict(filepath):
     Reads a CSV file and returns a dictionary where each row's first column is the key and the second column is the value.
     Ignores rows starting with #.
     """
-    dict= {}
+    dic = {}
     with open(filepath, mode='r', newline='') as csvfile:
         reader = csv.reader(csvfile)
         for row in reader:
@@ -99,5 +101,5 @@ def csvToDict(filepath):
             if len(row) >= 2:
                 key = row[0].strip()
                 value = row[1].strip()
-                dict[key] = value
-    return dict
+                dic[key] = value
+    return dic

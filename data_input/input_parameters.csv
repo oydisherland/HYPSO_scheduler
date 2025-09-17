@@ -27,6 +27,7 @@ downlinkDuration, 217
 transmissionStartTime, 260
 
 # Transmission scheduling parameters
-maxGSTWAhead, 2
+maxGSTWAhead, 8
 maxBufferOffset, 43200
 slidingInsertIterations, 5
+reInsertIterations, 3
