@@ -1,5 +1,77 @@
+import copy
+
 from scheduling_model import OT, GSTW, GS, TW, TTW, BT, DT
+from transmission_scheduling.conflict_checks import observationTaskConflicting
 from transmission_scheduling.input_parameters import TransmissionParams
+
+
+def generateNewOTList(possibleTTW: list[TTW], otListScheduled: list[OT], btListScheduled: list[BT],
+                      gstwList: list[GSTW], p: TransmissionParams) -> list[OT]:
+    """
+    Based on a list of possible target time windows, generate a list of observation tasks that could be scheduled.
+
+    Args:
+        possibleTTW (list[TTW]): List of target time windows that could still be used to schedule the unscheduled observation tasks.
+        otListScheduled (list[OT]): List of observation tasks that have been successfully scheduled.
+        btListScheduled (list[BT]): List of buffering tasks that have been successfully scheduled.
+        gstwList (list[GSTW]): List of ground station time windows.
+        p (TransmissionParams): Parameters for the transmission scheduling.
+
+    Returns:
+        list[OT]: List of observation tasks that could be scheduled during re-insertion in the provided target time windows.
+    """
+    newOTList: list[OT] = []
+    for ttw in possibleTTW:
+        for tw in ttw.TWs:
+            halfTime = (tw.start + tw.end) / 2
+            # The new observation task will be centered, the insertion algorithms could always shift it if needed
+            otCandidate = OT(ttw.GT, halfTime - p.captureDuration / 2, halfTime + p.captureDuration / 2)
+            # Check for a conflic of this OT with the already scheduled tasks and the new ones
+            fullOTList = otListScheduled + newOTList
+            if not observationTaskConflicting(otCandidate, btListScheduled, fullOTList, gstwList, p):
+                newOTList.append(otCandidate)
+                break
+
+    return newOTList
+
+
+def findPossibleTTW(ttwListToUpdate: list[TTW], otListLastInsertionAttempt: list[OT], scheduledOTList: list[OT]) \
+        -> list[TTW]:
+    """
+    Find a list of target time windows that could still be used to schedule the unscheduled observation tasks
+
+    Args:
+        ttwListToUpdate (list[TTW]): List of target time windows to select the possible TTWs from.
+        otListLastInsertionAttempt (list[OT]): List of observation tasks that where lastly attempted to be scheduled.
+        scheduledOTList (list[OT]): List of observation tasks that have been successfully scheduled.
+
+    Returns:
+        list[TTW]: List of target time windows that could still be used to schedule the unscheduled observation tasks.
+    """
+    # Find the observation tasks that could not be scheduled
+    otListUnscheduled = otListLastInsertionAttempt.copy()
+    ttwListUnscheduled = copy.deepcopy(ttwListToUpdate)
+    for otScheduled in scheduledOTList:
+        for ttw in ttwListToUpdate:
+            if ttw.GT == otScheduled.GT:
+                ttwListUnscheduled.remove(ttw)
+                break
+        for ot in otListLastInsertionAttempt:
+            if ot.GT == otScheduled.GT:
+                otListUnscheduled.remove(ot)
+                break
+
+    # Remove the time windows that we have already tried to schedule
+    for ttw in ttwListUnscheduled:
+        for otUnscheduled in otListUnscheduled:
+            if ttw.GT == otUnscheduled.GT:
+                for tw in ttw.TWs:
+                    if otUnscheduled.start >= tw.start and otUnscheduled.end <= tw.end:
+                        ttw.TWs.remove(tw)
+                        break
+                break
+
+    return ttwListUnscheduled
 
 
 def getClosestGSTW(ot: OT, gstwList: list[GSTW], numberOfClosest=1):
