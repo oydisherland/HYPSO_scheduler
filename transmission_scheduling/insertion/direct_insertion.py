@@ -37,6 +37,9 @@ class DirectInsertion(InsertionInterface):
 
         p = self.p
 
+        # We will save all the possible candidates and later pick the best
+        candidateBTList: list[BT] = []
+
         # First guess is to immediately start buffering after observation
         # Candidate buffer task start and end
         btStart = otToBuffer.end + p.afterCaptureTime
@@ -44,10 +47,7 @@ class DirectInsertion(InsertionInterface):
         candidateBT = BT(otToBuffer.GT, btStart, btEnd)
         if not bufferTaskConflicting(candidateBT, btList, otList, gstwList, p) \
                 and btEnd < gstwToDownlink.TWs[0].start:
-            return candidateBT, otList, btList
-
-        # From now on, we will save all the possible candidates and later pick the earliest option
-        candidateBTList: list[BT] = []
+            candidateBTList.append(candidateBT)
 
         # Now try to insert the buffer task at the end of other observation tasks
         for ot in otList:
@@ -99,10 +99,12 @@ class DirectInsertion(InsertionInterface):
                     candidateBTList.append(candidateBT)
                     continue
 
-        # Search the earliest candidate in the list
+        # Choose the buffer candidate closest to the ground station pass, i.e. the one with the latest start time
+        # This makes sure that as little captures as possible are in the buffer at the same time
+        # TODO figure out if min or max is best (also in combination with the other settings)
         if candidateBTList:
-            earliestBT = min(candidateBTList, key=lambda x: x.start)
-            return earliestBT, otList, btList
+            bestBT = max(candidateBTList, key=lambda x: x.start)
+            return bestBT, otList, btList
 
         # No valid insertions have been found, return None
         return None, otList, btList
