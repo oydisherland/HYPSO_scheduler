@@ -7,6 +7,7 @@ import time
 
 from input_parameters import getInputParams
 from transmission_scheduling.two_stage_transmission_insert import twoStageTransmissionScheduling
+from transmission_scheduling.util import bufferFileCounter
 from util import plotSchedule
 
 
@@ -50,5 +51,8 @@ otListModified = sorted(otListModified, key=lambda x: x.GT.priority, reverse=Tru
 
 
 print(f"{(end_time - start_time) * 1000:.4f} milliseconds")
+
+bufferFileCounter(btList, dtList)
+print(f"Number of buffering tasks: {len(btList)}")
 
 plotSchedule(otListModified, otListPrioSorted, btList, dtList, gstwList, ttwList, p)

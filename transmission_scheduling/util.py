@@ -135,6 +135,38 @@ def gstwToSortedTupleList(gstwList: list[GSTW]):
 
     return sorted(allGSTWs, key=lambda x: x[1].start)
 
+def bufferFileCounter(btList: list[BT], dtList: list[DT]):
+    """
+    Count the number of captures that is present in the buffer of the satellite at any given time.
+    Hypso-2 has a maximum of 7 captures that can be stored in the buffer at any given time.
+    """
+    # First sort the dtList by time and remove duplicate GT, but only keep the latest entry
+    # The latest entry of a ground target in the dtList is the one where the data has been fully transmitted
+    dtListSorted = sorted(dtList, key=lambda x: x.start, reverse=True)
+    dtListUnique: list[DT] = []
+    seenGTs = set()
+    for dt in dtListSorted:
+        if dt.GT not in seenGTs:
+            dtListUnique.append(dt)
+            seenGTs.add(dt.GT)
+    events = []
+    for dt in dtListUnique:
+        events.append((dt.start, -1))
+    for bt in btList:
+        events.append((bt.start, 1))
+
+    events = sorted(events, key=lambda x: x[0])
+    fileCount = 0
+    fileCountList = []
+    for event in events:
+        fileCount += event[1]
+        fileCountList.append(fileCount)
+
+    print(f"Maximum number of files in buffer: {max(fileCountList)}")
+
+
+
+
 
 def plotSchedule(otListMod: list[OT], otList: list[OT], btList: list[BT], dtList: list[DT], gstwList: list[GSTW],
                  ttwList: list[TTW], p: TransmissionParams):
