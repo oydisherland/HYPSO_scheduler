@@ -55,12 +55,9 @@ class DirectInsertion(InsertionInterface):
             btStart = ot.end + p.afterCaptureTime
             btEnd = btStart + p.bufferingTime
 
-            if btStart - otToBuffer.end > p.maxBufferOffset or btEnd > gstwToDownlink.TWs[0].start:
-                # Inserting the buffer tasks after this point would be too far from the observation task
-                # or be after the intended downlink window has started.
-                continue
-            if ot.end < otToBuffer.end:
-                # Skip if the candidate buffer task would be scheduled before its target observation
+            if btEnd > gstwToDownlink.TWs[0].start or ot.end < otToBuffer.end:
+                # Inserting the buffer tasks after this point would be after the intended downlink window has started.
+                # Also skip if the candidate buffer task would be scheduled before its target observation
                 continue
 
             candidateBT = BT(otToBuffer.GT, btStart, btEnd)
@@ -73,8 +70,7 @@ class DirectInsertion(InsertionInterface):
             # Candidate buffer task start and end
             btStart = bt.end + p.interTaskTime
             btEnd = btStart + p.bufferingTime
-            if btStart - otToBuffer.end > p.maxBufferOffset or btStart < otToBuffer.end \
-                    or btEnd > gstwToDownlink.TWs[0].start:
+            if btStart < otToBuffer.end or btEnd > gstwToDownlink.TWs[0].start:
                 continue
 
             candidateBT = BT(otToBuffer.GT, btStart, btEnd)
@@ -87,11 +83,7 @@ class DirectInsertion(InsertionInterface):
                 # Candidate buffer task start and end
                 btStart = tw.end + p.interTaskTime
                 btEnd = btStart + p.bufferingTime
-                if btStart - otToBuffer.end > p.maxBufferOffset or btEnd > gstwToDownlink.TWs[0].start:
-                    # Inserting the buffer tasks after this point would be too far from the observation task
-                    # or be after the intended downlink window has started.
-                    continue
-                if btStart < otToBuffer.end:
+                if btEnd > gstwToDownlink.TWs[0].start or btStart < otToBuffer.end:
                     continue
 
                 candidateBT = BT(otToBuffer.GT, btStart, btEnd)

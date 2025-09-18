@@ -5,7 +5,8 @@ from transmission_scheduling import insertion
 from transmission_scheduling.conflict_checks import observationTaskConflicting
 from transmission_scheduling.generate_downlink import generateDownlinkTask
 from transmission_scheduling.input_parameters import TransmissionParams
-from transmission_scheduling.util import getClosestGSTW, gstwToSortedTupleList, findPossibleTTW, generateNewOTList
+from transmission_scheduling.util import getClosestGSTW, gstwToSortedTupleList, findPossibleTTW, generateNewOTList, \
+    latencyCounter
 
 
 def twoStageTransmissionScheduling(otList: list[OT], ttwList: list[TTW], gstwList: list[GSTW],
@@ -62,7 +63,10 @@ def twoStageTransmissionScheduling(otList: list[OT], ttwList: list[TTW], gstwLis
         n_after = len(otListScheduled)
         print(f"Successfully re-inserted {n_after - n_before} observation tasks out of {len(otListReInsert)}")
 
+    latencyCounter(otListScheduled, dtList)
     btList, dtList = cleanUpSchedule(otListScheduled, btList, dtList)
+    latencyCounter(otListScheduled, dtList)
+
     return valid, btList, dtList, otListScheduled
 
 
@@ -104,23 +108,16 @@ def scheduleTransmissions(otList: list[OT], ttwList: list[TTW], gstwList: list[G
 
     otListMod = otList.copy()  # This is the list of observation tasks that will be kept updated as tasks are deleted or shifted
 
-    # Merge the existing observation tasks into the new list based on ground target
-    # We will assume that the existing observation tasks are more up to date than otList
     if existingOTList is not None:
-        existingOTListCopy = existingOTList.copy()
+        # Check if there are any tasks in the existing OT list that are also in the list to be scheduled
         for existingOT in existingOTList:
             for ot in otListMod:
                 if ot.GT == existingOT.GT:
-                    # Remove the old OT and replace it with the existing one
-                    # Add it at the start, because existing tasks should have higher priority
-                    otListMod.remove(ot)
-                    otListMod.insert(0, existingOT)
-                    existingOTListCopy.remove(existingOT)
-                    break
+                    raise ValueError("The existing OT list contains a task that is also in the list to be scheduled.")
 
-        # There might be some observation tasks left in the existing list that are not in otList
-        # We will add them as highest priority to the list, making it less likely for them to be modified or deleted
-        otListMod = existingOTListCopy + otListMod
+        # We will add the existing OT list as highest priority to the list,
+        # making it less likely for them to be modified or deleted
+        otListMod = existingOTList.copy() + otListMod
 
     completeScheduleFound = True
 
@@ -151,15 +148,15 @@ def scheduleTransmissions(otList: list[OT], ttwList: list[TTW], gstwList: list[G
             continue
 
         validBTFound = False
-        closestGSTW = getClosestGSTW(otToBuffer, gstwList, p.maxGSTWAhead)
+        closestGSTW = getClosestGSTW(otToBuffer, gstwList, p.maxLatency)
         closestGSTWSorted = gstwToSortedTupleList(closestGSTW)
 
-        for insertMethod in insertList:
+        # Iterate over the closest ground station passes and try to buffer it before the pass
+        for i, entry in enumerate(closestGSTWSorted):
             if validBTFound:
                 # If a valid buffer task has been found we don't need to look further
                 break
-            # Iterate over the closest ground station passes and try to buffer it before the pass
-            for i, entry in enumerate(closestGSTWSorted):
+            for insertMethod in insertList:
                 gstw = GSTW(entry[0], [entry[1]])
                 nextGSTW = GSTW(closestGSTWSorted[i + 1][0], [closestGSTWSorted[i + 1][1]]) \
                     if i + 1 < len(closestGSTWSorted) else None

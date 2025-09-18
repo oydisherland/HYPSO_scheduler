@@ -74,15 +74,14 @@ def findPossibleTTW(ttwListToUpdate: list[TTW], otListLastInsertionAttempt: list
     return ttwListUnscheduled
 
 
-def getClosestGSTW(ot: OT, gstwList: list[GSTW], numberOfClosest=1):
+def getClosestGSTW(ot: OT, gstwList: list[GSTW], maxLatency=36000):
     """
     Get the closest ground station time windows to the observation task.
 
     Args:
         ot (OT): The observation task to find the closest ground station time windows for.
         gstwList (list[GSTW]): List of all ground station time windows.
-        numberOfClosest (int, optional): Number of closest ground station time windows to return. Defaults to 1.
-                If there are less than this number of time windows available, all available time windows will be returned.
+        maxLatency (float): Maximum duration between the capture and its downlink in seconds
 
     Return:
         list[GSTW]: List of the closest ground station time windows.
@@ -93,14 +92,10 @@ def getClosestGSTW(ot: OT, gstwList: list[GSTW], numberOfClosest=1):
     allGSTWsSorted = gstwToSortedTupleList(gstwList)
 
     # Remove entries before the observation tasks ended
-    allGSTWsSorted = [entry for entry in allGSTWsSorted if entry[1].start >= ot.end]
+    allGSTWsSorted = [entry for entry in allGSTWsSorted if ot.end <= entry[1].start <= ot.end + maxLatency]
 
     if not allGSTWsSorted:
         return []
-    if len(allGSTWsSorted) < numberOfClosest:
-        numberOfClosest = len(allGSTWsSorted)
-
-    allGSTWsSorted = allGSTWsSorted[:numberOfClosest]
 
     # Put list in GSTW format by grouping by GS
     groupedList: list[GSTW] = []
@@ -164,9 +159,28 @@ def bufferFileCounter(btList: list[BT], dtList: list[DT]):
 
     print(f"Maximum number of files in buffer: {max(fileCountList)}")
 
+def latencyCounter(otList: list[OT], dtList: list[DT]):
+    """
+    Check the latency between each capture and their downlink
+    """
+    dtListSorted = sorted(dtList, key=lambda x: x.start, reverse=True)
+    dtListUnique: list[DT] = []
+    seenGTs = set()
+    for dt in dtListSorted:
+        if dt.GT not in seenGTs:
+            dtListUnique.append(dt)
+            seenGTs.add(dt.GT)
 
+    latencyList = []
+    for ot in otList:
+        for dt in dtListUnique:
+            if ot.GT == dt.GT:
+                latency = dt.start - ot.end
+                latencyList.append(latency)
+                break
 
-
+    print(f"Maximum latency: {max(latencyList):.2f} seconds")
+    print(f"Average latency: {sum(latencyList)/len(latencyList):.2f} seconds")
 
 def plotSchedule(otListMod: list[OT], otList: list[OT], btList: list[BT], dtList: list[DT], gstwList: list[GSTW],
                  ttwList: list[TTW], p: TransmissionParams):

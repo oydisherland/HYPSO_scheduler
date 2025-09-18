@@ -16,8 +16,7 @@ class TransmissionParams:
         interDownlinkTime: Time required between downlink tasks in seconds.
         downlinkDuration: Time needed for downlinking a capture in seconds.
         transmissionStartTime: How far into a ground station pass transmission can start in seconds.
-        maxGSTWAhead Maximum number of ground station time windows ahead of the capture to consider when scheduling a buffering task
-        maxBufferOffset: # Maximum offset between a capture and its buffering in seconds
+        maxLatency: Maximum number of seconds between a capture and its downlink
         slidingInsertIterations: Number of iterations for sliding insert algorithm
         reInsertIterations: Number of iterations for re-insertion algorithm
         minGSWindowTime: Minimum time a ground station window must have to be considered for scheduling in seconds
@@ -31,8 +30,7 @@ class TransmissionParams:
     interDownlinkTime: float = 0.0
     downlinkDuration: float = 0.0
     transmissionStartTime: float = 0.0
-    maxGSTWAhead: int = 0
-    maxBufferOffset: float = 0.0
+    maxLatency: float = 0.0
     slidingInsertIterations: int = 1
     reInsertIterations: int = 1
     minGSWindowTime: float = 0.0
