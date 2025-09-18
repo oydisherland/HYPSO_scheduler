@@ -305,7 +305,7 @@ def plotSchedule(otListMod: list[OT], otList: list[OT], btList: list[BT], dtList
         )
         ax.text(
             x=dt.start + (dt.end - dt.start) / 2,
-            y=1.75 - (i % 11) * 0.05,  # below y=1.5 row
+            y=1.75 - (i % 12) * 0.05,  # below y=1.5 row
             s=str(gtId),
             ha="center",
             va="top",

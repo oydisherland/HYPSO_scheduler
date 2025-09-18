@@ -11,8 +11,6 @@ from transmission_scheduling.util import bufferFileCounter
 from util import plotSchedule
 
 
-# TODO re-order transmission tasks such that split up transmission tasks are next to each other
-# TODO make a cleaning sweep re-assigning transmission tasks to buffer tasks that are close to each other, same could be done for captures and their buffering
 # TODO after/inter task/capture time are used quite randomly, it should be more clear where they are used (for example when checking for conflicts), they are not used uniformly and difficult to change
 # TODO consider that data transmission cannot happen or is at least slower during a capture when in the transmission window
 # TODO possibly add support for spreading transmission over more than 2 ground station passes
@@ -34,7 +32,9 @@ for ot in otList:
     ttwEnd3 = min(p.ohDuration, ot.end + 6100)
     ttwList.append(TTW(ot.GT, [TW(ttwStart, ttwEnd), TW(ttwStart2, ttwEnd2), TW(ttwStart3, ttwEnd3)]))
 
-startTimeOH = datetime.datetime(2025, 8, 27, 15, 29, 0)
+# startTimeOH = datetime.datetime(2025, 8, 27, 15, 29, 0)
+startTimeOH = datetime.datetime(2025, 8, 4, 10, 35, 0)
+
 startTimeOH = startTimeOH.replace(tzinfo=datetime.timezone.utc)
 endTimeOH = startTimeOH + datetime.timedelta(seconds=p.ohDuration)
 

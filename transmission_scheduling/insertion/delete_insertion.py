@@ -65,9 +65,9 @@ class DeleteInsertion(InsertionInterface):
         # Remove the observation tasks that conflict with the buffering task
         for conflictOT in conflictOTs:
             # print which task has been removed
-            id = otListPrioSorted.index(conflictOT) + 1
+            taskID = otListPrioSorted.index(conflictOT) + 1
             print(
-                f"Removed observation task {id} at {conflictOT.start} to fit buffering task for {otToBuffer.GT.id} at {otToBuffer.start}")
+                f"Removed observation task {taskID} at {conflictOT.start} to fit buffering task for {otToBuffer.GT.id} at {otToBuffer.start}")
             otListPrioSorted.remove(conflictOT)
 
         return bt, otListPrioSorted, btList

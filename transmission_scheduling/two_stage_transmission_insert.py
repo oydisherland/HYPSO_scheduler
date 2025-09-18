@@ -2,7 +2,7 @@ import copy
 
 from scheduling_model import OT, TTW, GSTW, BT, DT
 from transmission_scheduling import insertion
-from transmission_scheduling.conflict_checks import observationTaskConflicting
+from transmission_scheduling.conflict_checks import observationTaskConflicting, downlinkTaskConflicting
 from transmission_scheduling.generate_downlink import generateDownlinkTask
 from transmission_scheduling.input_parameters import TransmissionParams
 from transmission_scheduling.util import getClosestGSTW, gstwToSortedTupleList, findPossibleTTW, generateNewOTList, \
@@ -40,12 +40,11 @@ def twoStageTransmissionScheduling(otList: list[OT], ttwList: list[TTW], gstwLis
     Phase 1: Regular insertion phase using several strategies (e.g. direct, sliding, deleting)
     """
     p = parameters
-    valid, btList, dtList, otListScheduled = scheduleTransmissions(otList, ttwList, gstwList, p)
+    fullScheduleFound, btList, dtList, otListScheduled = scheduleTransmissions(otList, ttwList, gstwList, p)
 
-    if valid:
-        # A full schedule has been found in the first attempt, so we can return
-        btList, dtList = cleanUpSchedule(otListScheduled, btList, dtList)
-        return valid, btList, dtList, otListScheduled
+    if fullScheduleFound:
+        btList, dtList = cleanUpSchedule(otListScheduled, btList, dtList, gstwList)
+        return fullScheduleFound, btList, dtList, otListScheduled
 
     """
     Phase 2: Re-insertion phase for the observation tasks that could not be scheduled in the first phase
@@ -58,16 +57,16 @@ def twoStageTransmissionScheduling(otList: list[OT], ttwList: list[TTW], gstwLis
 
         print("======= Starting re-insertion phase for unscheduled observation tasks =======")
         n_before = len(otListScheduled)
-        valid, btList, dtList, otListScheduled = scheduleTransmissions(otListReInsert, ttwList, gstwList, p,
-                                                                       otListScheduled, btList, dtList)
+        fullScheduleFound, btList, dtList, otListScheduled = scheduleTransmissions(otListReInsert, ttwList, gstwList, p,
+                                                                                   otListScheduled, btList, dtList)
         n_after = len(otListScheduled)
         print(f"Successfully re-inserted {n_after - n_before} observation tasks out of {len(otListReInsert)}")
 
     latencyCounter(otListScheduled, dtList)
-    btList, dtList = cleanUpSchedule(otListScheduled, btList, dtList)
+    btList, dtList = cleanUpSchedule(otListScheduled, btList, dtList, gstwList)
     latencyCounter(otListScheduled, dtList)
 
-    return valid, btList, dtList, otListScheduled
+    return fullScheduleFound, btList, dtList, otListScheduled
 
 
 def scheduleTransmissions(otList: list[OT], ttwList: list[TTW], gstwList: list[GSTW], parameters: TransmissionParams,
@@ -119,8 +118,6 @@ def scheduleTransmissions(otList: list[OT], ttwList: list[TTW], gstwList: list[G
         # making it less likely for them to be modified or deleted
         otListMod = existingOTList.copy() + otListMod
 
-    completeScheduleFound = True
-
     for otOriginal in otList:
         # First check if the observation task already has a corresponding buffering task
         alreadyBuffered = False
@@ -143,7 +140,6 @@ def scheduleTransmissions(otList: list[OT], ttwList: list[TTW], gstwList: list[G
 
         if observationTaskConflicting(otToBuffer, btList, otListMod, gstwList, p):
             # The observation task is conflicting with already scheduled tasks, so we cannot buffer it
-            completeScheduleFound = False
             otListMod.remove(otToBuffer)
             continue
 
@@ -177,15 +173,16 @@ def scheduleTransmissions(otList: list[OT], ttwList: list[TTW], gstwList: list[G
 
         if not validBTFound:
             # No valid GSTW has been found to downlink the buffered data
-            completeScheduleFound = False
             print(f"Transmission scheduling failed for {otToBuffer.GT.id} at {otToBuffer.start}")
             # Remove the currently considered observation task by checking if ground target matches
             otListMod.remove(otToBuffer)
 
+    completeScheduleFound = len(otListMod) == len(otList)
     return completeScheduleFound, btList, dtList, otListMod
 
 
-def cleanUpSchedule(otList: list[OT], btList: list[BT], dtList: list[DT]) -> tuple[list[BT], list[DT]]:
+def cleanUpSchedule(otList: list[OT], btList: list[BT], dtList: list[DT], gstwList: list[GSTW]) -> tuple[
+    list[BT], list[DT]]:
     """
     Clean up the schedule by re-assigning buffer and transmission tasks to other ground targets if possible.
     Each OT will be assigned to the closest BT in chronological order.
@@ -196,6 +193,7 @@ def cleanUpSchedule(otList: list[OT], btList: list[BT], dtList: list[DT]) -> tup
         otList (list[OT]): List of observation tasks.
         btList (list[BT]): List of buffering tasks.
         dtList (list[DT]): List of downlink tasks.
+        gstwList (list[GSTW]): List of ground station time windows.
 
         Returns:
             tuple[list[BT], list[DT]]: The cleaned up lists of buffering tasks and downlink tasks.
@@ -217,7 +215,7 @@ def cleanUpSchedule(otList: list[OT], btList: list[BT], dtList: list[DT]) -> tup
         btListCleaned.append(newBT)
 
     # Now re-assign the downlink tasks to have the same ground target as the closest buffer task
-    dtListTimeSortedDirty = dtListTimeSorted.copy() # List from which we will remove DT as they are re-assigned
+    dtListTimeSortedDirty = dtListTimeSorted.copy()  # List from which we will remove DT as they are re-assigned
     btListTimeSortedClean = sorted(btListCleaned, key=lambda x: x.start)
     for i, bt in enumerate(btListTimeSortedClean):
         # Find the closest DT that is after the BT
@@ -229,4 +227,79 @@ def cleanUpSchedule(otList: list[OT], btList: list[BT], dtList: list[DT]) -> tup
                 dtListCleaned.append(DT(bt.GT, dt.GS, dt.start, dt.end))
                 dtListTimeSortedDirty.remove(dt)
 
+    # Do an extra cleaning pass over the downlink schedule to make sure split up tasks happen in the right order
+    dtListCleaned = cleanUpDownlinkSchedule(dtListCleaned, gstwList)
+
     return btListCleaned, dtListCleaned
+
+
+def cleanUpDownlinkSchedule(dtList: list[DT], gstwList: list[GSTW]):
+    """
+    Clean up downlink schedule by making sure that downlinks split over two ground station passes are scheduled in the correct order.
+
+    Args:
+        dtList (list[DT]): List of downlink tasks.
+        gstwList (list[GSTW]): List of ground station time windows.
+
+    Returns:
+        list[DT]: Cleaned up list of downlink tasks.
+    """
+
+    gstwSorted = gstwToSortedTupleList(gstwList)
+    dtListClean: list[DT] = []
+    for i, entry in enumerate(gstwSorted):
+        gs = entry[0]
+        tw = entry[1]
+
+        # Save the downlink tasks that happen in this ground station pass
+        dtListForGS = [dt for dt in dtList if dt.GS == gs and dt.start >= tw.start and dt.end <= tw.end]
+        dtListInGSSorted = sorted(dtListForGS, key=lambda x: x.start)
+        if len(dtListInGSSorted) <= 1:
+            # No need to clean up if there is only one or zero downlink tasks in this GS pass
+            dtListClean = dtListClean + dtListInGSSorted
+            continue
+
+        # Determine the time between two downlink tasks in this GS pass
+        interTaskTime = dtListInGSSorted[1].start - dtListInGSSorted[0].end
+
+        # Find the possible downlink tasks that are also scheduled in the previous ground station pass
+        if i > 0:
+            prevEntry = gstwSorted[i - 1]
+            prevGS = prevEntry[0]
+            prevTW = prevEntry[1]
+
+            # Find the list of downlink tasks that are scheduled in the previous GS pass
+            dtListInPrevGS = [dt for dt in dtList if
+                              dt.GS == prevGS and dt.start >= prevTW.start and dt.end <= prevTW.end]
+
+            # See if one of the downlink tasks in the previous GS pass covers the same ground target
+            # as one of the downlink tasks in the current GS pass
+            dtSplitPrevious = None
+            for dt in dtListInGSSorted:
+                for dtPrev in dtListInPrevGS:
+                    if dt.GT == dtPrev.GT:
+                        dtSplitPrevious = dt
+                        break
+
+            if dtSplitPrevious and dtListInGSSorted.index(dtSplitPrevious) != 0:
+                # We have found a downlink task that is split over the current and previous GS pass
+                # Additionally, this downlink task is not the first task in the current GS pass, we need to fix that
+                dtStart = dtListInGSSorted[0].start
+                dtSplitDuration = dtSplitPrevious.end - dtSplitPrevious.start
+                dtListInGSSorted.insert(0,
+                                        DT(dtSplitPrevious.GT, dtSplitPrevious.GS, dtStart, dtStart + dtSplitDuration))
+                dtListInGSSorted.remove(dtSplitPrevious)
+
+                # Now that the split task is first in the list, all other tasks need to be shifted to prevent conflicts
+                for j in range(1, len(dtListInGSSorted)):
+                    dtCheck = dtListInGSSorted[j]
+                    if downlinkTaskConflicting(dtCheck, dtListInGSSorted):
+                        # Shift it to the right
+                        dtNewStart = dtListInGSSorted[j - 1].end + interTaskTime
+                        dtNewEnd = dtNewStart + (dtCheck.end - dtCheck.start)
+                        dtListInGSSorted[j] = DT(dtCheck.GT, dtCheck.GS, dtNewStart, dtNewEnd)
+
+        # After fixing possible split tasks, add the downlink tasks in this GS pass to the cleaned list
+        dtListClean = dtListClean + dtListInGSSorted
+
+    return dtListClean
