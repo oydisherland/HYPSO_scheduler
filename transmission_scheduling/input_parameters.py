@@ -19,6 +19,7 @@ class TransmissionParams:
         maxLatency: Maximum number of seconds between a capture and its downlink
         slidingInsertIterations: Number of iterations for sliding insert algorithm
         reInsertIterations: Number of iterations for re-insertion algorithm
+        minDownlinkFraction: Minimum fraction of a capture that must be able to be downlinked in a GS pass
         minGSWindowTime: Minimum time a ground station window must have to be considered for scheduling in seconds
         ohDuration: Observation horizon duration in seconds
         hypsoNr: Hyperspectral satellite number (1 or 2)
@@ -33,6 +34,7 @@ class TransmissionParams:
     maxLatency: float = 0.0
     slidingInsertIterations: int = 1
     reInsertIterations: int = 1
+    minDownlinkFraction: float = 0.0
     minGSWindowTime: float = 0.0
     ohDuration: float = 0.0
     hypsoNr: int = 1
@@ -80,8 +82,11 @@ def getInputParams(relativeFilePath: str) -> TransmissionParams:
 
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", category=UserWarning)
-        p.minGSWindowTime = p.transmissionStartTime + 0.1 * p.downlinkDuration
+        # Convert units
         p.ohDuration = 24 * 3600 * float(paramsDict["durationInDaysOH"])
+        p.maxLatency = 3600 * float(paramsDict["maxLatencyHours"])
+        # Evaluate dependent parameters
+        p.minGSWindowTime = p.transmissionStartTime + p.minDownlinkFraction * p.downlinkDuration
 
     return p
 

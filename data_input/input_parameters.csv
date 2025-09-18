@@ -27,6 +27,7 @@ downlinkDuration, 217
 transmissionStartTime, 260
 
 # Transmission scheduling parameters
-maxLatency, 64800
+minDownlinkFraction, 0.1
+maxLatencyHours, 18
 slidingInsertIterations, 5
 reInsertIterations, 3

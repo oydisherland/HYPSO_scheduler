@@ -179,8 +179,8 @@ def latencyCounter(otList: list[OT], dtList: list[DT]):
                 latencyList.append(latency)
                 break
 
-    print(f"Maximum latency: {max(latencyList):.2f} seconds")
-    print(f"Average latency: {sum(latencyList)/len(latencyList):.2f} seconds")
+    print(f"Maximum latency: {max(latencyList)/3600:.2f} hours")
+    print(f"Average latency: {sum(latencyList)/(len(latencyList)*3600):.2f} hours")
 
 def plotSchedule(otListMod: list[OT], otList: list[OT], btList: list[BT], dtList: list[DT], gstwList: list[GSTW],
                  ttwList: list[TTW], p: TransmissionParams):
