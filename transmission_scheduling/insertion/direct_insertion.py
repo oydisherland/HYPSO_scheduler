@@ -93,7 +93,6 @@ class DirectInsertion(InsertionInterface):
 
         # Choose the buffer candidate closest to the ground station pass, i.e. the one with the latest start time
         # This makes sure that as little captures as possible are in the buffer at the same time
-        # TODO figure out if min or max is best (also in combination with the other settings)
         if candidateBTList:
             bestBT = max(candidateBTList, key=lambda x: x.start)
             return bestBT, otList, btList
