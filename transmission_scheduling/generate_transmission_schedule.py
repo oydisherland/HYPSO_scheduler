@@ -12,6 +12,7 @@ from util import plotSchedule
 
 # TODO when counting number of files in the buffer, take into account that one more pass is needed to actually downlink the data
 # TODO add limit to amount of captures in the buffer at any time
+# TODO assign each buffer task a file ID (19-25 for hypso-2) and make sure no two buffer tasks have the same ID at the same time
 # TODO leave some captures buffered but not downlinked at the end of the observation horizon
 # TODO figure what to do with captures that can only be planned during a ground station pass
 # TODO consider that data transmission cannot happen or is at least slower during a capture when in the transmission window
