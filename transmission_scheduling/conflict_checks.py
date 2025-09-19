@@ -7,7 +7,7 @@ def getConflictingTasks(tw: TW, btList: list[BT], otList: list[OT], gstwList: li
     Get the list of tasks that conflict with the given time window.
 
     Args:
-        tw (TW): The time window to check for conflicts.
+        tw (TW): The time window to check for conflicts, this window should include any processing time after the task.
         btList (list[BT]): List of all already scheduled buffering tasks.
         otList (list[OT]): List of all observation tasks.
         gstwList (list[GSTW]): List of all ground station time windows.

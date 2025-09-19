@@ -1,6 +1,6 @@
 import copy
 
-from scheduling_model import OT, TTW, GSTW, BT, DT
+from scheduling_model import OT, TTW, GSTW, BT, DT, GS, TW
 from transmission_scheduling import insertion
 from transmission_scheduling.conflict_checks import observationTaskConflicting, downlinkTaskConflicting
 from transmission_scheduling.generate_downlink import generateDownlinkTask
@@ -146,6 +146,8 @@ def scheduleTransmissions(otList: list[OT], ttwList: list[TTW], gstwList: list[G
         validBTFound = False
         closestGSTW = getClosestGSTW(otToBuffer, gstwList, p.maxLatency)
         closestGSTWSorted = gstwToSortedTupleList(closestGSTW)
+        # TODO check if this \/ is somehow meta, or order the GS passes in different priority than just chronological order
+        # closestGSTWSorted = sorted(closestGSTWSorted, key=lambda x: x[1].start, reverse=True)
 
         # Iterate over the closest ground station passes and try to buffer it before the pass
         for i, entry in enumerate(closestGSTWSorted):
@@ -154,10 +156,11 @@ def scheduleTransmissions(otList: list[OT], ttwList: list[TTW], gstwList: list[G
                 break
             for insertMethod in insertList:
                 gstw = GSTW(entry[0], [entry[1]])
-                nextGSTW = GSTW(closestGSTWSorted[i + 1][0], [closestGSTWSorted[i + 1][1]]) \
-                    if i + 1 < len(closestGSTWSorted) else None
+                # Find the list of future GSTW that could be used to downlink the remaining data if needed
+                nextGSTWList: list[tuple[GS, TW]]  # Storing the GS passes in this form is more convenient
+                nextGSTWList = closestGSTWSorted[i + 1:] if i + 1 < len(closestGSTWSorted) else []
 
-                candidateDTList = generateDownlinkTask(gstw, nextGSTW, p.downlinkDuration, dtList, otToBuffer, p)
+                candidateDTList = generateDownlinkTask(gstw, nextGSTWList, p.downlinkDuration, dtList, otToBuffer, p)
                 if candidateDTList is None: continue  # No valid downlink task could be scheduled in this ground station time window
 
                 bt, otListMod, btList = insertMethod.generateBuffer(otToBuffer, gstw, otListMod, btList, gstwList,

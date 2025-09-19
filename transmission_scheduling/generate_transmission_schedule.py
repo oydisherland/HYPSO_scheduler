@@ -10,10 +10,13 @@ from transmission_scheduling.two_stage_transmission_insert import twoStageTransm
 from transmission_scheduling.util import bufferFileCounter
 from util import plotSchedule
 
-
-# TODO after/inter task/capture time are used quite randomly, it should be more clear where they are used (for example when checking for conflicts), they are not used uniformly and difficult to change
+# TODO when counting number of files in the buffer, take into account that one more pass is needed to actually downlink the data
+# TODO add limit to amount of captures in the buffer at any time
+# TODO leave some captures buffered but not downlinked at the end of the observation horizon
+# TODO figure what to do with captures that can only be planned during a ground station pass
 # TODO consider that data transmission cannot happen or is at least slower during a capture when in the transmission window
-# TODO possibly add support for spreading transmission over more than 2 ground station passes
+# TODO add support for cleaning up downlinks that are spread over 3 ground station passes
+
 
 parametersFilePath = "../data_input/input_parameters.csv"
 p = getInputParams(parametersFilePath)
@@ -33,7 +36,7 @@ for ot in otList:
     ttwList.append(TTW(ot.GT, [TW(ttwStart, ttwEnd), TW(ttwStart2, ttwEnd2), TW(ttwStart3, ttwEnd3)]))
 
 # startTimeOH = datetime.datetime(2025, 8, 27, 15, 29, 0)
-startTimeOH = datetime.datetime(2025, 8, 4, 10, 35, 0)
+startTimeOH = datetime.datetime(2025, 8, 4, 20, 35, 0)
 
 startTimeOH = startTimeOH.replace(tzinfo=datetime.timezone.utc)
 endTimeOH = startTimeOH + datetime.timedelta(seconds=p.ohDuration)

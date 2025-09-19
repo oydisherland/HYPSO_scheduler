@@ -1,10 +1,10 @@
-from scheduling_model import GSTW, DT, OT
+from scheduling_model import GSTW, DT, OT, TW, GS
 from transmission_scheduling.conflict_checks import downlinkTaskConflicting
 from transmission_scheduling.input_parameters import TransmissionParams
 
 
-def generateDownlinkTask(gstw: GSTW, nextGSTW: GSTW, downlinkTime: float, dtList: list[DT], otToDownlink: OT,
-                         p: TransmissionParams):
+def generateDownlinkTask(gstw: GSTW, nextGSTWList: list[tuple[GS,TW]], downlinkTime: float, dtList: list[DT],
+                         otToDownlink: OT, p: TransmissionParams) -> list[DT] | None:
     """
     Tries to schedule an entire downlink of an observation task in two given ground station time windows.
     Returns a list of downlink task with either one entry if the task fit within the first window
@@ -12,7 +12,7 @@ def generateDownlinkTask(gstw: GSTW, nextGSTW: GSTW, downlinkTime: float, dtList
 
     Args:
         gstw (GSTW): The ground station time window to schedule the downlink task in.
-        nextGSTW (GSTW): The next ground station time window to schedule the remaining downlink task in, if necessary.
+        nextGSTWList (list[tuple[GS,TW]]): The list of all future ground station passes that are considered for this OT.
         downlinkTime (float): The length in seconds of the downlink task to schedule.
         dtList (list[DT]): List of all already scheduled downlink tasks.
         otToDownlink (OT): The observation task to schedule the downlink for.
@@ -32,22 +32,33 @@ def generateDownlinkTask(gstw: GSTW, nextGSTW: GSTW, downlinkTime: float, dtList
         # The full downlink was scheduled in the first GSTW
         return candidateList
 
-    if nextGSTW is None:
-        # No next GSTW was provided, so we cannot schedule the remaining part of the downlink task
+    if not nextGSTWList:
+        # No next GSTW were provided, so we cannot schedule the remaining part of the downlink task
         return None
 
-    # Now we know the first part of the downlink task was scheduled, try to schedule the remaining part in the next GSTW
-    remainingDownlinkTime = p.downlinkDuration - (candidateDT.end - candidateDT.start)
-    candidateDT2, isPartialSchedule = generatePartialDownlinkTask(nextGSTW, remainingDownlinkTime, dtList, otToDownlink,
-                                                                  p)
+    remainingDownlinkTime = p.downlinkDuration
+    for entry in nextGSTWList:
+        nextGSTW = GSTW(entry[0], [entry[1]])
+        # Now we know the first part of the downlink task was scheduled, try to schedule the remaining part in the next GSTW
+        remainingDownlinkTime -= (candidateList[-1].end - candidateList[-1].start)
+        newCandidateDT, isPartialSchedule = generatePartialDownlinkTask(nextGSTW, remainingDownlinkTime, dtList,
+                                                                         otToDownlink, p)
 
-    if isPartialSchedule or candidateDT2 is None:
-        return None
-    else:
-        # We can schedule the remaining part of the downlink task in the next GSTW
-        # Merge the two downlink tasks into one
-        candidateList.append(candidateDT2)
+        if newCandidateDT is None:
+            # No valid downlink task could be scheduled in this ground station time window
+            return None
+
+        candidateList.append(newCandidateDT)
+
+        if not isPartialSchedule:
+            # The full remaining downlink was scheduled in this GSTW
+            break
+
+    if not isPartialSchedule:
         return candidateList
+    else:
+        # Even after trying to schedule in all provided next GSTWs, we could not schedule the full downlink task
+        return None
 
 
 def generatePartialDownlinkTask(gstw: GSTW, downlinkTime: float, dtList: list[DT], otToDownlink: OT,
