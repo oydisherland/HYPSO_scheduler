@@ -144,7 +144,7 @@ def scheduleTransmissions(otList: list[OT], ttwList: list[TTW], gstwList: list[G
             continue
 
         validBTFound = False
-        closestGSTW = getClosestGSTW(otToBuffer, gstwList, p.maxLatency)
+        closestGSTW = getClosestGSTW(otToBuffer.end, gstwList, p.maxLatency)
         closestGSTWSorted = gstwToSortedTupleList(closestGSTW)
         # TODO check if this \/ is somehow meta, or order the GS passes in different priority than just chronological order
         # closestGSTWSorted = sorted(closestGSTWSorted, key=lambda x: x[1].start, reverse=True)

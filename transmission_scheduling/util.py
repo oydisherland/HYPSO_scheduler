@@ -74,12 +74,12 @@ def findPossibleTTW(ttwListToUpdate: list[TTW], otListLastInsertionAttempt: list
     return ttwListUnscheduled
 
 
-def getClosestGSTW(ot: OT, gstwList: list[GSTW], maxLatency=36000):
+def getClosestGSTW(taskEndTime: float, gstwList: list[GSTW], maxLatency=float("Infinity")):
     """
     Get the closest ground station time windows to the observation task.
 
     Args:
-        ot (OT): The observation task to find the closest ground station time windows for.
+        taskEndTime (float): End time of the observation task in seconds.
         gstwList (list[GSTW]): List of all ground station time windows.
         maxLatency (float): Maximum duration between the capture and its downlink in seconds
 
@@ -92,7 +92,7 @@ def getClosestGSTW(ot: OT, gstwList: list[GSTW], maxLatency=36000):
     allGSTWsSorted = gstwToSortedTupleList(gstwList)
 
     # Remove entries before the observation tasks ended
-    allGSTWsSorted = [entry for entry in allGSTWsSorted if ot.end <= entry[1].start <= ot.end + maxLatency]
+    allGSTWsSorted = [entry for entry in allGSTWsSorted if taskEndTime <= entry[1].start <= taskEndTime + maxLatency]
 
     if not allGSTWsSorted:
         return []
@@ -130,7 +130,7 @@ def gstwToSortedTupleList(gstwList: list[GSTW]):
 
     return sorted(allGSTWs, key=lambda x: x[1].start)
 
-def bufferFileCounter(btList: list[BT], dtList: list[DT]):
+def bufferFileCounter(btList: list[BT], dtList: list[DT], gstwList: list[GSTW]):
     """
     Count the number of captures that is present in the buffer of the satellite at any given time.
     Hypso-2 has a maximum of 7 captures that can be stored in the buffer at any given time.
@@ -146,7 +146,12 @@ def bufferFileCounter(btList: list[BT], dtList: list[DT]):
             seenGTs.add(dt.GT)
     events = []
     for dt in dtListUnique:
-        events.append((dt.start, -1))
+        # The time that the data is fully transmitted is actually after the next ground station pass
+        # Because some missed data might need to be retransmitted
+        # Get the next gs pass
+        closestGSTWList = getClosestGSTW(dt.end, gstwList)
+        transmitEndTime = closestGSTWList[0].TWs[0].end if closestGSTWList else dt.end
+        events.append((transmitEndTime, -1))
     for bt in btList:
         events.append((bt.start, 1))
 
@@ -156,6 +161,8 @@ def bufferFileCounter(btList: list[BT], dtList: list[DT]):
     for event in events:
         fileCount += event[1]
         fileCountList.append(fileCount)
+
+    print(fileCountList)
 
     print(f"Maximum number of files in buffer: {max(fileCountList)}")
 

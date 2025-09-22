@@ -10,7 +10,6 @@ from transmission_scheduling.two_stage_transmission_insert import twoStageTransm
 from transmission_scheduling.util import bufferFileCounter
 from util import plotSchedule
 
-# TODO when counting number of files in the buffer, take into account that one more pass is needed to actually downlink the data
 # TODO add limit to amount of captures in the buffer at any time
 # TODO assign each buffer task a file ID (19-25 for hypso-2) and make sure no two buffer tasks have the same ID at the same time
 # TODO leave some captures buffered but not downlinked at the end of the observation horizon
@@ -37,8 +36,8 @@ for ot in otList:
     ttwList.append(TTW(ot.GT, [TW(ttwStart, ttwEnd), TW(ttwStart2, ttwEnd2), TW(ttwStart3, ttwEnd3)]))
 
 # startTimeOH = datetime.datetime(2025, 8, 27, 15, 29, 0)
-startTimeOH = datetime.datetime(2025, 8, 4, 20, 35, 0)
-# startTimeOH = datetime.datetime(2025, 9, 12, 16, 39, 0)
+# startTimeOH = datetime.datetime(2025, 8, 4, 20, 35, 0)
+startTimeOH = datetime.datetime(2025, 9, 12, 16, 39, 0)
 
 
 startTimeOH = startTimeOH.replace(tzinfo=datetime.timezone.utc)
@@ -58,7 +57,7 @@ otListModified = sorted(otListModified, key=lambda x: x.GT.priority, reverse=Tru
 
 print(f"{(end_time - start_time) * 1000:.4f} milliseconds")
 
-bufferFileCounter(btList, dtList)
+bufferFileCounter(btList, dtList, gstwList)
 print(f"Number of buffering tasks: {len(btList)}")
 
 plotSchedule(otListModified, otListPrioSorted, btList, dtList, gstwList, ttwList, p)
