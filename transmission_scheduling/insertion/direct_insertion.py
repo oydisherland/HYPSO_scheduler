@@ -13,7 +13,7 @@ class DirectInsertion(InsertionInterface):
         self.p = parameters
 
     def generateBuffer(self, otToBuffer: OT, gstwToDownlink: GSTW, otList: list[OT], btList: list[BT],
-                       gstwList: list[GSTW], ttwList: list[TTW] = None) -> tuple[BT | None, list[OT], list[BT]]:
+                       dtList, gstwList: list[GSTW], ttwList: list[TTW] = None) -> tuple[BT | None, list[OT], list[BT]]:
         """
         Try to insert the buffering of an observed target directly into the schedule.
         Insertion is tried at the end of other tasks, so all tasks neatly follow each other.
@@ -24,6 +24,7 @@ class DirectInsertion(InsertionInterface):
             gstwToDownlink (GSTW): The ground station time window to use for downlinking the buffered data.
             otList (list[OT]): List of all observation tasks
             btList (list[BT]): List of all already scheduled buffering tasks.
+            dtList (list[DT]): List of all already scheduled downlinking tasks plus the candidate downlink tasks.
             gstwList (list[GSTW]): List of all ground station time windows.
             ttwList (list[TTW]): List of all target time windows.
 
@@ -45,9 +46,9 @@ class DirectInsertion(InsertionInterface):
         btStart = otToBuffer.end + p.afterCaptureTime
         btEnd = btStart + p.bufferingTime
         candidateBT = BT(otToBuffer.GT, btStart, btEnd)
-        if not bufferTaskConflicting(candidateBT, btList, otList, gstwList, p) \
-                and btEnd < gstwToDownlink.TWs[0].start:
-            candidateBTList.append(candidateBT)
+        if  btEnd < gstwToDownlink.TWs[0].start:
+            if not bufferTaskConflicting(candidateBT, btList, otList, dtList, gstwList, p):
+                candidateBTList.append(candidateBT)
 
         # Now try to insert the buffer task at the end of other observation tasks
         for ot in otList:
@@ -61,7 +62,7 @@ class DirectInsertion(InsertionInterface):
                 continue
 
             candidateBT = BT(otToBuffer.GT, btStart, btEnd)
-            if not bufferTaskConflicting(candidateBT, btList, otList, gstwList, p):
+            if not bufferTaskConflicting(candidateBT, btList, otList, dtList, gstwList, p):
                 candidateBTList.append(candidateBT)
                 continue
 
@@ -74,7 +75,7 @@ class DirectInsertion(InsertionInterface):
                 continue
 
             candidateBT = BT(otToBuffer.GT, btStart, btEnd)
-            if not bufferTaskConflicting(candidateBT, btList, otList, gstwList, p):
+            if not bufferTaskConflicting(candidateBT, btList, otList, dtList, gstwList, p):
                 candidateBTList.append(candidateBT)
 
         # Last attempt is to insert after a ground station time window
@@ -87,7 +88,7 @@ class DirectInsertion(InsertionInterface):
                     continue
 
                 candidateBT = BT(otToBuffer.GT, btStart, btEnd)
-                if not bufferTaskConflicting(candidateBT, btList, otList, gstwList, p):
+                if not bufferTaskConflicting(candidateBT, btList, otList, dtList, gstwList, p):
                     candidateBTList.append(candidateBT)
                     continue
 

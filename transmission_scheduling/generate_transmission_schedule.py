@@ -10,6 +10,8 @@ from transmission_scheduling.two_stage_transmission_insert import twoStageTransm
 from transmission_scheduling.util import bufferFileCounter
 from util import plotSchedule
 
+from line_profiler import LineProfiler
+
 # TODO add limit to amount of captures in the buffer at any time
 # TODO assign each buffer task a file ID (19-25 for hypso-2) and make sure no two buffer tasks have the same ID at the same time
 # TODO leave some captures buffered but not downlinked at the end of the observation horizon
@@ -57,7 +59,12 @@ otListModified = sorted(otListModified, key=lambda x: x.GT.priority, reverse=Tru
 
 print(f"{(end_time - start_time) * 1000:.4f} milliseconds")
 
-bufferFileCounter(btList, dtList, gstwList)
 print(f"Number of buffering tasks: {len(btList)}")
+
+lp = LineProfiler()
+lp.add_function(bufferFileCounter)
+lp_wrapper = lp(bufferFileCounter)
+lp_wrapper(btList, dtList, p.ohDuration)
+lp.print_stats()
 
 plotSchedule(otListModified, otListPrioSorted, btList, dtList, gstwList, ttwList, p)

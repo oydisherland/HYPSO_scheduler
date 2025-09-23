@@ -5,8 +5,7 @@ from transmission_scheduling import insertion
 from transmission_scheduling.conflict_checks import observationTaskConflicting, downlinkTaskConflicting
 from transmission_scheduling.generate_downlink import generateDownlinkTask
 from transmission_scheduling.input_parameters import TransmissionParams
-from transmission_scheduling.util import getClosestGSTW, gstwToSortedTupleList, findPossibleTTW, generateNewOTList, \
-    latencyCounter
+from transmission_scheduling.util import getClosestGSTW, gstwToSortedTupleList, findPossibleTTW, latencyCounter
 
 
 def twoStageTransmissionScheduling(otList: list[OT], ttwList: list[TTW], gstwList: list[GSTW],
@@ -162,9 +161,9 @@ def scheduleTransmissions(otList: list[OT], ttwList: list[TTW], gstwList: list[G
 
                 candidateDTList = generateDownlinkTask(gstw, nextGSTWList, p.downlinkDuration, dtList, otToBuffer, p)
                 if candidateDTList is None: continue  # No valid downlink task could be scheduled in this ground station time window
-
-                bt, otListMod, btList = insertMethod.generateBuffer(otToBuffer, gstw, otListMod, btList, gstwList,
-                                                                    ttwList)
+                dtListPlusCandidates = dtList + candidateDTList
+                bt, otListMod, btList = insertMethod.generateBuffer(otToBuffer, gstw, otListMod, btList,
+                                                                    dtListPlusCandidates, gstwList, ttwList)
 
                 if bt is not None:
                     btList.append(bt)
@@ -306,3 +305,33 @@ def cleanUpDownlinkSchedule(dtList: list[DT], gstwList: list[GSTW]):
         dtListClean = dtListClean + dtListInGSSorted
 
     return dtListClean
+
+
+def generateNewOTList(possibleTTW: list[TTW], otListScheduled: list[OT], btListScheduled: list[BT],
+                      gstwList: list[GSTW], p: TransmissionParams) -> list[OT]:
+    """
+    Based on a list of possible target time windows, generate a list of observation tasks that could be scheduled.
+
+    Args:
+        possibleTTW (list[TTW]): List of target time windows that could still be used to schedule the unscheduled observation tasks.
+        otListScheduled (list[OT]): List of observation tasks that have been successfully scheduled.
+        btListScheduled (list[BT]): List of buffering tasks that have been successfully scheduled.
+        gstwList (list[GSTW]): List of ground station time windows.
+        p (TransmissionParams): Parameters for the transmission scheduling.
+
+    Returns:
+        list[OT]: List of observation tasks that could be scheduled during re-insertion in the provided target time windows.
+    """
+    newOTList: list[OT] = []
+    for ttw in possibleTTW:
+        for tw in ttw.TWs:
+            halfTime = (tw.start + tw.end) / 2
+            # The new observation task will be centered, the insertion algorithms could always shift it if needed
+            otCandidate = OT(ttw.GT, halfTime - p.captureDuration / 2, halfTime + p.captureDuration / 2)
+            # Check for a conflic of this OT with the already scheduled tasks and the new ones
+            fullOTList = otListScheduled + newOTList
+            if not observationTaskConflicting(otCandidate, btListScheduled, fullOTList, gstwList, p):
+                newOTList.append(otCandidate)
+                break
+
+    return newOTList

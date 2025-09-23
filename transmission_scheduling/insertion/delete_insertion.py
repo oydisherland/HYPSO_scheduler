@@ -1,4 +1,4 @@
-from scheduling_model import OT, GSTW, BT, TTW, TW
+from scheduling_model import OT, GSTW, BT, TTW, TW, DT
 from transmission_scheduling.conflict_checks import getConflictingTasks
 from transmission_scheduling.input_parameters import TransmissionParams
 from transmission_scheduling.insertion.insertion_interface import InsertionInterface
@@ -15,7 +15,7 @@ class DeleteInsertion(InsertionInterface):
         self.direct_insert = DirectInsertion(parameters)
 
     def generateBuffer(self, otToBuffer: OT, gstwToDownlink: GSTW, otListPrioritySorted: list[OT], btList: list[BT],
-                       gstwList: list[GSTW], ttwList: list[TTW] = None) -> tuple[BT | None, list[OT], list[BT]]:
+                       dtList: list[DT], gstwList: list[GSTW], ttwList: list[TTW] = None) -> tuple[BT | None, list[OT], list[BT]]:
         """
         Try to insert the buffering of an observed target into the schedule by deleting other observation tasks if necessary.
 
@@ -24,6 +24,7 @@ class DeleteInsertion(InsertionInterface):
             gstwToDownlink (GSTW): The ground station time window to use for downlinking the buffered data.
             otListPrioritySorted (list[OT]): List of all observation tasks, sorted by priority (highest priority first)
             btList (list[BT]): List of all already scheduled buffering tasks.
+            dtList (list[DT]): List of all already scheduled downlinking tasks plus the candidate downlink tasks.
             gstwList (list[GSTW]): List of all ground station time windows.
             ttwList (list[TTW]): List of all target time windows.
 
@@ -46,7 +47,7 @@ class DeleteInsertion(InsertionInterface):
         bt = None
         for i in range(0, nRemove):
             otListMod = otListPrioSorted[:otListLength - i]
-            bt, _, _ = self.direct_insert.generateBuffer(otToBuffer, gstwToDownlink, otListMod, btList, gstwList)
+            bt, _, _ = self.direct_insert.generateBuffer(otToBuffer, gstwToDownlink, otListMod, btList, dtList, gstwList)
             if bt is not None:
                 found = True
                 break

@@ -1,4 +1,4 @@
-from scheduling_model import OT, GSTW, BT, TTW, TW
+from scheduling_model import OT, GSTW, BT, TTW, TW, DT
 from transmission_scheduling.conflict_checks import bufferTaskConflicting, observationTaskConflicting
 from transmission_scheduling.insertion.insertion_interface import InsertionInterface
 from transmission_scheduling.insertion.direct_insertion import DirectInsertion
@@ -16,7 +16,7 @@ class SlideInsertion(InsertionInterface):
         self.direct_insert = DirectInsertion(parameters)
 
     def generateBuffer(self, otToBuffer: OT, gstwToDownlink: GSTW, otList: list[OT], btList: list[BT],
-                       gstwList: list[GSTW], ttwList: list[TTW] = None) -> tuple[BT | None, list[OT], list[BT]]:
+                       dtList: list[DT], gstwList: list[GSTW], ttwList: list[TTW] = None) -> tuple[BT | None, list[OT], list[BT]]:
         """
         Try to insert the buffering of an observed target into the schedule by shifting other observation tasks if necessary.
 
@@ -25,6 +25,7 @@ class SlideInsertion(InsertionInterface):
             gstwToDownlink (GSTW): The ground station time window to use for downlinking the buffered data.
             otList (list[OT]): List of all observation tasks
             btList (list[BT]): List of all already scheduled buffering tasks.
+            dtList (list[DT]): List of all already scheduled downlinking tasks plus the candidate downlink tasks.
             gstwList (list[GSTW]): List of all ground station time windows.
             ttwList (list[TTW]): List of target time windows, which will be consulted when shifting observation tasks to fit buffering.
 
@@ -130,13 +131,13 @@ class SlideInsertion(InsertionInterface):
                 continue
             if op == "backward":
                 otToBufferShifted, otListModified, btListModified, backwardShift = self.backwardScheduleShift(
-                    closestOTBeforeGap, otToBuffer, gapTW, otListModified, btListModified, gstwList, ttwList,
+                    closestOTBeforeGap, otToBuffer, gapTW, otListModified, btListModified, dtList, gstwList, ttwList,
                     shiftNeeded, p.slidingInsertIterations
                 )
                 shiftNeeded -= backwardShift
             else:
                 otListModified, btListModified, forwardShift = self.forwardScheduleShift(
-                    closestOTAfterGap, otListModified, btListModified, gstwList, ttwList, shiftNeeded,
+                    closestOTAfterGap, otListModified, btListModified, dtList, gstwList, ttwList, shiftNeeded,
                     p.slidingInsertIterations
                 )
                 shiftNeeded -= forwardShift
@@ -146,7 +147,8 @@ class SlideInsertion(InsertionInterface):
             return None, otListOriginal, btListOriginal
 
         # After the shifting has been successful, try to insert the buffering task directly
-        bt, _, _ = self.direct_insert.generateBuffer(otToBufferShifted, gstwToDownlink, otListModified, btListModified, gstwList)
+        bt, _, _ = self.direct_insert.generateBuffer(otToBufferShifted, gstwToDownlink, otListModified, btListModified,
+                                                     dtList, gstwList)
         if bt is not None:
             taskID = otListOriginal.index(otToBuffer) + 1
             print(f"Successfully inserted task {taskID} by shifting observation tasks")
@@ -155,7 +157,7 @@ class SlideInsertion(InsertionInterface):
             return None, otListOriginal, btListOriginal
 
     def backwardScheduleShift(self, otToShift: OT, otToBuffer: OT, gapTW: TW, otList: list[OT], btList: list[BT],
-                              gstwList: list[GSTW], ttwList: list[TTW], shiftAmount: float = float('Infinity'),
+                              dtList: list[DT], gstwList: list[GSTW], ttwList: list[TTW], shiftAmount: float = float('Infinity'),
                               iterations: int = 1):
         """
         Try to shift an observation task and the bufferings right after it to an earlier time.
@@ -168,6 +170,7 @@ class SlideInsertion(InsertionInterface):
             gapTW (TW): The time window representing the gap in the schedule to create space for the buffering.
             otList (list[OT]): List of all observation tasks
             btList (list[BT]): List of all already scheduled buffering tasks.
+            dtList (list[DT]): List of all already scheduled downlinking tasks plus the candidate downlink tasks.
             gstwList (list[GSTW]): List of all ground station time windows.
             ttwList (list[TTW]): List of target time windows.
             shiftAmount (float, optional): The absolute amount of time in seconds to shift the task. The task will never be shifted outside its target time window.
@@ -192,7 +195,7 @@ class SlideInsertion(InsertionInterface):
         for i in range(n):
             factor = 1 - i / n  # Fraction of the shift to try
             otToBufferShifted, otListModified, btListModified, backwardShift = self.backwardScheduleShiftPartial(
-                otToShift, otToBuffer, gapTW, otList, btList, gstwList, ttwList, shiftAmount * factor
+                otToShift, otToBuffer, gapTW, otList, btList, dtList, gstwList, ttwList, shiftAmount * factor
             )
             if backwardShift > 0:
                 break
@@ -200,7 +203,7 @@ class SlideInsertion(InsertionInterface):
         return otToBufferShifted, otListModified, btListModified, backwardShift
 
     def backwardScheduleShiftPartial(self, otToShift: OT, otToBuffer: OT, gapTW: TW, otList: list[OT], btList: list[BT],
-                                     gstwList: list[GSTW], ttwList: list[TTW], shiftAmount: float = float('Infinity')):
+                                     dtList: list[DT], gstwList: list[GSTW], ttwList: list[TTW], shiftAmount: float = float('Infinity')):
         p = self.p
 
         # Shift the closest observation task before the gap backward to increase the gap width
@@ -218,7 +221,7 @@ class SlideInsertion(InsertionInterface):
         # Check all buffers for conflict
         conflictingBuffer = False
         for bt in btListCandidate:
-            if bufferTaskConflicting(bt, btListCandidate, otListCandidate, gstwList, p):
+            if bufferTaskConflicting(bt, btListCandidate, otListCandidate, dtList, gstwList, p, False):
                 conflictingBuffer = True
                 break
 
@@ -233,8 +236,8 @@ class SlideInsertion(InsertionInterface):
         else:
             return otToBuffer, otList, btList, 0
 
-    def forwardScheduleShift(self, otToShift: OT, otList: list[OT], btList: list[BT], gstwList: list[GSTW],
-                             ttwList: list[TTW], shiftAmount: float = float('Infinity'), iterations: int = 1):
+    def forwardScheduleShift(self, otToShift: OT, otList: list[OT], btList: list[BT], dtList: list[DT],
+                             gstwList: list[GSTW], ttwList: list[TTW], shiftAmount: float = float('Infinity'), iterations: int = 1):
         """
         Try to shift an observation task and the bufferings right after it to a later time.
         The observation task that we are trying to shift should happen after the gap in the schedule occurs,
@@ -244,6 +247,7 @@ class SlideInsertion(InsertionInterface):
             otToShift (OT): The observation task to shift.
             otList (list[OT]): List of all observation tasks
             btList (list[BT]): List of all already scheduled buffering tasks.
+            dtList (list[DT]): List of all already scheduled downlinking tasks plus the candidate downlink tasks.
             gstwList (list[GSTW]): List of all ground station time windows.
             ttwList (list[TTW]): List of target time windows.
             shiftAmount (float, optional): The absolute amount of time in seconds to shift the task. The task will never be shifted outside its target time window.
@@ -265,15 +269,15 @@ class SlideInsertion(InsertionInterface):
         for i in range(n):
             factor = 1 - i / n  # Fraction of the shift to try
             otListModified, btListModified, forwardShift = self.forwardScheduleShiftPartial(
-                otToShift, otList, btList, gstwList, ttwList, shiftAmount * factor
+                otToShift, otList, btList, dtList, gstwList, ttwList, shiftAmount * factor
             )
             if forwardShift > 0:
                 break
 
         return otListModified, btListModified, forwardShift
 
-    def forwardScheduleShiftPartial(self, otToShift: OT, otList: list[OT], btList: list[BT], gstwList: list[GSTW],
-                                    ttwList: list[TTW], shiftAmount: float = float('Infinity')):
+    def forwardScheduleShiftPartial(self, otToShift: OT, otList: list[OT], btList: list[BT], dtList: list[DT],
+                                    gstwList: list[GSTW], ttwList: list[TTW], shiftAmount: float = float('Infinity')):
         p = self.p
 
         shiftedOTAfterGap, forwardShift = shiftOT(otToShift, ttwList, True, shiftAmount)
@@ -284,7 +288,7 @@ class SlideInsertion(InsertionInterface):
         # Now shift all the buffer tasks after the gap forward
         btListTimeSorted = sorted(btList, key=lambda x: x.start)
         btListCandidate = btList.copy()
-        previousBT = btListTimeSorted[0]
+        previousBT = btListTimeSorted[0] if len(btListTimeSorted) > 0 else None
         for i, bt in enumerate(btListTimeSorted):
             if bt.start > otToShift.end:
                 if bt.start - otToShift.end == p.afterCaptureTime:
@@ -304,7 +308,7 @@ class SlideInsertion(InsertionInterface):
         # Check all buffers for conflict
         conflictingBuffer = False
         for bt in btListCandidate:
-            if bufferTaskConflicting(bt, btListCandidate, otListCandidate, gstwList, p):
+            if bufferTaskConflicting(bt, btListCandidate, otListCandidate, dtList, gstwList, p, False):
                 conflictingBuffer = True
                 break
 

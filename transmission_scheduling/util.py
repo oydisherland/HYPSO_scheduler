@@ -1,38 +1,7 @@
 import copy
 
 from scheduling_model import OT, GSTW, GS, TW, TTW, BT, DT
-from transmission_scheduling.conflict_checks import observationTaskConflicting
 from transmission_scheduling.input_parameters import TransmissionParams
-
-
-def generateNewOTList(possibleTTW: list[TTW], otListScheduled: list[OT], btListScheduled: list[BT],
-                      gstwList: list[GSTW], p: TransmissionParams) -> list[OT]:
-    """
-    Based on a list of possible target time windows, generate a list of observation tasks that could be scheduled.
-
-    Args:
-        possibleTTW (list[TTW]): List of target time windows that could still be used to schedule the unscheduled observation tasks.
-        otListScheduled (list[OT]): List of observation tasks that have been successfully scheduled.
-        btListScheduled (list[BT]): List of buffering tasks that have been successfully scheduled.
-        gstwList (list[GSTW]): List of ground station time windows.
-        p (TransmissionParams): Parameters for the transmission scheduling.
-
-    Returns:
-        list[OT]: List of observation tasks that could be scheduled during re-insertion in the provided target time windows.
-    """
-    newOTList: list[OT] = []
-    for ttw in possibleTTW:
-        for tw in ttw.TWs:
-            halfTime = (tw.start + tw.end) / 2
-            # The new observation task will be centered, the insertion algorithms could always shift it if needed
-            otCandidate = OT(ttw.GT, halfTime - p.captureDuration / 2, halfTime + p.captureDuration / 2)
-            # Check for a conflic of this OT with the already scheduled tasks and the new ones
-            fullOTList = otListScheduled + newOTList
-            if not observationTaskConflicting(otCandidate, btListScheduled, fullOTList, gstwList, p):
-                newOTList.append(otCandidate)
-                break
-
-    return newOTList
 
 
 def findPossibleTTW(ttwListToUpdate: list[TTW], otListLastInsertionAttempt: list[OT], scheduledOTList: list[OT]) \
@@ -113,7 +82,7 @@ def getClosestGSTW(taskEndTime: float, gstwList: list[GSTW], maxLatency=float("I
     return groupedList
 
 
-def gstwToSortedTupleList(gstwList: list[GSTW]):
+def gstwToSortedTupleList(gstwList: list[GSTW]) -> list[tuple[GS, TW]]:
     """
     Convert a list of GSTW (GS, [TWs]) to a list of tuples (GS, TW) sorted by TW start time.
 
@@ -130,41 +99,38 @@ def gstwToSortedTupleList(gstwList: list[GSTW]):
 
     return sorted(allGSTWs, key=lambda x: x[1].start)
 
-def bufferFileCounter(btList: list[BT], dtList: list[DT], gstwList: list[GSTW]):
+
+def bufferFileCounter(btList: list[BT], dtList: list[DT], countEndTime: float) \
+        -> int:
     """
-    Count the number of captures that is present in the buffer of the satellite at any given time.
-    Hypso-2 has a maximum of 7 captures that can be stored in the buffer at any given time.
+    Return the number of files in the buffer at the specified end time.
+    HYPSO-2 has a maximum of 7 captures that can be stored in the buffer at any given time.
+
+    Args:
+        btList (list[BT]): List of all buffering tasks.
+        dtList (list[DT]): List of all downlinking tasks.
+        countEndTime (float, optional): Time in seconds from the start of the schedule until which the buffer count is considered.
+
+    Returns:
+         - int: Number of files left in the buffer at the end of the considered time.
     """
     # First sort the dtList by time and remove duplicate GT, but only keep the latest entry
     # The latest entry of a ground target in the dtList is the one where the data has been fully transmitted
-    dtListSorted = sorted(dtList, key=lambda x: x.start, reverse=True)
-    dtListUnique: list[DT] = []
-    seenGTs = set()
-    for dt in dtListSorted:
-        if dt.GT not in seenGTs:
-            dtListUnique.append(dt)
-            seenGTs.add(dt.GT)
-    events = []
-    for dt in dtListUnique:
-        # The time that the data is fully transmitted is actually after the next ground station pass
-        # Because some missed data might need to be retransmitted
-        # Get the next gs pass
-        closestGSTWList = getClosestGSTW(dt.end, gstwList)
-        transmitEndTime = closestGSTWList[0].TWs[0].end if closestGSTWList else dt.end
-        events.append((transmitEndTime, -1))
-    for bt in btList:
-        events.append((bt.start, 1))
+    dtDictUnique: dict = {}
+    for dt in dtList:
+        existing = dtDictUnique.get(dt.GT)
+        if existing is None or dt.start > existing.start:
+            dtDictUnique[dt.GT] = dt
 
-    events = sorted(events, key=lambda x: x[0])
     fileCount = 0
-    fileCountList = []
-    for event in events:
-        fileCount += event[1]
-        fileCountList.append(fileCount)
+    for dt in dtDictUnique.values():
+        if dt.end < countEndTime:
+            fileCount -= 1
+    for bt in btList:
+        if bt.end < countEndTime:
+            fileCount += 1
+    return fileCount
 
-    print(fileCountList)
-
-    print(f"Maximum number of files in buffer: {max(fileCountList)}")
 
 def latencyCounter(otList: list[OT], dtList: list[DT]):
     """
@@ -185,9 +151,39 @@ def latencyCounter(otList: list[OT], dtList: list[DT]):
                 latency = dt.start - ot.end
                 latencyList.append(latency)
                 break
+    if latencyList:
+        print(f"Maximum latency: {max(latencyList) / 3600:.2f} hours")
+        print(f"Average latency: {sum(latencyList) / (len(latencyList) * 3600):.2f} hours")
 
-    print(f"Maximum latency: {max(latencyList)/3600:.2f} hours")
-    print(f"Average latency: {sum(latencyList)/(len(latencyList)*3600):.2f} hours")
+
+def getFreeGSGaps(btList: list[BT], gstwListSorted: list[tuple[GS, TW]]) -> list[TW]:
+    """
+    Find the gaps between ground station passes where no buffering is scheduled.
+
+    Args:
+        btList (list[BT]): List of all buffering tasks.
+        gstwListSorted (list[tuple[GS, TW]): List of all ground station time windows.
+
+    Returns:
+        list[TW]: List with the time windows of the gap (from start of first GS pass to end of next GS pass).
+    """
+    freeGapList = []  # List with the end time of the free gaps
+    for i in range(len(gstwListSorted) - 1):
+        gstw = gstwListSorted[i]
+        nextGstw = gstwListSorted[i + 1]
+        gapStart = gstw[1].start
+        gapEnd = nextGstw[1].end
+        freeGapFound = True
+        for bt in btList:
+            if not (bt.end <= gapStart or bt.start >= gapEnd):
+                # There is a buffering task in this gap
+                freeGapFound = False
+                break
+        if freeGapFound:
+            freeGapList.append(TW(gapStart, gapEnd))
+
+    return freeGapList
+
 
 def plotSchedule(otListMod: list[OT], otList: list[OT], btList: list[BT], dtList: list[DT], gstwList: list[GSTW],
                  ttwList: list[TTW], p: TransmissionParams):
