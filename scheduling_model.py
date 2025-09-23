@@ -8,7 +8,7 @@ dataclass could be used if flexibility is needed
 OH = namedtuple("OH", ["utcStart", "utcEnd", "durationInDays", "delayInHours", "hypsoNr"])
 
 #Ground target
-GT = namedtuple("GT", ["id", "lat", "long", "priority", "idealIllumination"])
+GT = namedtuple("GT", ["id", "lat", "long", "priority", "cloudCoverage" ,"exposureTime", "captureMode"])
 
 #Time Window
 TW = namedtuple("TW", ["start", "end"])

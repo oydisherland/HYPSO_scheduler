@@ -1,4 +1,4 @@
-from data_postprocessing.fromFile_toObject import getAlgorithmData
+from HYPSO_scheduler.data_postprocessing.algorithmData_api import getAlgorithmData
 
 import numpy as np
 import csv
