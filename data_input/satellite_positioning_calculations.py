@@ -31,7 +31,7 @@ def findSatelliteTargetPasses(targetLat: float, targetLong: float, targetElevati
     skfSat = createSatelliteObject(hypsoNr)
 
     # 'wgs84' refers to the system used to define latitude and longitude coordinates
-    target_location = skf.wgs84.latlon(targetLong * skf.N, targetLat * skf.E, 100.0)
+    target_location = skf.wgs84.latlon(targetLat * skf.N, targetLong * skf.E, 100.0)
 
     # Timestamps also require a skyfield type
     ts = skf.load.timescale()
@@ -59,7 +59,7 @@ def findSatelliteTargetElevation(targetLat: float, targetLong: float, time: date
     skfSat = createSatelliteObject(hypsoNr)
 
     # 'wgs84' refers to the system used to define latitude and longitude coordinates
-    target_location = skf.wgs84.latlon(targetLong * skf.N, targetLat * skf.E, 100.0)
+    target_location = skf.wgs84.latlon(targetLat * skf.N, targetLong * skf.E, 100.0)
 
     # Convert the utc time to skyfield time type
     ts = skf.load.timescale()
