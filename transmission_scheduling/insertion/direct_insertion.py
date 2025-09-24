@@ -64,7 +64,6 @@ class DirectInsertion(InsertionInterface):
             candidateBT = BT(otToBuffer.GT, btStart, btEnd)
             if not bufferTaskConflicting(candidateBT, btList, otList, dtList, gstwList, p):
                 candidateBTList.append(candidateBT)
-                continue
 
         # Now try to insert the buffer task at the end of other buffer tasks
         for bt in btList:
@@ -90,7 +89,6 @@ class DirectInsertion(InsertionInterface):
                 candidateBT = BT(otToBuffer.GT, btStart, btEnd)
                 if not bufferTaskConflicting(candidateBT, btList, otList, dtList, gstwList, p):
                     candidateBTList.append(candidateBT)
-                    continue
 
         # Choose the buffer candidate closest to the ground station pass, i.e. the one with the latest start time
         # This makes sure that as little captures as possible are in the buffer at the same time
