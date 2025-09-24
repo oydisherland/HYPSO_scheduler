@@ -1,7 +1,7 @@
 testName, dummyTest3
 
 #scheduling spesific parameters
-maxCaptures, 30
+maxCaptures, 40
 captureDuration, 60
 transitionTime, 600
 startTimeOH, now
@@ -10,19 +10,19 @@ delayInHoursOH, 2
 hypsoNr, 2
 
 # Algorithm spesific parameters
-populationSize, 20
+populationSize, 10
 isTabooBankFIFO, True
 iqNonLinear, False
-NSGA2Runds, 30
-ALNSRuns, 75
+NSGA2Runds, 5
+ALNSRuns, 10
 maxTabBank, 10
 desNumber, 6
 
 # Transmission timing parameters
 bufferingTime, 1500
-afterCaptureTime, 1100
+afterCaptureTime, 600
 interTaskTime, 100
-interDownlinkTime, 20
+interDownlinkTime, 5
 downlinkDuration, 217
 transmissionStartTime, 260
 
