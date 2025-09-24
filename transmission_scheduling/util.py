@@ -100,38 +100,6 @@ def gstwToSortedTupleList(gstwList: list[GSTW]) -> list[tuple[GS, TW]]:
     return sorted(allGSTWs, key=lambda x: x[1].start)
 
 
-def bufferFileCounter(btList: list[BT], dtList: list[DT], countEndTime: float) \
-        -> int:
-    """
-    Return the number of files in the buffer at the specified end time.
-    HYPSO-2 has a maximum of 7 captures that can be stored in the buffer at any given time.
-
-    Args:
-        btList (list[BT]): List of all buffering tasks.
-        dtList (list[DT]): List of all downlinking tasks.
-        countEndTime (float, optional): Time in seconds from the start of the schedule until which the buffer count is considered.
-
-    Returns:
-         - int: Number of files left in the buffer at the end of the considered time.
-    """
-    # First sort the dtList by time and remove duplicate GT, but only keep the latest entry
-    # The latest entry of a ground target in the dtList is the one where the data has been fully transmitted
-    dtDictUnique: dict = {}
-    for dt in dtList:
-        existing = dtDictUnique.get(dt.GT)
-        if existing is None or dt.start > existing.start:
-            dtDictUnique[dt.GT] = dt
-
-    fileCount = 0
-    for dt in dtDictUnique.values():
-        if dt.end < countEndTime:
-            fileCount -= 1
-    for bt in btList:
-        if bt.end < countEndTime:
-            fileCount += 1
-    return fileCount
-
-
 def latencyCounter(otList: list[OT], dtList: list[DT]):
     """
     Check the latency between each capture and their downlink

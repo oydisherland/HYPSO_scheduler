@@ -99,7 +99,8 @@ def generatePartialDownlinkTask(gstw: GSTW, downlinkTime: float, dtList: list[DT
             return candidateDT, True
 
     # Now try to start the downlink task at the end of other downlink tasks
-    for otherDT in dtList:
+    otherDTList = [dt for dt in dtList if dt.end > gstw.TWs[0].start]
+    for otherDT in otherDTList:
         dtStart = otherDT.end + p.interDownlinkTime
         dtEnd = dtStart + downlinkTime
         candidateDT = DT(otToDownlink.GT, gstw.GS, dtStart, dtEnd)

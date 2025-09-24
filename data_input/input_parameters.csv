@@ -28,6 +28,6 @@ transmissionStartTime, 260
 
 # Transmission scheduling parameters
 minDownlinkFraction, 0.4
-maxLatencyHours, 18
+maxLatencyHours, 20
 slidingInsertIterations, 5
 reInsertIterations, 3
