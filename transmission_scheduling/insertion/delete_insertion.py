@@ -38,22 +38,30 @@ class DeleteInsertion(InsertionInterface):
 
         p = self.p
 
-        # Remove lower priority observation tasks until a valid insertion is found
         otListPrioSorted = otListPrioritySorted.copy()
-        otIndex = otListPrioSorted.index(otToBuffer)
-        otListLength = len(otListPrioSorted)
-        nRemove = otListLength - otIndex  # The number of observation tasks we can remove
+
+        # Find all lower priority observation tasks between the observation and the downlink window
+        otListLowerPrio = [ot for ot in otListPrioSorted
+                         if ot.GT.priority < otToBuffer.GT.priority and ot.start >= otToBuffer.end
+                         and ot.end <= gstwToDownlink.TWs[0].start]
+
+        # Reverse the order of the lower priority observation tasks, so we remove the lowest priority tasks first
+        otListLowerPrio.reverse()
+
+        otListLowPrioRemoved = otListPrioritySorted.copy()
         found = False
         bt = None
-        for i in range(0, nRemove):
-            otListMod = otListPrioSorted[:otListLength - i]
-            bt, _, _ = self.direct_insert.generateBuffer(otToBuffer, gstwToDownlink, otListMod, btList, dtList, gstwList)
+        for i in range(len(otListLowerPrio)):
+            otListLowPrioRemoved.remove(otListLowerPrio[i])
+            bt, _, _ = self.direct_insert.generateBuffer(otToBuffer, gstwToDownlink, otListLowPrioRemoved, btList,
+                                                         dtList, gstwList)
             if bt is not None:
                 found = True
                 break
 
         if not found:
             return None, otListPrioSorted, btList
+
 
         # Only remove the observation tasks that are needed to fit the buffering task
         bufferTimeWindow = TW(bt.start, bt.end + p.interTaskTime)
