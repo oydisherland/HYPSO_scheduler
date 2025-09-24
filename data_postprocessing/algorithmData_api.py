@@ -78,7 +78,9 @@ def getScheduleFromFile(filepath: str):
                 lat = float(groundTarget[1]),
                 long = float(groundTarget[2]),
                 priority = int(groundTarget[3]),
-                idealIllumination = int(groundTarget[4])
+                cloudCoverage=groundTarget[4],
+                exposureTime=groundTarget[5],
+                captureMode=groundTarget[6]
             )
 
             scheduledOT = OT(
