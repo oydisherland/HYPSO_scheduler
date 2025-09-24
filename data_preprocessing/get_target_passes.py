@@ -224,8 +224,8 @@ def getModelInput(captureTime: int, ohDurationInDays: int, ohDelayInHours: int, 
     
 
     # Remove targets that are obscured by clouds
-    cloudlessTargetpasses = removeCloudObscuredTargets(allTargetPasses, startTimeOH, endTimeOH)
-    #cloudlessTargetpasses = allTargetPasses
+    #cloudlessTargetpasses = removeCloudObscuredTargets(allTargetPasses, startTimeOH, endTimeOH)
+    cloudlessTargetpasses = allTargetPasses
 
     # Create Optimalization Horizon object
     oh = OH(
