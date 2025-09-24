@@ -1,9 +1,10 @@
-import datetime 
+import csv
+import datetime
 import pandas as pd
 
 from data_input.extract_cloud_data import getCloudData
 from data_input.satellite_positioning_calculations import findSatelliteTargetPasses
-from scheduling_model import OH, GT, TW, TTW
+from scheduling_model import OH, GT, TW, TTW, GSTW, GS
 
    
 
@@ -48,18 +49,18 @@ def getAllTargetPasses(captureTimeSeconds: int, startTimeOH: datetime.datetime, 
         startTimes = []
         endTimes = []
         twMaxSeconds = 500
-        for i in range(len(passes)-2):
-            if passes[i][1] == 'rise' and passes[i+1][1] == 'culminate' and passes[i+2][1] == 'set':
+        for i in range(len(passes) - 2):
+            if passes[i][1] == 'rise' and passes[i + 1][1] == 'culminate' and passes[i + 2][1] == 'set':
                 # The pass i -> i+2 corresponds to a time window
-                
-                time_diff = (passes[i+2][0] - passes[i][0]).total_seconds()
-                if time_diff < captureTimeSeconds or time_diff > twMaxSeconds: 
+
+                time_diff = (passes[i + 2][0] - passes[i][0]).total_seconds()
+                if time_diff < captureTimeSeconds or time_diff > twMaxSeconds:
                     # Time window too short or too long
                     continue
-                
+
                 # Add tw to start and end times
                 startTimes.append(passes[i][0])
-                endTimes.append(passes[i+2][0])
+                endTimes.append(passes[i + 2][0])
 
     
         # Check that number of start times is equal number of end times
@@ -68,7 +69,7 @@ def getAllTargetPasses(captureTimeSeconds: int, startTimeOH: datetime.datetime, 
             for p in passes:
                 print(p)
             raise ValueError("The length of start times and end times are not equal")
-        
+
         # Skip if no tw correspond to target, go next target
         if len(startTimes) == 0:
             continue
@@ -95,7 +96,76 @@ def getAllTargetPasses(captureTimeSeconds: int, startTimeOH: datetime.datetime, 
     return allTargetPasses
 
 
-def removeCloudObscuredTargets(allTargetPasses: list, startTimeOH: int, endTimeOH: int)-> list:
+def getGroundStationTimeWindows(startTimeOH: datetime.datetime, endTimeOH: datetime.datetime, minWindowLength: float,
+                                groundStationsFilePath: str, hypsoNr: int):
+    """
+    Get the time windows when the satellite passes over one of the ground stations.
+
+    Args:
+        startTimeOH (datetime): Start time of the observation horizon.
+        endTimeOH (datetime): End time of the observation horizon.
+        minWindowLength (float): Minimum length of a time window in seconds.
+        groundStationsFilePath (str): Path to the ground stations file.
+        hypsoNr (int): HYPSO satellite number.
+
+    Returns:
+        list[GSTW]: List of ground stations and their time windows.
+    """
+
+    # Read data from the provided csv
+    try:
+        with open(groundStationsFilePath, mode='r') as file:
+            reader = csv.reader(file)
+            # Read the data from the csv
+            groundStations = [row for row in reader]
+            # Remove the first row (header)
+            groundStations.pop(0)
+
+    except FileNotFoundError:
+        print(f"File not found: {groundStationsFilePath}")
+    except Exception as e:
+        print(f"An error occurred: {e}")
+
+    gstwList: list[GSTW] = []
+
+    # Loop through the stations and calculate the earliest start time and latest start time for downlinking
+    for index, groundStation in enumerate(groundStations):
+
+        # Create Ground Station object
+        groundStation = groundStation[0].split(';')
+        gs = GS(
+            id=groundStation[0],
+            lat=groundStation[1],
+            long=groundStation[2],
+            minElevation=groundStation[3]
+        )
+
+        # Find the time windows when satellite is passing the ground station. Each element in pass is a tuple : [utc_time, type('rise', 'culiminate', 'set')]
+        passes = findSatelliteTargetPasses(float(gs.lat), float(gs.long), float(gs.minElevation), startTimeOH, endTimeOH, hypsoNr)
+
+        # Skip iteration if no passes are found
+        if not passes:
+            continue
+
+        # For each target pass, find start time and end time of the time window
+        twList: list[TW] = []
+        for i in range(len(passes) - 2):
+            if passes[i][1] == 'rise' and passes[i + 1][1] == 'culminate' and passes[i + 2][1] == 'set':
+                # The pass i -> i+2 corresponds to a time window
+                startTime = (passes[i][0] - startTimeOH).total_seconds()
+                endTime = (passes[i + 2][0] - startTimeOH).total_seconds()
+                if endTime - startTime >= minWindowLength:
+                    twList.append(TW(startTime, endTime))
+
+        gstwList.append(GSTW(gs, twList))
+
+    if len(gstwList) == 0:
+        raise ValueError("No ground station passes found")
+
+    return gstwList
+
+
+def removeCloudObscuredTargets(allTargetPasses: list, startTimeOH: int, endTimeOH: int) -> list:
     """ Remove targets that are obscured by clouds """
 
     targetPassesWithoutClouds = []
@@ -111,20 +181,20 @@ def removeCloudObscuredTargets(allTargetPasses: list, startTimeOH: int, endTimeO
         maxCloudCoverage = gt.cloudCoverage
 
         # Get the cloud data for the target in the given OH
-        cloudData = getCloudData(latitude,longitude, startTimeOH, endTimeOH)
+        cloudData = getCloudData(latitude, longitude, startTimeOH, endTimeOH)
         assert cloudData != None
 
         # Remove observation windows when the cloud coverage is too high
-        for key in cloudData: #key is a datetime object
+        for key in cloudData:  #key is a datetime object
             if cloudData[key] > float(maxCloudCoverage):
                 for st in startTimes:
                     # Check the weather forcast corresponding to the closest whole hour of st
-                    if abs(key - st).total_seconds() <= 60*30:  #60s times 30min
+                    if abs(key - st).total_seconds() <= 60 * 30:  #60s times 30min
                         index = startTimes.index(st)
                         startTimes.pop(index)
                         endTimes.pop(index)
                         break
-        
+
         # If target has observation windows left, add it to the list of targets without clouds
         if(len(startTimes) > 0):
             targetPassesWithoutClouds.append(targetPass)
@@ -132,7 +202,7 @@ def removeCloudObscuredTargets(allTargetPasses: list, startTimeOH: int, endTimeO
     return targetPassesWithoutClouds
 
 
-def getModelInput( captureTime: int, ohDurationInDays: int, ohDelayInHours: int, hypsoNr: int, defineStartTime= 'now'):
+def getModelInput(captureTime: int, ohDurationInDays: int, ohDelayInHours: int, hypsoNr: int, defineStartTime='now'):
     """ Put the targetpasses-data into objects defined in scheduling_model.py
     Output:
     - oh: OH object
@@ -147,7 +217,7 @@ def getModelInput( captureTime: int, ohDurationInDays: int, ohDelayInHours: int,
     endTimeOH = startTimeOH + datetime.timedelta(days=ohDurationInDays)
     print("Start time OH:", startTimeOH, "End time OH:", endTimeOH)
     # Path to the file containing the ground targets data
-    targetsFilePath = 'HYPSO_scheduler/data_input/HYPSO_data/targets.csv'
+    targetsFilePath = 'data_input/HYPSO_data/targets.csv'
 
     # Get the target passes
     allTargetPasses = getAllTargetPasses(captureTime, startTimeOH, endTimeOH, targetsFilePath, hypsoNr)
@@ -159,13 +229,13 @@ def getModelInput( captureTime: int, ohDurationInDays: int, ohDelayInHours: int,
 
     # Create Optimalization Horizon object
     oh = OH(
-        utcStart = startTimeOH,
-        utcEnd = endTimeOH,
+        utcStart=startTimeOH,
+        utcEnd=endTimeOH,
         durationInDays=ohDurationInDays,
         delayInHours=ohDelayInHours,
-        hypsoNr = hypsoNr
+        hypsoNr=hypsoNr
     )
-    
+
     # Create objects from the ground targets data
     ttwList = []
     for targetPass in cloudlessTargetpasses:
@@ -187,7 +257,7 @@ def getModelInput( captureTime: int, ohDurationInDays: int, ohDelayInHours: int,
             TWs = twList
         )
         ttwList.append(ttw)
-    
+
     return oh, ttwList
 
 

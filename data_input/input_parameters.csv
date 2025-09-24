@@ -17,3 +17,17 @@ NSGA2Runds, 30
 ALNSRuns, 75
 maxTabBank, 10
 desNumber, 6
+
+# Transmission timing parameters
+bufferingTime, 1500
+afterCaptureTime, 1100
+interTaskTime, 100
+interDownlinkTime, 20
+downlinkDuration, 217
+transmissionStartTime, 260
+
+# Transmission scheduling parameters
+minDownlinkFraction, 0.4
+maxLatencyHours, 18
+slidingInsertIterations, 5
+reInsertIterations, 3
