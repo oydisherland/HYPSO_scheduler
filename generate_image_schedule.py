@@ -3,6 +3,7 @@ import os
 import datetime
 
 import data_postprocessing.algorithmData_api as AD_api
+from data_postprocessing.algorithmData_api import saveScheduleInJsonFile
 from scheduling_model import SP, GT
 from algorithm.NSGA2 import runNSGA
 from data_preprocessing.get_target_passes import getModelInput
@@ -79,6 +80,8 @@ schedule, _, _, _, _ = runNSGA(
     int(inputParameters["desNumber"]), 
     int(inputParameters["maxTabBank"])
 )
+
+saveScheduleInJsonFile("test-schedule.json", schedule)
 
 schedule_dt = convertScheduleToDateTime(schedule, oh)
 cmdLines = []

@@ -23,7 +23,7 @@ from line_profiler import LineProfiler
 parametersFilePath = "../data_input/input_parameters.csv"
 p = getInputParams(parametersFilePath)
 
-otList = AD_api.getScheduleFromFile("BS_test12-run1.json")  # observation task
+otList = AD_api.getScheduleFromFile("test-schedule.json")  # observation task
 otListPrioSorted = sorted(otList, key=lambda x: x.GT.priority, reverse=True)
 
 # Create TTW list by adding some time before and after each observation task
