@@ -217,24 +217,5 @@ def getBSTTW(filepath: str):
     return ttwList
     
 
-# Functions to transform the object 
-
-def convertScheduleToDateTime(scheduleWithRelativeTime: list, oh: OH) -> list:
-    """ Convert the time representation in the schedule to the absolute datetime representation, 
-    instead of relative to the start of optimization horizon"""
-
-    scheduleWithDatetimeObj = []
-    for ot in scheduleWithRelativeTime:
-        # Convert the start and end times of each OT to datetime objects
-        captureStart = oh.utcStart + timedelta(seconds=ot.start)
-        captureEnd = oh.utcStart + timedelta(seconds=ot.end)
-
-        otWithDatetime = OT(
-            GT=ot.GT,
-            start=captureStart,
-            end=captureEnd
-        )
-        scheduleWithDatetimeObj.append(otWithDatetime)
-    return scheduleWithDatetimeObj
 
 

@@ -11,13 +11,14 @@ from scheduling_model import OH, GT, TW, TTW, GSTW, GS
 def getAllTargetPasses(captureTimeSeconds: int, startTimeOH: datetime.datetime, endTimeOH: datetime.datetime, targetsFilePath: str, hypsoNr: int) -> list:# captureTimeSeconds: int, timewindow: int, startTimeDelay: int, targetsFilePath: str, hypsoNr: int) -> list:
     """ Get the timewindows for each time the satellte passes the targets
     Output:
-    - List of targetPassesData: [id, lat, long, elevation, priority, [startTimes], [endTimes]]
+    - List of all targetPasses, represend as dicts: [{GT, [startTimes], [EndTimes]}]
     """
 
     # Read data from targets.csv into the array targets
     targets_df = pd.read_csv(targetsFilePath)
     targets = targets_df.values.tolist()
     allTargetPasses = []
+    
 
     #Loop through the targets and calculate earliest start time and latest start time for capturing
     for index, target in enumerate(targets):
@@ -26,15 +27,16 @@ def getAllTargetPasses(captureTimeSeconds: int, startTimeOH: datetime.datetime, 
         latitude = target[1]
         longitude = target[2]
         elevation = target[3]
+        
 
         # Verify that the target is is not already in list of targets
-        if target[0] in [t[0] for t in allTargetPasses]:
+        if target[0] in [t['groundTarget'].id for t in allTargetPasses]:
             print(f"Target id {target[0]} is duplicated in target request list, only first entry is used")
             continue
 
         # Add the target priority as an element of the target data list
-        priotity = len(targets) - index
-        target.append(priotity)
+        priority = len(targets) - index
+        target.append(priority)
 
         # Find the time windows when satellite is passing the targets. Each element in pass is a tuple : [utc_time, type('rise', 'culiminate', 'set')]
         passes = findSatelliteTargetPasses(float(latitude), float(longitude), float(elevation), startTimeOH, endTimeOH, hypsoNr)
@@ -72,10 +74,24 @@ def getAllTargetPasses(captureTimeSeconds: int, startTimeOH: datetime.datetime, 
         if len(startTimes) == 0:
             continue
 
-        #Add the list of start times and end times to the target info list
-        target.append(startTimes)
-        target.append(endTimes)
-        allTargetPasses.append(target)
+        # Create a Ground Target (GT) object
+        groundTargetObject = GT(
+            id = target[0],
+            lat = latitude,
+            long = longitude,
+            priority = priority,
+            cloudCoverage = target[4],
+            exposureTime = target[5],
+            captureMode = target[6]
+        )
+
+        # Create a target Pass object 
+        targetPass = {}
+        targetPass['groundTarget'] = groundTargetObject
+        targetPass['startTimes'] = startTimes
+        targetPass['endTimes'] = endTimes
+
+        allTargetPasses.append(targetPass)
 
     return allTargetPasses
 
@@ -154,13 +170,15 @@ def removeCloudObscuredTargets(allTargetPasses: list, startTimeOH: int, endTimeO
 
     targetPassesWithoutClouds = []
 
-    for target in allTargetPasses:
+    for targetPass in allTargetPasses:
 
-        latitude = float(target[1])
-        longitude = float(target[2])
-        startTimes = target[-2]
-        endTimes = target[-1]
-        maxCloudCoverage = target[4]
+        gt = targetPass['groundTarget']
+
+        latitude = float(gt.lat)
+        longitude = float(gt.long)
+        startTimes = targetPass['startTimes']
+        endTimes = targetPass['endTimes']
+        maxCloudCoverage = gt.cloudCoverage
 
         # Get the cloud data for the target in the given OH
         cloudData = getCloudData(latitude, longitude, startTimeOH, endTimeOH)
@@ -178,8 +196,8 @@ def removeCloudObscuredTargets(allTargetPasses: list, startTimeOH: int, endTimeO
                         break
 
         # If target has observation windows left, add it to the list of targets without clouds
-        if (len(startTimes) > 0):
-            targetPassesWithoutClouds.append(target)
+        if(len(startTimes) > 0):
+            targetPassesWithoutClouds.append(targetPass)
 
     return targetPassesWithoutClouds
 
@@ -206,8 +224,8 @@ def getModelInput(captureTime: int, ohDurationInDays: int, ohDelayInHours: int, 
     
 
     # Remove targets that are obscured by clouds
-    #cloudlessTargetpasses = removeCloudObscuredTargets(allTargetPasses, startTimeOH, endTimeOH)
-    cloudlessTargetpasses = allTargetPasses
+    cloudlessTargetpasses = removeCloudObscuredTargets(allTargetPasses, startTimeOH, endTimeOH)
+    #cloudlessTargetpasses = allTargetPasses
 
     # Create Optimalization Horizon object
     oh = OH(
@@ -220,30 +238,23 @@ def getModelInput(captureTime: int, ohDurationInDays: int, ohDelayInHours: int, 
 
     # Create objects from the ground targets data
     ttwList = []
-    for groundTarget in cloudlessTargetpasses:
+    for targetPass in cloudlessTargetpasses:
         twList = []
-        # Create Ground Target object
-        gt = GT(
-            id=groundTarget[0],
-            lat=groundTarget[1],
-            long=groundTarget[2],
-            priority=groundTarget[-3],
-            idealIllumination=1
-        )
+
         # Create List of Time Window objects
-        if len(groundTarget[-2]) != len(groundTarget[-1]):
+        if len(targetPass['startTimes']) != len(targetPass['endTimes']):
             print("ERROR: The length of start times and end times are not equal")
 
-        for i in range(len(groundTarget[-2])):
+        for i in range(len(targetPass['startTimes'])):
             tw = TW(
-                start=(groundTarget[-2][i] - oh.utcStart).total_seconds(),
-                end=(groundTarget[-1][i] - oh.utcStart).total_seconds()
+                start = (targetPass['startTimes'][i] - oh.utcStart).total_seconds(),
+                end = (targetPass['endTimes'][i] - oh.utcStart).total_seconds() 
             )
             twList.append(tw)
         # Create Target Time Window object
         ttw = TTW(
-            GT=gt,
-            TWs=twList
+            GT = targetPass['groundTarget'],
+            TWs = twList
         )
         ttwList.append(ttw)
 

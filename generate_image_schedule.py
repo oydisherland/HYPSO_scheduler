@@ -1,11 +1,17 @@
 import csv
 import os
+import datetime
 
 import data_postprocessing.algorithmData_api as AD_api
-from scheduling_model import SP
+from scheduling_model import SP, GT
 from algorithm.NSGA2 import runNSGA
 from data_preprocessing.get_target_passes import getModelInput
+from campaignPlanner_interaction.intergrate_campaign_planner import createCmdFile, createCmdLine, convertScheduleToDateTime
+from data_postprocessing.quaternions import generate_quaternions
+from data_input.satellite_positioning_calculations import createSatelliteObject, findSatelliteTargetElevation
+from campaignPlanner_interaction.intergrate_campaign_planner import getScheduleFromCmdLine
 
+# Utility functions
 def csvToDict(filepath):
     """
     Reads a CSV file and returns a dictionary where each row's first column is the key and the second column is the value.
@@ -22,12 +28,31 @@ def csvToDict(filepath):
                 value = row[1].strip()
                 dict[key] = value
     return dict
+def calculateQuaternions(hypsoNr: int, groundTarget: GT, timestamp: datetime.datetime):
+
+    quaternions = {}
+
+    satellite_skf = createSatelliteObject(hypsoNr)
+    elevation = findSatelliteTargetElevation(float(groundTarget.lat), float(groundTarget.long), timestamp, hypsoNr)
+    q = generate_quaternions(satellite_skf, timestamp, float(groundTarget.lat), float(groundTarget.long), elevation)
+
+    quaternions['r'] = q[0]
+    quaternions['l'] = q[1]
+    quaternions['j'] = q[2]
+    quaternions['k'] = q[3]
+
+    return quaternions
 
 
 ### RUN THE ALGORITHM ####
 
 filePath_inputParameters = os.path.join(os.path.dirname(__file__),"data_input/input_parameters.csv")
 inputParameters = csvToDict(filePath_inputParameters)
+
+# Check if start time is now
+if inputParameters["startTimeOH"] == "now":
+    inputParameters["startTimeOH"] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
+
 
 
 oh, ttwList = getModelInput(
@@ -55,5 +80,45 @@ schedule, _, _, _, _ = runNSGA(
     int(inputParameters["maxTabBank"])
 )
 
-# AD_api.saveScheduleInJsonFile(os.path.join(os.path.dirname(__file__), f"{inputParameters['testName']}.json"), schedule)
-# print(AD_api.getScheduleFromFile(os.path.join(os.path.dirname(__file__), f"{inputParameters['testName']}.json")))
+schedule_dt = convertScheduleToDateTime(schedule, oh)
+cmdLines = []
+for ot in schedule_dt:
+    groundTarget = ot.GT
+    quaternions = calculateQuaternions(int(inputParameters["hypsoNr"]), groundTarget, ot.start)
+    newCommandLine = createCmdLine(str(ot.start), int(inputParameters["hypsoNr"]), groundTarget, quaternions)
+    cmdLines.append(newCommandLine)
+
+createCmdFile(os.path.join(os.path.dirname(__file__), f"campaignPlanner_interaction/{inputParameters['testName']}_TargetsCmds.txt"), cmdLines)
+
+
+# filePath_dummyTest = os.path.join(os.path.dirname(__file__), "campaignPlanner_interaction/dummyTest_TargetsCmds.txt")
+# filePath_campaignPlanner = os.path.join(os.path.dirname(__file__), "campaignPlanner_interaction/campaign_scripts_h2_2025-09-10.txt")
+
+# cmdLines_dummy = []
+# cmdLines_campaign = []
+
+# with open(filePath_dummyTest, 'r') as f:
+#         for line in f:
+#             cmdLines_dummy .append(line.rstrip())
+
+# with open(filePath_campaignPlanner, 'r') as f:
+#         for line in f:
+#             cmdLines_campaign.append(line.rstrip())
+# print("Number of scheduled targets: ", len(cmdLines_campaign)//2)
+# for i in range(len(cmdLines_campaign)):
+#     observationTask_c, taskType_c = getScheduleFromCmdLine(cmdLines_campaign[i])
+#     targetId_c = observationTask_c.GT.id
+#     for cmdLine_d in cmdLines_dummy:
+#         observationTask_d, taskType_d = getScheduleFromCmdLine(cmdLine_d)
+#         targetId_d = observationTask_d.GT.id
+
+#         if targetId_c == targetId_d and taskType_c == taskType_d:
+#             # compare cmd lines 
+#             if observationTask_c.GT.exposureTime != observationTask_d.GT.exposureTime:
+#                     print(f"Difference in exposure time found: {observationTask_c.GT.exposureTime} vs {observationTask_d.GT.exposureTime}")
+#             if observationTask_c.start != observationTask_d.start:
+#                 print(f"{observationTask_c.start} \n{observationTask_d.start}\n")
+                
+# """
+# Find a difference in unix middle time, as well as exsposure time, on some but not all of the targets
+# """

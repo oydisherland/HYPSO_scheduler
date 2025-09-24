@@ -34,7 +34,7 @@ def getCloudData(lat: float, lon: float, startTime, endTime) -> dict:
             print(cloud_data[storeThisKey])
     """
 
-    data = getForecast(63.50,10.39)
+    data = getForecast(lat,lon)
     # Navigate to the timeseries data
     timeseries = data["properties"]["timeseries"]
 
