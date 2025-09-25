@@ -177,7 +177,7 @@ def hypso2BufferLimitConflicting(btList: list[BT], dtList: list[DT], gstwList: l
     if printResults:
         print(bufferClearedTimestamps)
 
-        # Check if the buffer is cleared often enough
+    # Check if the buffer is cleared often enough
     for i in range(len(bufferClearedTimestamps) - 1):
         bufferClearedStart = bufferClearedTimestamps[i]
         bufferClearedEnd = bufferClearedTimestamps[i + 1]
