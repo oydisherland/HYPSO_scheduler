@@ -1,6 +1,5 @@
 import csv
 import datetime
-import pandas as pd
 
 from data_input.extract_cloud_data import getCloudData
 from data_input.satellite_positioning_calculations import findSatelliteTargetPasses
@@ -15,8 +14,7 @@ def getAllTargetPasses(captureTimeSeconds: int, startTimeOH: datetime.datetime, 
     """
 
     # Read data from targets.csv into the array targets
-    targets_df = pd.read_csv(targetsFilePath)
-    targets = targets_df.values.tolist()
+    targets = read_csv_to_list(targetsFilePath)
     allTargetPasses = []
     
 
@@ -270,3 +268,15 @@ def printModelInput():
         print(ttw.GT.id)
         for tw in ttw.TWs:
             print(tw.start, tw.end)
+
+def read_csv_to_list(file_path):
+    """
+    Reads a CSV file and returns it as a list of lists, similar to pandas .values.tolist()
+    """
+    with open(file_path, newline='', encoding='utf-8') as csvfile:
+        reader = csv.reader(csvfile)
+        # Skip header
+        header = next(reader, None)
+        # Read all rows as lists
+        data = [row for row in reader]
+    return data
