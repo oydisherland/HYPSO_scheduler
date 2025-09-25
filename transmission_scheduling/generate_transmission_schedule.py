@@ -10,12 +10,10 @@ from input_parameters import getInputParams
 from transmission_scheduling.two_stage_transmission_insert import twoStageTransmissionScheduling
 from util import plotSchedule
 
-# TODO add limit to amount of captures in the buffer at any time
+# TODO add support for cleaning up downlinks that are spread over 3 ground station passes
 # TODO assign each buffer task a file ID (19-25 for hypso-2) and make sure no two buffer tasks have the same ID at the same time
-# TODO leave some captures buffered but not downlinked at the end of the observation horizon
 # TODO figure what to do with captures that can only be planned during a ground station pass
 # TODO consider that data transmission cannot happen or is at least slower during a capture when in the transmission window
-# TODO add support for cleaning up downlinks that are spread over 3 ground station passes
 
 def generate_schedule():
     parametersFilePath = "../data_input/input_parameters.csv"
@@ -59,7 +57,14 @@ def generate_schedule():
 
     print(f"Number of buffering tasks: {len(btList)}")
 
-    plotSchedule(otListModified, otListPrioSorted, btList, dtList, gstwList, ttwList, p)
+    if not profiling:
+        plotSchedule(otListModified, otListPrioSorted, btList, dtList, gstwList, ttwList, p)
 
 
-cProfile.run('generate_schedule()', 'cprofile_output.prof')
+profiling = False
+
+if not profiling:
+    generate_schedule()
+else:
+    cProfile.run('generate_schedule()', 'cprofile_output.prof')
+    pass
