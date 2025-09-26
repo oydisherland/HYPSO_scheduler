@@ -247,7 +247,7 @@ def plotSchedule(otListMod: list[OT], otList: list[OT], btList: list[BT], dtList
         )
         ax.text(
             x=bt.start + (bt.end - bt.start) / 2,
-            y=0.52,  # below y=0.5 row
+            y= 0.62 - (i % 5) * 0.02,  # below y=0.5 row
             s=str(i),
             ha="center",
             va="top",
@@ -261,7 +261,7 @@ def plotSchedule(otListMod: list[OT], otList: list[OT], btList: list[BT], dtList
             ha="center",
             va="top",
             fontsize=10,
-            color="black"
+            color="grey"
         )
 
     # GSTWs (green)

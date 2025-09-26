@@ -16,6 +16,7 @@ from util import plotSchedule
 # TODO figure what to do with captures that can only be planned during a ground station pass
 # TODO experiment with having more than 7 buffers between buffer clearings, this does require adjustments in the priority cleanup/reassignment of the downlink tasks
 # TODO consider that data transmission cannot happen or is at least slower during a capture when in the transmission window
+# TODO prioritize scheduling in less busy parts of the schedule first
 
 def generate_schedule():
     parametersFilePath = "../data_input/input_parameters.csv"

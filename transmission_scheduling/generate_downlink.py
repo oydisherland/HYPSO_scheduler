@@ -36,14 +36,16 @@ def generateDownlinkTask(gstw: GSTW, nextGSTWList: list[tuple[GS,TW]], dtList: l
         return None
 
     remainingDownlinkTime = p.downlinkDuration
+    previousCandidateSuccess = True
     for entry in nextGSTWList:
         nextGSTW = GSTW(entry[0], [entry[1]])
         # Now we know the first part of the downlink task was scheduled, try to schedule the remaining part in the next GSTW
-        remainingDownlinkTime -= (candidateList[-1].end - candidateList[-1].start)
+        if previousCandidateSuccess:
+            remainingDownlinkTime -= (candidateList[-1].end - candidateList[-1].start)
         newCandidateDT, isPartialSchedule = generatePartialDownlinkTask(nextGSTW, remainingDownlinkTime, dtList,
-                                                                         gtToDownlink, p)
-
-        if newCandidateDT is not None:
+                                                                        gtToDownlink, p)
+        previousCandidateSuccess = newCandidateDT is not None
+        if previousCandidateSuccess:
             candidateList.append(newCandidateDT)
 
         if not isPartialSchedule:
@@ -85,13 +87,13 @@ def generatePartialDownlinkTask(gstw: GSTW, downlinkTime: float, dtList: list[DT
     dtEnd = dtStart + downlinkTime
     candidateDT = DT(gtToDownlink, gstw.GS, dtStart, dtEnd)
     if dtEnd <= gstw.TWs[0].end:
-        if not downlinkTaskConflicting(candidateDT, dtList):
+        if not downlinkTaskConflicting(candidateDT, dtList, p):
             return candidateDT, False
     else:
         # Try to schedule a partial downlink task
         dtEnd = gstw.TWs[0].end
         candidateDT = DT(gtToDownlink, gstw.GS, dtStart, dtEnd)
-        if not downlinkTaskConflicting(candidateDT, dtList):
+        if not downlinkTaskConflicting(candidateDT, dtList, p):
             return candidateDT, True
 
     # Now try to start the downlink task at the end of other downlink tasks
@@ -102,13 +104,13 @@ def generatePartialDownlinkTask(gstw: GSTW, downlinkTime: float, dtList: list[DT
         candidateDT = DT(gtToDownlink, gstw.GS, dtStart, dtEnd)
 
         if dtStart >= gstw.TWs[0].start and dtEnd <= gstw.TWs[0].end:
-            if not downlinkTaskConflicting(candidateDT, dtList):
+            if not downlinkTaskConflicting(candidateDT, dtList, p):
                 return candidateDT, False
         elif gstw.TWs[0].start <= dtStart <= gstw.TWs[0].end < dtEnd:
             # Try to schedule a partial downlink task
             dtEnd = gstw.TWs[0].end
             candidateDT = DT(gtToDownlink, gstw.GS, dtStart, dtEnd)
-            if not downlinkTaskConflicting(candidateDT, dtList):
+            if not downlinkTaskConflicting(candidateDT, dtList, p):
                 return candidateDT, True
 
     return None, True

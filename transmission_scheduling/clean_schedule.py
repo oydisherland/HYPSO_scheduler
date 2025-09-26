@@ -31,8 +31,11 @@ def cleanUpSchedule(otList: list[OT], btList: list[BT], dtList: list[DT], gstwLi
     """
     p = parameters
 
-    # The buffers are already scheduled in priority order, so we only rearrange for FIFO
-    btListCleaned = arrangeBufferScheduleFIFO(btList, otList) if bufferOrder == OrderType.FIFO else btList.copy()
+    btListCleaned = btList.copy()
+    if bufferOrder == OrderType.PRIORITY:
+        btListCleaned = arrangeBufferSchedulePriority(btList, otList)
+    elif bufferOrder == OrderType.FIFO:
+        btListCleaned = arrangeBufferScheduleFIFO(btList, otList)
 
     btListCleaned = assignBufferIDs(btListCleaned, dtList, gstwList, p, downlinkOrder)
 
@@ -40,6 +43,23 @@ def cleanUpSchedule(otList: list[OT], btList: list[BT], dtList: list[DT], gstwLi
 
 
     return btListCleaned, dtListCleaned
+
+def arrangeBufferSchedulePriority(btList: list[BT], otList: list[OT]):
+    btListPrioSorted: list[BT] = []
+    btListTimeSorted = sorted(btList, key=lambda x: x.start)
+    otListPrioSorted = sorted(otList, key=lambda x: x.GT.priority, reverse=True)
+
+    for ot in otListPrioSorted:
+        # Find the first bt after the ot and assign the ground target to the buffer task
+        for i, bt in enumerate(btListTimeSorted):
+            if bt.start >= ot.start:
+                newBT = BT(ot.GT, -1, bt.start, bt.end)
+                btListPrioSorted.append(newBT)
+                btListTimeSorted.pop(i)
+                break
+
+    return btListPrioSorted
+
 
 def arrangeBufferScheduleFIFO(btList: list[BT], otList: list[OT]):
     btListCleaned = []

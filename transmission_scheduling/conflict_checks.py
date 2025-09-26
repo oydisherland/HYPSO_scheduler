@@ -107,16 +107,17 @@ def observationTaskConflicting(ot: OT, btList: list[BT], otList: list[OT], gstwL
     return bool(conflictOTs or conflictBTs or conflictGSTWs)
 
 
-def downlinkTaskConflicting(dt: DT, dtList: list[DT]):
+def downlinkTaskConflicting(dt: DT, dtList: list[DT], p: TransmissionParams) -> bool:
     """
     Check if the downlink task overlaps with any other scheduled downlink tasks.
 
     Args:
         dt (DT): The downlink task to validate.
         dtList (list[DT]): List of all already scheduled downlink tasks.
+        p (TransmissionParams): Input parameters containing timing configurations.
     """
     for otherDT in dtList:
-        if otherDT.end < dt.start or otherDT.start > dt.end:
+        if otherDT.end + p.interDownlinkTime <= dt.start or otherDT.start >= dt.end + p.interDownlinkTime:
             continue
         else:
             return True
