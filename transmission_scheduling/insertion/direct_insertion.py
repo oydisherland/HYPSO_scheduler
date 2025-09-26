@@ -47,7 +47,7 @@ class DirectInsertion(InsertionInterface):
         # Candidate buffer task start and end
         btStart = otToBuffer.end + p.afterCaptureTime
         btEnd = btStart + p.bufferingTime
-        candidateBT = BT(otToBuffer.GT, btStart, btEnd)
+        candidateBT = BT(otToBuffer.GT, -1, btStart, btEnd)
         if  btEnd < gstwToDownlink.TWs[0].start and btStart > latestBTStartTime:
             if not bufferTaskConflicting(candidateBT, btList, otList, dtList, gstwList, p):
                 latestBT = candidateBT
@@ -68,7 +68,7 @@ class DirectInsertion(InsertionInterface):
                 # We already have a better candidate, skip this one
                 continue
 
-            candidateBT = BT(otToBuffer.GT, btStart, btEnd)
+            candidateBT = BT(otToBuffer.GT, -1, btStart, btEnd)
             if not bufferTaskConflicting(candidateBT, btList, otList, dtList, gstwList, p):
                 latestBT = candidateBT
                 latestBTStartTime = btStart
@@ -85,7 +85,7 @@ class DirectInsertion(InsertionInterface):
                 # We already have a better candidate, skip this one
                 continue
 
-            candidateBT = BT(otToBuffer.GT, btStart, btEnd)
+            candidateBT = BT(otToBuffer.GT, -1, btStart, btEnd)
             if not bufferTaskConflicting(candidateBT, btList, otList, dtList, gstwList, p):
                 latestBT = candidateBT
                 latestBTStartTime = btStart
@@ -103,7 +103,7 @@ class DirectInsertion(InsertionInterface):
                     # We already have a better candidate, skip this one
                     continue
 
-                candidateBT = BT(otToBuffer.GT, btStart, btEnd)
+                candidateBT = BT(otToBuffer.GT, -1, btStart, btEnd)
                 if not bufferTaskConflicting(candidateBT, btList, otList, dtList, gstwList, p):
                     latestBT = candidateBT
                     latestBTStartTime = btStart

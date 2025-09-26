@@ -24,6 +24,8 @@ class TransmissionParams:
         ohDuration: Observation horizon duration in seconds
         hypsoNr: Hyperspectral satellite number (1 or 2)
         captureDuration: Duration of a capture in seconds
+        maxBufferFiles: Maximum number of captures that can be stored in the buffer.
+        bufferStartID: File ID of the highest priority buffer, all other files will have incremented IDs.
     """
     bufferingTime: float = 0.0
     afterCaptureTime: float = 0.0
@@ -39,6 +41,8 @@ class TransmissionParams:
     ohDuration: float = 0.0
     hypsoNr: int = 1
     captureDuration: float = 0.0
+    maxBufferFiles: int = 1
+    bufferStartID: int = 1
 
     # Warning should be thrown because these parameters should not be changed after initialization
     def __setattr__(self, name, value):
@@ -87,6 +91,8 @@ def getInputParams(relativeFilePath: str) -> TransmissionParams:
         p.maxLatency = 3600 * float(paramsDict["maxLatencyHours"])
         # Evaluate dependent parameters
         p.minGSWindowTime = p.transmissionStartTime + p.minDownlinkFraction * p.downlinkDuration
+        p.maxBufferFiles = int(paramsDict["maxBufferFilesH2"]) if p.hypsoNr == 2 else int(paramsDict["maxBufferFilesH1"])
+        p.bufferStartID = int(paramsDict["bufferStartIDH2"]) if p.hypsoNr == 2 else int(paramsDict["bufferStartIDH1"])
 
     return p
 

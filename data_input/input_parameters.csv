@@ -31,3 +31,7 @@ minDownlinkFraction, 0.4
 maxLatencyHours, 20
 slidingInsertIterations, 5
 reInsertIterations, 3
+maxBufferFilesH2, 7
+maxBufferFilesH1, 2
+bufferStartIDH2, 19
+bufferStartIDH1, 25

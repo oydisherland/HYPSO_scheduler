@@ -216,7 +216,7 @@ class SlideInsertion(InsertionInterface):
         btListCandidate = btList.copy()
         for i, bt in enumerate(btList):
             if otToShift.start <= bt.start <= gapTW.start:
-                btListCandidate[i] = BT(bt.GT, bt.start - backwardShift, bt.end - backwardShift)
+                btListCandidate[i] = BT(bt.GT, -1, bt.start - backwardShift, bt.end - backwardShift)
 
         # Check all buffers for conflict
         conflictingBuffer = False
@@ -294,11 +294,11 @@ class SlideInsertion(InsertionInterface):
                 if bt.start - otToShift.end == p.afterCaptureTime:
                     # This is the first buffer after the gap window
                     btListIndex = btListCandidate.index(bt)
-                    btListCandidate[btListIndex] = BT(bt.GT, bt.start + forwardShift, bt.end + forwardShift)
+                    btListCandidate[btListIndex] = BT(bt.GT, -1, bt.start + forwardShift, bt.end + forwardShift)
                 elif bt.start - previousBT.end == p.interTaskTime:
                     # This is one of the buffers in the stack of buffers after the gap
                     btListIndex = btListCandidate.index(bt)
-                    btListCandidate[btListIndex] = BT(bt.GT, bt.start + forwardShift, bt.end + forwardShift)
+                    btListCandidate[btListIndex] = BT(bt.GT, -1, bt.start + forwardShift, bt.end + forwardShift)
                 else:
                     # This is the first buffer after the gap that is not part of the chain of buffers after the capture, so we stop here
                     break

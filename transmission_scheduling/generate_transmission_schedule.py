@@ -7,12 +7,14 @@ import time
 
 import cProfile
 from input_parameters import getInputParams
+from transmission_scheduling.clean_schedule import cleanUpSchedule, OrderType
 from transmission_scheduling.two_stage_transmission_insert import twoStageTransmissionScheduling
+from transmission_scheduling.util import latencyCounter
 from util import plotSchedule
 
-# TODO add support for cleaning up downlinks that are spread over 3 ground station passes
-# TODO assign each buffer task a file ID (19-25 for hypso-2) and make sure no two buffer tasks have the same ID at the same time
+# TODO re-insertion iterations take a long time, find a way to cancel insertions earlier
 # TODO figure what to do with captures that can only be planned during a ground station pass
+# TODO experiment with having more than 7 buffers between buffer clearings, this does require adjustments in the priority cleanup/reassignment of the downlink tasks
 # TODO consider that data transmission cannot happen or is at least slower during a capture when in the transmission window
 
 def generate_schedule():
@@ -47,6 +49,9 @@ def generate_schedule():
     start_time = time.perf_counter()
     valid, btList, dtList, otListModified = twoStageTransmissionScheduling(otListPrioSorted, ttwList, gstwList, p)
     end_time = time.perf_counter()
+    latencyCounter(otListModified, dtList)
+    btList, dtList = cleanUpSchedule(otListModified, btList, dtList, gstwList, p, OrderType.FIFO, OrderType.PRIORITY)
+    latencyCounter(otListModified, dtList)
 
     btList = sorted(btList, key=lambda x: x.GT.priority, reverse=True)
     dtList = sorted(dtList, key=lambda x: x.GT.priority, reverse=True)

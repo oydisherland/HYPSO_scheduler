@@ -1,6 +1,6 @@
 from scheduling_model import OT, BT, GSTW, TW, DT
 from transmission_scheduling.input_parameters import TransmissionParams
-from transmission_scheduling.util import getFreeGSGaps, gstwToSortedTupleList
+from transmission_scheduling.util import getBufferClearedTimestamps, gstwToSortedTupleList
 
 
 def getConflictingTasks(tw: TW, btList: list[BT], otList: list[OT], gstwList: list[GSTW], p: TransmissionParams, cancelEarly: bool = False):
@@ -124,8 +124,8 @@ def downlinkTaskConflicting(dt: DT, dtList: list[DT]):
     return False
 
 
-def hypso2BufferLimitConflicting(btList: list[BT], dtList: list[DT], gstwList: list[GSTW], p: TransmissionParams,
-                                 printResults:bool = False) -> bool:
+def hypso2BufferLimitConflicting(btList: list[BT], dtList: list[DT], gstwList: list[GSTW], p: TransmissionParams) \
+        -> bool:
     """
     Check whether the buffer tasks scheduled would result in a conflict with the buffer size limit.
 
@@ -144,49 +144,20 @@ def hypso2BufferLimitConflicting(btList: list[BT], dtList: list[DT], gstwList: l
         return False
 
     gstwSortedTupleList = gstwToSortedTupleList(gstwList)
-    freeGSGapList = getFreeGSGaps(btList, gstwSortedTupleList)
-    # Store the last part of all the downlink tasks
-    dtDictUnique: dict = {}
-    for dt in dtList:
-        existing = dtDictUnique.get(dt.GT)
-        if existing is None or dt.start > existing.start:
-            dtDictUnique[dt.GT] = dt
+    bufferClearedTimestamps = getBufferClearedTimestamps(btList, dtList, gstwSortedTupleList)
 
-    # Now that we have found the GS passes with no buffering tasks in between them,
-    # verify that the buffer is empty enough before the first of these two passes
-    bufferClearedTimestamps = [] # List of timestamps when the buffer is cleared
-    for freeGSGap in freeGSGapList:
-        preGapFileCount = 0
-        for dt in dtDictUnique.values():
-            if dt.end < freeGSGap.start:
-                preGapFileCount -= 1
-        for bt in btList:
-            if bt.end < freeGSGap.start:
-                preGapFileCount += 1
-
-        if preGapFileCount <= 2:
-            bufferClearedTimestamps.append(freeGSGap.end)
-
-    # Additionally, the buffer should also be cleared at the end of the schedule
+    # The buffer should be cleared at the end of the schedule
     lastGSTW = gstwSortedTupleList[-1]
     if not bufferClearedTimestamps[-1] >= lastGSTW[1].start:
         return True
-
-    bufferClearedTimestamps.insert(0, 0)
-
-    if printResults:
-        print(bufferClearedTimestamps)
 
     # Check if the buffer is cleared often enough
     for i in range(len(bufferClearedTimestamps) - 1):
         bufferClearedStart = bufferClearedTimestamps[i]
         bufferClearedEnd = bufferClearedTimestamps[i + 1]
-        # Check if the duration between buffer clearing is too lang with too many buffers planned in between
-        if bufferClearedEnd - bufferClearedStart < p.maxLatency:
-            continue
-        # Now we know that the duration is too long, check how many buffers are planned in between
+        # The amount of buffers that are stored between two clearings cannot be too large
         buffers = [bt for bt in btList if not (bt.end < bufferClearedStart or bt.start > bufferClearedEnd)]
-        if len(buffers) > 6:
+        if len(buffers) > p.maxBufferFiles:
             return True
 
     return False

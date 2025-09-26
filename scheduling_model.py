@@ -23,7 +23,7 @@ OT = namedtuple("OT", [ "GT", "start", "end"])
 SP = namedtuple("SP", ["maxCaptures", "captureDuration", "transitionTime"])
 
 #Buffering Task
-BT = namedtuple("BT", ["GT", "start", "end"])
+BT = namedtuple("BT", ["GT", "fileID", "start", "end"])
 
 #Ground Station
 GS = namedtuple("GS", ["id", "lat", "long", "minElevation"])

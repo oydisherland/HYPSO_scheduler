@@ -2,6 +2,7 @@ import copy
 
 from scheduling_model import OT, GSTW, GS, TW, TTW, BT, DT
 from transmission_scheduling.input_parameters import TransmissionParams
+import matplotlib.pyplot as plt
 
 
 def findPossibleTTW(ttwListToUpdate: list[TTW], otListLastInsertionAttempt: list[OT], scheduledOTList: list[OT]) \
@@ -43,7 +44,7 @@ def findPossibleTTW(ttwListToUpdate: list[TTW], otListLastInsertionAttempt: list
     return ttwListUnscheduled
 
 
-def getClosestGSTW(taskEndTime: float, gstwList: list[GSTW], maxLatency=float("Infinity")):
+def getClosestGSTW(taskEndTime: float, gstwList: list[GSTW], maxLatency=float("Infinity")) -> list[GSTW]:
     """
     Get the closest ground station time windows to the observation task.
 
@@ -152,10 +153,41 @@ def getFreeGSGaps(btList: list[BT], gstwListSorted: list[tuple[GS, TW]]) -> list
 
     return freeGapList
 
+def getBufferClearedTimestamps(btList: list[BT], dtList: list[DT], gstwSortedTupleList: list[tuple[GS,TW]]) \
+        -> list[float]:
+    """
+    Find the timestamps when the buffer is cleared.
+    This happens when there are one or two buffer files left which get two full ground station passes to downlink.
+    """
+    freeGSGapList = getFreeGSGaps(btList, gstwSortedTupleList)
+    # Store the last part of all the downlink tasks
+    dtDictUnique: dict = {}
+    for dt in dtList:
+        existing = dtDictUnique.get(dt.GT)
+        if existing is None or dt.start > existing.start:
+            dtDictUnique[dt.GT] = dt
+
+    # Now that we have found the GS passes with no buffering tasks in between them,
+    # verify that the buffer is empty enough before the first of these two passes
+    bufferClearedTimestamps = []  # List of timestamps when the buffer is cleared
+    for freeGSGap in freeGSGapList:
+        preGapFileCount = 0
+        for dt in dtDictUnique.values():
+            if dt.end < freeGSGap.start:
+                preGapFileCount -= 1
+        for bt in btList:
+            if bt.end < freeGSGap.start:
+                preGapFileCount += 1
+
+        if preGapFileCount <= 2:
+            bufferClearedTimestamps.append(freeGSGap.end)
+
+    bufferClearedTimestamps.insert(0, 0)
+
+    return bufferClearedTimestamps
 
 def plotSchedule(otListMod: list[OT], otList: list[OT], btList: list[BT], dtList: list[DT], gstwList: list[GSTW],
                  ttwList: list[TTW], p: TransmissionParams):
-    import matplotlib.pyplot as plt
 
     fig, ax = plt.subplots(figsize=(30, 5))
 
@@ -215,8 +247,17 @@ def plotSchedule(otListMod: list[OT], otList: list[OT], btList: list[BT], dtList
         )
         ax.text(
             x=bt.start + (bt.end - bt.start) / 2,
-            y=0.25,  # below y=0.5 row
+            y=0.52,  # below y=0.5 row
             s=str(i),
+            ha="center",
+            va="top",
+            fontsize=10,
+            color="black"
+        )
+        ax.text(
+            x=bt.start + (bt.end - bt.start) / 2,
+            y=0.25,  # below y=0.5 row
+            s=bt.fileID,
             ha="center",
             va="top",
             fontsize=10,
@@ -276,7 +317,7 @@ def plotSchedule(otListMod: list[OT], otList: list[OT], btList: list[BT], dtList
         )
         ax.text(
             x=dt.start + (dt.end - dt.start) / 2,
-            y=1.75 - (i % 12) * 0.05,  # below y=1.5 row
+            y=1.75 - (i % 11) * 0.05,  # below y=1.5 row
             s=str(gtId),
             ha="center",
             va="top",
