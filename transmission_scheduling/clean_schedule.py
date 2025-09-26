@@ -93,13 +93,12 @@ def regenerateDownlinkSchedule(btList: list[BT], gstwList: list[GSTW], p: Transm
         closestGSTW = getClosestGSTW(bt.end, gstwList)
         closestGSTWSorted = gstwToSortedTupleList(closestGSTW)
 
-        # Iterate over the closest ground station passes and try to buffer it before the pass
         for i, entry in enumerate(closestGSTWSorted):
             gstw = GSTW(entry[0], [entry[1]])
             # Find the list of future GSTW that could be used to downlink the remaining data if needed
             nextGSTWList: list[tuple[GS, TW]]  # Storing the GS passes in this form is more convenient
             nextGSTWList = closestGSTWSorted[i + 1:] if i + 1 < len(closestGSTWSorted) else []
-            newDT = generateDownlinkTask(gstw, nextGSTWList, p.downlinkDuration, dtListCleaned, bt.GT, p)
+            newDT = generateDownlinkTask(gstw, nextGSTWList, dtListCleaned, bt.GT, p)
             if newDT is not None:
                 # Valid downlink task(s) were generated
                 dtListCleaned = dtListCleaned + newDT

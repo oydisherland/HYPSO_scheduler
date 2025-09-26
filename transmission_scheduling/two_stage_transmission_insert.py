@@ -154,7 +154,7 @@ def scheduleTransmissions(otList: list[OT], ttwList: list[TTW], gstwList: list[G
                 nextGSTWList: list[tuple[GS, TW]]  # Storing the GS passes in this form is more convenient
                 nextGSTWList = closestGSTWSorted[i + 1:] if i + 1 < len(closestGSTWSorted) else []
 
-                candidateDTList = generateDownlinkTask(gstw, nextGSTWList, p.downlinkDuration, dtList, otToBuffer.GT, p)
+                candidateDTList = generateDownlinkTask(gstw, nextGSTWList, dtList, otToBuffer.GT, p)
                 if candidateDTList is None: continue  # No valid downlink task could be scheduled in this ground station time window
                 dtListPlusCandidates = dtList + candidateDTList
                 bt, otListMod, btList = insertMethod.generateBuffer(otToBuffer, gstw, otListMod, btList,

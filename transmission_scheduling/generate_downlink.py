@@ -3,7 +3,7 @@ from transmission_scheduling.conflict_checks import downlinkTaskConflicting
 from transmission_scheduling.input_parameters import TransmissionParams
 
 
-def generateDownlinkTask(gstw: GSTW, nextGSTWList: list[tuple[GS,TW]], downlinkTime: float, dtList: list[DT],
+def generateDownlinkTask(gstw: GSTW, nextGSTWList: list[tuple[GS,TW]], dtList: list[DT],
                          gtToDownlink: GT, p: TransmissionParams) -> list[DT] | None:
     """
     Tries to schedule an entire downlink of an observation task in two given ground station time windows.
@@ -13,7 +13,6 @@ def generateDownlinkTask(gstw: GSTW, nextGSTWList: list[tuple[GS,TW]], downlinkT
     Args:
         gstw (GSTW): The ground station time window to schedule the downlink task in.
         nextGSTWList (list[tuple[GS,TW]]): The list of all future ground station passes that are considered for this OT.
-        downlinkTime (float): The length in seconds of the downlink task to schedule.
         dtList (list[DT]): List of all already scheduled downlink tasks.
         gtToDownlink (GT): The ground target of which the capture needs to be downlinked.
         p (TransmissionParams): The transmission scheduling parameters.
@@ -21,7 +20,7 @@ def generateDownlinkTask(gstw: GSTW, nextGSTWList: list[tuple[GS,TW]], downlinkT
     Returns:
         list[DT]: A list of scheduled downlink tasks, or None if no valid scheduling was found.
     """
-    candidateDT, isPartialSchedule = generatePartialDownlinkTask(gstw, downlinkTime, dtList, gtToDownlink, p)
+    candidateDT, isPartialSchedule = generatePartialDownlinkTask(gstw, p.downlinkDuration, dtList, gtToDownlink, p)
     candidateList = [candidateDT]
 
     if candidateDT is None:
