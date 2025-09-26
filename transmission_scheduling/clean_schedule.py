@@ -72,13 +72,13 @@ def assignBufferIDs(btList: list[BT], dtList: list[DT], gstwList: list[GSTW], p:
     gstwSortedTupleList = gstwToSortedTupleList(gstwList)
     bufferClearedTimestamps = getBufferClearedTimestamps(btList, dtList, gstwSortedTupleList)
 
-    btListFileID: list[BT] = []
+    btListIDAssigned: list[BT] = []
     for bt in btListSorted:
-        highestIDFree = getHighestFreeBufferID(bt, btListFileID, bufferClearedTimestamps, p)
+        highestIDFree = getHighestFreeBufferID(bt, btListIDAssigned, bufferClearedTimestamps, p)
         newBT = BT(bt.GT, highestIDFree, bt.start, bt.end)
-        btListFileID.append(newBT)
+        btListIDAssigned.append(newBT)
 
-    return btListFileID
+    return btListIDAssigned
 
 
 def regenerateDownlinkSchedule(btList: list[BT], gstwList: list[GSTW], p: TransmissionParams) -> list[DT]:
@@ -109,7 +109,7 @@ def regenerateDownlinkSchedule(btList: list[BT], gstwList: list[GSTW], p: Transm
 def getHighestFreeBufferID(btToCheck: BT, btList: list[BT], bufferClearedTimestamps: list[float],
                            p: TransmissionParams) -> int:
     """
-    Get the buffer ID with the highest priority that is free at the given timestamp.
+    Get the buffer ID with the highest priority that is free at the moment the given buffering task starts.
 
     Args:
         btToCheck (BT): The buffering task for which to find a free buffer ID.
@@ -121,11 +121,12 @@ def getHighestFreeBufferID(btToCheck: BT, btList: list[BT], bufferClearedTimesta
     thisDownlinkEndTime = getDownlinkEndTime(btToCheck, bufferClearedTimestamps)
     for bt in btList:
         if bt.start > thisDownlinkEndTime:
+            # The btToCheck is fully downlinked before this buffer task starts, so it cannot block any IDs
             continue
 
         downlinkEndTime = getDownlinkEndTime(bt, bufferClearedTimestamps)
         if downlinkEndTime > btToCheck.start:
-            # This buffer task is still in the buffer at the given timestamp
+            # This buffer task is still in the buffer when the btToCheck starts
             if bt.fileID in freeIDs:
                 freeIDs.remove(bt.fileID)
 
@@ -141,7 +142,8 @@ def getDownlinkEndTime(bt: BT, bufferClearedTimestamps: list[float]) -> float:
     For now, the assumption is made that this is at a time when the buffer can be fully cleared
     """
     # Find the first timestamp that is later than the bt end time
-    for ts in bufferClearedTimestamps:
+    bufferClearedTimestampsSorted = sorted(bufferClearedTimestamps)
+    for ts in bufferClearedTimestampsSorted:
         if ts > bt.end:
             return ts
     return float("inf")
