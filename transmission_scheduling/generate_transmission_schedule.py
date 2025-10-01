@@ -6,7 +6,7 @@ from scheduling_model import TTW, TW
 import time
 
 import cProfile
-from input_parameters import getInputParams
+from input_parameters import getTransmissionInputParams
 from transmission_scheduling.clean_schedule import cleanUpSchedule, OrderType
 from transmission_scheduling.two_stage_transmission_insert import twoStageTransmissionScheduling
 from transmission_scheduling.util import latencyCounter
@@ -19,7 +19,7 @@ from util import plotSchedule
 
 def generate_schedule():
     parametersFilePath = "../data_input/input_parameters.csv"
-    p = getInputParams(parametersFilePath)
+    p = getTransmissionInputParams(parametersFilePath)
 
     otList = AD_api.getScheduleFromFile("test-schedule.json")  # observation task
     otListPrioSorted = sorted(otList, key=lambda x: x.GT.priority, reverse=True)

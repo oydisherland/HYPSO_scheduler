@@ -1,5 +1,6 @@
 import csv
 import datetime
+import os
 
 from data_input.extract_cloud_data import getCloudData
 from data_input.satellite_positioning_calculations import findSatelliteTargetPasses, findIllumminationPeriods
@@ -237,7 +238,8 @@ def removeCloudObscuredPasses(allTargetPasses: list, startTimeOH: datetime.datet
     return targetPassesWithoutClouds
 
 
-def getModelInput(captureTime: int, ohDurationInDays: int, ohDelayInHours: int, hypsoNr: int, defineStartTime='now'):
+def getModelInput(captureTime: int, ohDurationInDays: int, ohDelayInHours: int, hypsoNr: int, minGSWindowLength: float,
+                  defineStartTime='now'):
     """ Put the targetpasses-data into objects defined in scheduling_model.py
     Output:
     - oh: OH object
@@ -253,7 +255,7 @@ def getModelInput(captureTime: int, ohDurationInDays: int, ohDelayInHours: int, 
     print("Start time OH:", startTimeOH.strftime('%Y-%m-%dT%H:%M:%SZ'), "End time OH:", endTimeOH.strftime('%Y-%m-%dT%H:%M:%SZ'))
     
     # Path to the file containing the ground targets data
-    targetsFilePath = 'HYPSO_scheduler/data_input/HYPSO_data/targets.json'
+    targetsFilePath = os.path.join(os.path.dirname(__file__),"../data_input/HYPSO_data/targets.json")
 
     # Get the target passes
     allTargetPasses = getAllTargetPasses(captureTime, startTimeOH, endTimeOH, targetsFilePath, hypsoNr)
@@ -298,13 +300,17 @@ def getModelInput(captureTime: int, ohDurationInDays: int, ohDelayInHours: int, 
         )
         ttwList.append(ttw)
 
-    return oh, ttwList
+    # Get the passes over the ground stations
+    groundStationFilePath = "data_input/HYPSO_data/ground_stations.csv"
+    gstwList = getGroundStationTimeWindows(startTimeOH, endTimeOH, minGSWindowLength, groundStationFilePath, hypsoNr)
+
+    return oh, ttwList, gstwList
 
 
 def printModelInput():
     """ Print the input data for the model """
 
-    oh, ttws = getModelInput(50, 2, 2, 1)
+    oh, ttws, _ = getModelInput(50, 2, 2, 1, 0)
     print("Observation Horizon:", oh.utcStart, oh.utcEnd, "\nDuration and delay:", oh.durationInDays, oh.delayInHours)
     for ttw in ttws:
         print(ttw.GT.id)
