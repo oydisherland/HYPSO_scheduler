@@ -188,11 +188,15 @@ def getBufferClearedTimestamps(btList: list[BT], dtList: list[DT], gstwSortedTup
 
 def plotSchedule(otListMod: list[OT], otList: list[OT], btList: list[BT], dtList: list[DT], gstwList: list[GSTW],
                  ttwList: list[TTW], p: TransmissionParams):
+    otListPrio = sorted(otList, key=lambda x: x.GT.priority, reverse=True)
+    otListModPrio = sorted(otListMod, key=lambda x: x.GT.priority, reverse=True)
+    btListPrio = sorted(btList, key=lambda x: x.GT.priority, reverse=True)
+    dtListPrio = sorted(dtList, key=lambda x: x.GT.priority, reverse=True)
 
     fig, ax = plt.subplots(figsize=(30, 5))
 
     # Observation Tasks (blue)
-    for i, ot in enumerate(otListMod, start=1):
+    for i, ot in enumerate(otListModPrio, start=1):
         ax.barh(
             y=0,
             width=ot.end - ot.start,
@@ -213,7 +217,7 @@ def plotSchedule(otListMod: list[OT], otList: list[OT], btList: list[BT], dtList
             color="black"
         )
 
-    for i, ot in enumerate(otList, start=1):
+    for i, ot in enumerate(otListPrio, start=1):
         ax.barh(
             y=-0.5,
             width=ot.end - ot.start,
@@ -235,7 +239,7 @@ def plotSchedule(otListMod: list[OT], otList: list[OT], btList: list[BT], dtList
         )
 
     # Buffering Tasks (orange)
-    for i, bt in enumerate(btList, start=1):
+    for i, bt in enumerate(btListPrio, start=1):
         ax.barh(
             y=0.5,
             width=bt.end - bt.start,
@@ -302,7 +306,7 @@ def plotSchedule(otListMod: list[OT], otList: list[OT], btList: list[BT], dtList
     # Add DTlist plotting
     previousGT = None
     gtId = 0
-    for i, dt in enumerate(dtList, start=1):
+    for i, dt in enumerate(dtListPrio, start=1):
         if dt.GT != previousGT:
             previousGT = dt.GT
             gtId += 1

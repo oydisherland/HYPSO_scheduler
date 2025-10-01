@@ -70,6 +70,9 @@ schedule, _, _, _, _ = runNSGA(
     int(inputParameters["maxTabBank"])
 )
 
+# Sort the schedule by priority to indicate for which tasks buffering should be scheduled first
+schedule = sorted(schedule, key=lambda x: x.GT.priority, reverse=True)
+
 _, bufferSchedule, downlinkSchedule, modifiedObservationSchedule = twoStageTransmissionScheduling(
     schedule,
     ttwList,
