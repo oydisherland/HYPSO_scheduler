@@ -3,7 +3,7 @@ import pandas as pd
 import skyfield.api as skf
 from datetime import timedelta
 
-from scheduling_model import OH, OT, GT
+from scheduling_model import OH, OT, GT, BT
 
 
 # Functions to reformat the schedule data
@@ -28,9 +28,9 @@ def convertScheduleToDateTime(scheduleWithRelativeTime: list, oh: OH) -> list:
         )
         scheduleWithDatetimeObj.append(otWithDatetime)
     return scheduleWithDatetimeObj
-def getTimeMiddleOfCapture(observationTarget: OT):
+def getMiddleTime(startTime: datetime.datetime, endTime: datetime.datetime) -> datetime.datetime:
     """ Get the middle time of the capture window for a given observation target """
-    middleTime = observationTarget.start + (observationTarget.end - observationTarget.start) / 2
+    middleTime = startTime + (endTime - startTime) / 2
     return middleTime
 
 # Function that format schedule data into campaign planner commands
@@ -40,14 +40,15 @@ def createCmdFile(txtFilepath, cmdLines):
     with open(txtFilepath, 'w') as f:
         for line in cmdLines:
             f.write(line.rstrip() + "\n")
-def createCmdLine(captureTime: datetime.datetime, hypsoNr: int, groundTarget: GT, quaternions: dict): 
+
+def createCaptureCmdLine(observationTask: OT, hypsoNr: int, quaternions: dict): 
     if hypsoNr not in [1, 2]:
         print("Invalid hypsoNr")
         return None
     
     row = {}
     # Unix time
-    row['-u'] = convertToUnixTime(captureTime)
+    row['-u'] = convertToUnixTime(getMiddleTime(observationTask.start, observationTask.end))
     # DontKnow
     row['-s'] = None
     # DontKnow - Duration of buffering could be calculated based on image size
@@ -61,17 +62,17 @@ def createCmdLine(captureTime: datetime.datetime, hypsoNr: int, groundTarget: GT
     # DontKnow
     row['-a'] = None
     # Geometry of capture
-    row['-p'] = groundTarget.captureMode
+    row['-p'] = observationTask.GT.captureMode
     # Target name
-    row['-n'] = groundTarget.id
+    row['-n'] = observationTask.GT.id
     # Latitude
-    row['-lat'] = float(groundTarget.lat)
+    row['-lat'] = float(observationTask.GT.lat)
     # Longitude
-    row['-lon'] = float(groundTarget.long)
+    row['-lon'] = float(observationTask.GT.long)
     # Elevation angle with sun
     row['--sunZenith'] = 45
     # Exposure time - get from targets.csv
-    row['-e'] = float(groundTarget.exposureTime)
+    row['-e'] = float(observationTask.GT.exposureTime)
     # Quaternion r
     row['-r'] = quaternions['r']
     # Quaternion l
@@ -92,6 +93,61 @@ def createCmdLine(captureTime: datetime.datetime, hypsoNr: int, groundTarget: GT
                  f' -e {row['-e']:6.2f} -r {row['-r']:20.17f}  -l {row['-l']:20.17f}  -j {row['-j']:20.17f}  -k {row['-k']:20.17f}'\
                  f' {"":24} {"--capture":9}'\
                  f' % {captureTime} - Predicted Cloud cover: {row['Predicted Cloud cover:']:5.1f} % Estimated downlink complete: \n'
+
+    return cmd_string
+
+def createBufferCmdLine( bufferTask: BT, hypsoNr: int, quaternions: dict, captureTimeMiddle: datetime.datetime,): 
+    if hypsoNr not in [1, 2]:
+        print("Invalid hypsoNr")
+        return None
+    row = {}
+    # Unix time
+    row['-u'] = convertToUnixTime(captureTimeMiddle)
+    # DontKnow
+    row['-s'] = None
+    # DontKnow - Duration of buffering could be calculated based on image size
+    row['-d'] = 2442 if hypsoNr == 1 else 1509
+    # Radio band
+    row['-o'] = 0 if hypsoNr == 1 else 'xband' 
+    # Hypso number
+    row['-hypso'] = hypsoNr
+    # DontKnow, maby registernumber where it is buffered, should probably be sat otherwise then, blir endret senere
+    row['-b'] = bufferTask.fileID
+    # DontKnow
+    row['-a'] = None
+    # Geometry of capture
+    row['-p'] = bufferTask.GT.captureMode
+    # Target name
+    row['-n'] = bufferTask.GT.id
+    # Latitude
+    row['-lat'] = float(bufferTask.GT.lat)
+    # Longitude
+    row['-lon'] = float(bufferTask.GT.long)
+    # Elevation angle with sun
+    row['--sunZenith'] = 45
+    # Exposure time - get from targets.csv
+    row['-e'] = float(bufferTask.GT.exposureTime)
+    # Quaternion r
+    row['-r'] = quaternions['r']
+    # Quaternion l
+    row['-l'] = quaternions['l']
+    # Quaternion j
+    row['-j'] = quaternions['j']
+    # Quaternion k
+    row['-k'] = quaternions['k']
+    row['-t'] = getMiddleTime(bufferTask.start, bufferTask.end).strftime("%Y-%m-%dT%H:%M:%SZ")
+    # Capture mode
+    row['--capture'] = None
+    # Comment
+    row['%'] = captureTimeMiddle
+    # Cloud cover 
+    row['Predicted Cloud cover:'] = 0
+
+    cmd_string = f'-u {row['-u']} -s -d {row['-d']:4d} -o {row['-o']:5} -hypso {row['-hypso']} -b {row['-b']} -a -p {row['-p']:11}{"":2}'\
+                 f' -n {row['-n']:20} -lat {round(row['-lat'], 4):8.4f} -lon {round(row['-lon'], 4):9.4f} --sunZenith {round((row['--sunZenith']),2):8.4f} {"           "}'\
+                 f' -e {row['-e']:6.2f} -r {row['-r']:20.17f}  -l {row['-l']:20.17f}  -j {row['-j']:20.17f}  -k {row['-k']:20.17f}'\
+                 f' -t {row['-t']:24} {"--capture":9}'\
+                 f' % {captureTimeMiddle} - Predicted Cloud cover: {row['Predicted Cloud cover:']:5.1f} % Estimated downlink complete: \n'
 
     return cmd_string
 
