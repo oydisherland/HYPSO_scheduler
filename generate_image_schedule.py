@@ -2,14 +2,16 @@ import csv
 import os
 import datetime
 
-import data_postprocessing.algorithmData_api as AD_api
 from scheduling_model import SP, GT
 from algorithm.NSGA2 import runNSGA
 from data_preprocessing.get_target_passes import getModelInput
 from campaignPlanner_interaction.intergrate_campaign_planner import createCmdFile, createCmdLine, convertScheduleToDateTime
 from data_postprocessing.quaternions import generate_quaternions
 from data_input.satellite_positioning_calculations import createSatelliteObject, findSatelliteTargetElevation
-from campaignPlanner_interaction.compareSchedules  import captureScriptVsCampaignScript, compareScripts
+from transmission_scheduling.clean_schedule import cleanUpSchedule, OrderType
+from transmission_scheduling.input_parameters import getTransmissionInputParams
+from transmission_scheduling.two_stage_transmission_insert import twoStageTransmissionScheduling
+from transmission_scheduling.util import plotSchedule
 
 
 # Utility functions
@@ -49,16 +51,19 @@ def calculateQuaternions(hypsoNr: int, groundTarget: GT, timestamp: datetime.dat
 
 filePath_inputParameters = os.path.join(os.path.dirname(__file__),"data_input/input_parameters.csv")
 inputParameters = csvToDict(filePath_inputParameters)
+parametersFilePath = os.path.join(os.path.dirname(__file__),"data_input/input_parameters.csv")
+inputParamsTransmission = getTransmissionInputParams(parametersFilePath)
 
 # Check if start time is now
 if inputParameters["startTimeOH"] == "now":
     inputParameters["startTimeOH"] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
 
-oh, ttwList = getModelInput(
+oh, ttwList, gstwList = getModelInput(
     int(inputParameters["captureDuration"]),
     int(inputParameters["durationInDaysOH"]),
     int(inputParameters["delayInHoursOH"]),
     int(inputParameters["hypsoNr"]),
+    inputParamsTransmission.minGSWindowTime,
     (inputParameters["startTimeOH"]))
 
 schedulingParameters = SP(
@@ -79,7 +84,34 @@ schedule, _, _, _, _ = runNSGA(
     int(inputParameters["maxTabBank"])
 )
 
-schedule_dt = convertScheduleToDateTime(schedule, oh)
+_, bufferSchedule, downlinkSchedule, modifiedObservationSchedule = twoStageTransmissionScheduling(
+    schedule,
+    ttwList,
+    gstwList,
+    inputParamsTransmission
+)
+
+bufferSchedule, downlinkSchedule = cleanUpSchedule(
+    modifiedObservationSchedule,
+    bufferSchedule,
+    downlinkSchedule,
+    gstwList,
+    inputParamsTransmission,
+    OrderType.FIFO,
+    OrderType.PRIORITY
+)
+
+plotSchedule(
+    modifiedObservationSchedule,
+    schedule,
+    bufferSchedule,
+    downlinkSchedule,
+    gstwList,
+    ttwList,
+    inputParamsTransmission
+)
+
+schedule_dt = convertScheduleToDateTime(modifiedObservationSchedule, oh)
 cmdLines = []
 for ot in schedule_dt:
     groundTarget = ot.GT

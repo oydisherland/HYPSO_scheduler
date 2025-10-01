@@ -54,7 +54,7 @@ class TransmissionParams:
             )
         super().__setattr__(name, value)
 
-def getInputParams(relativeFilePath: str) -> TransmissionParams:
+def getTransmissionInputParams(relativeFilePath: str) -> TransmissionParams:
     """
     Retrieve the input parameters for the transmission scheduling from a CSV file.
 

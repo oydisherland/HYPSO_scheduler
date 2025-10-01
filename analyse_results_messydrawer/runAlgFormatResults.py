@@ -585,7 +585,7 @@ schedulingParameters = SP(40, 60, 90)
 startTime = "2025-04-01 16:47:49.990785"
 ohDurationInDays, ohDelayInHours, hypsoNr = 2, 2, 1
 
-oh, ttwList = getModelInput(schedulingParameters.captureDuration, ohDurationInDays, ohDelayInHours, hypsoNr, startTime)
+oh, ttwList, _ = getModelInput(schedulingParameters.captureDuration, ohDurationInDays, ohDelayInHours, hypsoNr, 0, startTime)
 
 optimizedSchedule, objVals = runGreedyAlgorithm(ttwList, oh, schedulingParameters)
 print(objVals)
