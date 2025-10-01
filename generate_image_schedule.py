@@ -6,7 +6,7 @@ import data_postprocessing.algorithmData_api as AD_api
 from scheduling_model import SP, GT
 from algorithm.NSGA2 import runNSGA
 from data_preprocessing.get_target_passes import getModelInput
-from campaignPlanner_interaction.intergrate_campaign_planner import createCmdFile, createCmdLine, convertScheduleToDateTime
+from campaignPlanner_interaction.intergrate_campaign_planner import createCmdFile, createCaptureCmdLine, createBufferCmdLine, convertScheduleToDateTime
 from data_postprocessing.quaternions import generate_quaternions
 from data_input.satellite_positioning_calculations import createSatelliteObject, findSatelliteTargetElevation
 from campaignPlanner_interaction.compareSchedules  import captureScriptVsCampaignScript, compareScripts
@@ -84,7 +84,7 @@ cmdLines = []
 for ot in schedule_dt:
     groundTarget = ot.GT
     quaternions = calculateQuaternions(int(inputParameters["hypsoNr"]), groundTarget, ot.start)
-    newCommandLine = createCmdLine(str(ot.start), int(inputParameters["hypsoNr"]), groundTarget, quaternions)
+    newCommandLine = createCaptureCmdLine(ot, int(inputParameters["hypsoNr"]), quaternions)
     cmdLines.append(newCommandLine)
 
 createCmdFile(os.path.join(os.path.dirname(__file__), f"campaignPlanner_interaction/{inputParameters['testName']}_TargetsCmds.txt"), cmdLines)
