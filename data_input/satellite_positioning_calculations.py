@@ -1,4 +1,5 @@
 import skyfield.api as skf
+from skyfield import almanac
 import datetime 
 import os
 
@@ -71,3 +72,43 @@ def findSatelliteTargetElevation(targetLat: float, targetLong: float, time: date
     elevation, _, _ = topocentric.altaz()
 
     return elevation.degrees
+
+def findIllumminationPeriods(targetLat: float, targetLong: float, startTime: datetime.datetime, endTime: datetime.datetime) -> list:
+    """ Find the periods where the target is illuminated by the sun within the timeinterval of startTime and endTime
+    Output:
+    - List of tuples (sunsetStartTime, sunsetEndTime)
+    """
+
+    # Load skyfield timescale 
+    ts = skf.load.timescale()
+    # Load planetary ephemeris
+    eph = skf.load('de421.bsp')   
+    # Define the location of the target
+    location = skf.wgs84.latlon(targetLat, targetLong)
+
+    # Define time range (today)
+    t0 = ts.utc(startTime)
+    t1 = ts.utc(endTime)
+
+    # Build function for sunrise/sunset
+    findSunriseSunset = almanac.sunrise_sunset(eph, location)
+
+    # Find events
+    times, events = almanac.find_discrete(t0, t1, findSunriseSunset)
+    illuminatedPeriods = []
+
+    for time_curr, event_curr, time_next, event_next in zip(times[:-1], events[:-1], times[1:], events[1:]):
+
+        if event_curr != 1 or event_next != 0:
+            # The current event is not a sunset, or the next event is not a rise
+            continue
+
+        sunsetStartTime = time_curr.utc_datetime()
+        sunsetEndTime = time_next.utc_datetime()
+        illuminatedPeriods.append((sunsetStartTime, sunsetEndTime))
+
+    if events[-1] == 1:
+        # If last event is rise, add a timestamp at end of OH
+        illuminatedPeriods.append((times[-1].utc_datetime(), t1.utc_datetime()))
+
+    return illuminatedPeriods
