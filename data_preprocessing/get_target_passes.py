@@ -301,7 +301,7 @@ def getModelInput(captureTime: int, ohDurationInDays: int, ohDelayInHours: int, 
         ttwList.append(ttw)
 
     # Get the passes over the ground stations
-    groundStationFilePath = "data_input/HYPSO_data/ground_stations.csv"
+    groundStationFilePath = os.path.join(os.path.dirname(__file__),"../data_input/HYPSO_data/ground_stations.csv")
     gstwList = getGroundStationTimeWindows(startTimeOH, endTimeOH, minGSWindowLength, groundStationFilePath, hypsoNr)
 
     return oh, ttwList, gstwList
