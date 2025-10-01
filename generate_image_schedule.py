@@ -2,14 +2,15 @@ import csv
 import os
 import datetime
 
-import data_postprocessing.algorithmData_api as AD_api
 from scheduling_model import SP, GT
 from algorithm.NSGA2 import runNSGA
 from data_preprocessing.get_target_passes import getModelInput
-from campaignPlanner_interaction.intergrate_campaign_planner import createCmdFile, createCaptureCmdLine, createBufferCmdLine, convertScheduleToDateTime
-from data_postprocessing.quaternions import generate_quaternions
-from data_input.satellite_positioning_calculations import createSatelliteObject, findSatelliteTargetElevation
-from campaignPlanner_interaction.compareSchedules  import captureScriptVsCampaignScript, compareScripts
+from campaignPlanner_interaction.intergrate_campaign_planner import createCmdFile, createCmdLinesForCaptureAndBuffering
+
+from transmission_scheduling.clean_schedule import cleanUpSchedule, OrderType
+from transmission_scheduling.input_parameters import getTransmissionInputParams
+from transmission_scheduling.two_stage_transmission_insert import twoStageTransmissionScheduling
+from transmission_scheduling.util import plotSchedule
 
 
 # Utility functions
@@ -29,38 +30,28 @@ def csvToDict(filepath):
                 value = row[1].strip()
                 dict[key] = value
     return dict
-def calculateQuaternions(hypsoNr: int, groundTarget: GT, timestamp: datetime.datetime):
 
-    quaternions = {}
-
-    satellite_skf = createSatelliteObject(hypsoNr)
-    elevation = findSatelliteTargetElevation(float(groundTarget.lat), float(groundTarget.long), timestamp, hypsoNr)
-    q = generate_quaternions(satellite_skf, timestamp, float(groundTarget.lat), float(groundTarget.long), elevation)
-
-    quaternions['r'] = q[0]
-    quaternions['l'] = q[1]
-    quaternions['j'] = q[2]
-    quaternions['k'] = q[3]
-
-    return quaternions
 
 
 ### RUN THE ALGORITHM ####
 
 filePath_inputParameters = os.path.join(os.path.dirname(__file__),"data_input/input_parameters.csv")
 inputParameters = csvToDict(filePath_inputParameters)
+parametersFilePath = os.path.join(os.path.dirname(__file__),"data_input/input_parameters.csv")
+inputParamsTransmission = getTransmissionInputParams(parametersFilePath)
 
 # Check if start time is now
 if inputParameters["startTimeOH"] == "now":
     inputParameters["startTimeOH"] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
 
-oh, ttwList = getModelInput(
+oh, ttwList, gstwList = getModelInput(
     int(inputParameters["captureDuration"]),
     int(inputParameters["durationInDaysOH"]),
     int(inputParameters["delayInHoursOH"]),
     int(inputParameters["hypsoNr"]),
+    inputParamsTransmission.minGSWindowTime,
     (inputParameters["startTimeOH"]))
-
+ttwlistCopy = ttwList.copy()
 schedulingParameters = SP(
     int(inputParameters["maxCaptures"]), 
     int(inputParameters["captureDuration"]), 
@@ -79,14 +70,39 @@ schedule, _, _, _, _ = runNSGA(
     int(inputParameters["maxTabBank"])
 )
 
-schedule_dt = convertScheduleToDateTime(schedule, oh)
-cmdLines = []
-for ot in schedule_dt:
-    groundTarget = ot.GT
-    quaternions = calculateQuaternions(int(inputParameters["hypsoNr"]), groundTarget, ot.start)
-    newCommandLine = createCaptureCmdLine(ot, int(inputParameters["hypsoNr"]), quaternions)
-    cmdLines.append(newCommandLine)
+# Sort the schedule by priority to indicate for which tasks buffering should be scheduled first
+schedule = sorted(schedule, key=lambda x: x.GT.priority, reverse=True)
 
+_, bufferSchedule, downlinkSchedule, modifiedObservationSchedule = twoStageTransmissionScheduling(
+    schedule,
+    ttwList,
+    gstwList,
+    inputParamsTransmission
+)
+
+bufferSchedule, downlinkSchedule = cleanUpSchedule(
+    modifiedObservationSchedule,
+    bufferSchedule,
+    downlinkSchedule,
+    gstwList,
+    inputParamsTransmission,
+    OrderType.FIFO,
+    OrderType.PRIORITY
+)
+
+plotSchedule(
+    modifiedObservationSchedule,
+    schedule,
+    bufferSchedule,
+    downlinkSchedule,
+    gstwList,
+    ttwList,
+    inputParamsTransmission
+)
+
+## Create command lines for campaign planner
+
+cmdLines = createCmdLinesForCaptureAndBuffering(modifiedObservationSchedule, bufferSchedule, inputParameters, oh)
 createCmdFile(os.path.join(os.path.dirname(__file__), f"campaignPlanner_interaction/{inputParameters['testName']}_TargetsCmds.txt"), cmdLines)
 
 

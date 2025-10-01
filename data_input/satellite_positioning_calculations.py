@@ -93,14 +93,18 @@ def findIllumminationPeriods(targetLat: float, targetLong: float, startTime: dat
     # Build function for sunrise/sunset
     findSunriseSunset = almanac.sunrise_sunset(eph, location)
 
-    # Find events
+    # Find the times corresponding to event=0 (sunset) and event=1 (sunrise)
     times, events = almanac.find_discrete(t0, t1, findSunriseSunset)
     illuminatedPeriods = []
+
+    if events[0] == 0:
+        # first event is sunset, add a timestamp at start of OH
+        illuminatedPeriods.append((t0.utc_datetime(), times[0].utc_datetime()))
 
     for time_curr, event_curr, time_next, event_next in zip(times[:-1], events[:-1], times[1:], events[1:]):
 
         if event_curr != 1 or event_next != 0:
-            # The current event is not a sunset, or the next event is not a rise
+            # The current event is not a sunrise, or the next event is not a sunset
             continue
 
         sunsetStartTime = time_curr.utc_datetime()

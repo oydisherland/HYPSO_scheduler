@@ -140,9 +140,6 @@ def hypso2BufferLimitConflicting(btList: list[BT], dtList: list[DT], gstwList: l
     where there are no buffering tasks scheduled in between them.
     If buffer is only filled with one or two files before these two passes, then the buffer will be fully cleaned.
     """
-    if len(btList) < 7:
-        # There cannot be a conflict with this little buffers
-        return False
 
     gstwSortedTupleList = gstwToSortedTupleList(gstwList)
     bufferClearedTimestamps = getBufferClearedTimestamps(btList, dtList, gstwSortedTupleList)
