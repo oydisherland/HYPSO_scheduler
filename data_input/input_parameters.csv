@@ -10,10 +10,28 @@ delayInHoursOH, 0
 hypsoNr, 2
 
 # Algorithm spesific parameters
-populationSize, 20
+populationSize, 10
 isTabooBankFIFO, True
 iqNonLinear, False
 NSGA2Runds, 5
 ALNSRuns, 10
 maxTabBank, 10
 desNumber, 6
+
+# Transmission timing parameters
+bufferingTime, 1500
+afterCaptureTime, 600
+interTaskTime, 100
+interDownlinkTime, 5
+downlinkDuration, 217
+transmissionStartTime, 260
+
+# Transmission scheduling parameters
+minDownlinkFraction, 0.4
+maxLatencyHours, 20
+slidingInsertIterations, 5
+reInsertIterations, 3
+maxBufferFilesH2, 7
+maxBufferFilesH1, 2
+bufferStartIDH2, 19
+bufferStartIDH1, 25
