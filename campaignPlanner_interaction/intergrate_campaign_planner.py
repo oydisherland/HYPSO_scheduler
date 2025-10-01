@@ -1,4 +1,5 @@
 import datetime
+import pandas as pd
 import skyfield.api as skf
 from datetime import timedelta
 
@@ -68,7 +69,7 @@ def createCmdLine(captureTime: datetime.datetime, hypsoNr: int, groundTarget: GT
     # Longitude
     row['-lon'] = float(groundTarget.long)
     # Elevation angle with sun
-    row['--sunZenith'] = 90
+    row['--sunZenith'] = 45
     # Exposure time - get from targets.csv
     row['-e'] = float(groundTarget.exposureTime)
     # Quaternion r
@@ -144,3 +145,19 @@ def getScheduleFromCmdLine(cmdLine: str, captureDurationSec: int = 60):
     
     return observationTask, 'Unknown'
 
+# Function that creates a map between id of a target and its corresponding priority
+def getTargetIdPriorityDict(targetsFilePath: str) -> dict:
+    """ Get the priority of a list of target IDs from the targets.csv file """
+
+    priorityIdDict = {}
+    targets_df = pd.read_csv(targetsFilePath)
+    targets = targets_df.values.tolist()
+
+    for index, target in enumerate(targets):
+        target = target[0].split(';')
+        targetId = target[0]
+        targetPriority = len(targets) - index
+
+        priorityIdDict[targetId] = targetPriority
+
+    return priorityIdDict

@@ -1,4 +1,5 @@
 #Targets are defined as: Name;Latitude;Longitude;MinElevation;MaxCloudCover;exposure;capture_mode night_imaging. The higher the number; the higher the priority. Default capture mode; valid_until (iso-format)
+trondheim;63.50;10.39;50;15;50;wide;0;
 menindee;-32.34;142.3;40;90;15;wide;0;
 malpasdam;-30.27913157644037;151.7385707620185;40;40;15;wide;0;
 wavescisbridge;30.195822776461537;-90.12332011505328;88;5;30;wide;0;
@@ -16,7 +17,6 @@ lacrau;43.5617;4.8494;50;20;35;wide;0;
 gobabeb;-23.602;15.126;50;5;20;wide;0;
 losangeles;33.564;-118.118;60;1;30;wide;0;
 losangelesnight;33.60;-118.10;50;0;999;wide;1;
-trondheim;63.50;10.39;50;15;50;wide;0;
 trondheimnight;63.50;10.39;50;0;999;wide;1;
 buvika;63.32;10.18;40;20;40;wide;0;
 trondheimnorth;63.54;10.32;30;20;40;wide;0;

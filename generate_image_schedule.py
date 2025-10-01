@@ -9,7 +9,8 @@ from data_preprocessing.get_target_passes import getModelInput
 from campaignPlanner_interaction.intergrate_campaign_planner import createCmdFile, createCmdLine, convertScheduleToDateTime
 from data_postprocessing.quaternions import generate_quaternions
 from data_input.satellite_positioning_calculations import createSatelliteObject, findSatelliteTargetElevation
-from campaignPlanner_interaction.intergrate_campaign_planner import getScheduleFromCmdLine
+from campaignPlanner_interaction.compareSchedules  import captureScriptVsCampaignScript, compareScripts
+
 
 # Utility functions
 def csvToDict(filepath):
@@ -53,8 +54,6 @@ inputParameters = csvToDict(filePath_inputParameters)
 if inputParameters["startTimeOH"] == "now":
     inputParameters["startTimeOH"] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
 
-
-
 oh, ttwList = getModelInput(
     int(inputParameters["captureDuration"]),
     int(inputParameters["durationInDaysOH"]),
@@ -91,34 +90,16 @@ for ot in schedule_dt:
 createCmdFile(os.path.join(os.path.dirname(__file__), f"campaignPlanner_interaction/{inputParameters['testName']}_TargetsCmds.txt"), cmdLines)
 
 
-# filePath_dummyTest = os.path.join(os.path.dirname(__file__), "campaignPlanner_interaction/dummyTest_TargetsCmds.txt")
-# filePath_campaignPlanner = os.path.join(os.path.dirname(__file__), "campaignPlanner_interaction/campaign_scripts_h2_2025-09-10.txt")
+# myScript = "campaignPlanner_interaction/campaign_scripts_h2_2025-09-26_mine.txt"
+# campaignScript = "campaignPlanner_interaction/campaign_scripts_h2_2025-09-26.txt"
+# fullPathMyScript= os.path.join(os.path.dirname(__file__),myScript)
+# fullPathCampaignScript= os.path.join(os.path.dirname(__file__),campaignScript)
 
-# cmdLines_dummy = []
-# cmdLines_campaign = []
+# priorities, uniqueCaptures = compareScripts(fullPathMyScript, fullPathCampaignScript)
 
-# with open(filePath_dummyTest, 'r') as f:
-#         for line in f:
-#             cmdLines_dummy .append(line.rstrip())
+# p_me, p_camp = priorities
+# print(f"Sum of priorities - My script: {p_me}, Campaign script: {p_camp}")
 
-# with open(filePath_campaignPlanner, 'r') as f:
-#         for line in f:
-#             cmdLines_campaign.append(line.rstrip())
-# print("Number of scheduled targets: ", len(cmdLines_campaign)//2)
-# for i in range(len(cmdLines_campaign)):
-#     observationTask_c, taskType_c = getScheduleFromCmdLine(cmdLines_campaign[i])
-#     targetId_c = observationTask_c.GT.id
-#     for cmdLine_d in cmdLines_dummy:
-#         observationTask_d, taskType_d = getScheduleFromCmdLine(cmdLine_d)
-#         targetId_d = observationTask_d.GT.id
+# unique_me, unique_camp = uniqueCaptures
+# print(f"Unique captures - My script: {unique_me}, \nCampaign script: {unique_camp}")
 
-#         if targetId_c == targetId_d and taskType_c == taskType_d:
-#             # compare cmd lines 
-#             if observationTask_c.GT.exposureTime != observationTask_d.GT.exposureTime:
-#                     print(f"Difference in exposure time found: {observationTask_c.GT.exposureTime} vs {observationTask_d.GT.exposureTime}")
-#             if observationTask_c.start != observationTask_d.start:
-#                 print(f"{observationTask_c.start} \n{observationTask_d.start}\n")
-                
-# """
-# Find a difference in unix middle time, as well as exsposure time, on some but not all of the targets
-# """
