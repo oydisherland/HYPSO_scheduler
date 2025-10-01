@@ -1,19 +1,19 @@
-testName, dummyTest3
+testName, 26_09T14:00
 
 #scheduling spesific parameters
-maxCaptures, 30
+maxCaptures, 40
 captureDuration, 60
-transitionTime, 600
-startTimeOH, now
+transitionTime, 660
+startTimeOH, 2025-10-04 14:00:00.000000
 durationInDaysOH, 2
-delayInHoursOH, 2
+delayInHoursOH, 0
 hypsoNr, 2
 
 # Algorithm spesific parameters
 populationSize, 20
 isTabooBankFIFO, True
 iqNonLinear, False
-NSGA2Runds, 30
-ALNSRuns, 75
+NSGA2Runds, 5
+ALNSRuns, 10
 maxTabBank, 10
 desNumber, 6
