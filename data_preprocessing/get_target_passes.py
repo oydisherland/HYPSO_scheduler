@@ -104,8 +104,7 @@ def removeNonIlluminatedPasses(allTargetPasses: list, startTimeOH: datetime.date
         gt = targetPass['groundTarget']
         latitude = float(gt.lat)
         longitude = float(gt.long)
-        startTimes = targetPass['startTimes']
-
+        startTimes = targetPass['startTimes'].copy()
 
         illuminatedPeriods = findIllumminationPeriods(float(latitude), float(longitude), startTimeOH, endTimeOH)
 
@@ -122,7 +121,7 @@ def removeNonIlluminatedPasses(allTargetPasses: list, startTimeOH: datetime.date
 
             if not illuminated:
                 # TW is not illuminated, remove it
-                index = startTimes.index(st)
+                index = targetPass['startTimes'].index(st)
                 targetPass['startTimes'].pop(index)
                 targetPass['endTimes'].pop(index)
 
@@ -212,8 +211,7 @@ def removeCloudObscuredPasses(allTargetPasses: list, startTimeOH: datetime.datet
 
         latitude = float(gt.lat)
         longitude = float(gt.long)
-        startTimes = targetPass['startTimes']
-        endTimes = targetPass['endTimes']
+        startTimes = targetPass['startTimes'].copy()
         maxCloudCoverage = gt.cloudCoverage
 
         # Get the cloud data for the target in the given OH
@@ -226,13 +224,13 @@ def removeCloudObscuredPasses(allTargetPasses: list, startTimeOH: datetime.datet
                 for st in startTimes:
                     # Check the weather forcast corresponding to the closest whole hour of st
                     if abs(key - st).total_seconds() <= 60 * 30:  #60s times 30min
-                        index = startTimes.index(st)
-                        startTimes.pop(index)
-                        endTimes.pop(index)
+                        index = targetPass['startTimes'].index(st)
+                        targetPass['startTimes'].pop(index)
+                        targetPass['endTimes'].pop(index)
                         break
 
         # If target has observation windows left, add it to the list of targets without clouds
-        if(len(startTimes) > 0):
+        if len(targetPass['startTimes']) > 0:
             targetPassesWithoutClouds.append(targetPass)
 
     return targetPassesWithoutClouds
