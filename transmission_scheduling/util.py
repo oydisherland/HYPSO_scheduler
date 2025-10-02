@@ -31,6 +31,12 @@ def findPossibleTTW(ttwListToUpdate: list[TTW], otListLastInsertionAttempt: list
                 otListUnscheduled.remove(ot)
                 break
 
+    # We only want to find TTWs for targets that failed to be scheduled by the transmission scheduler
+    # However, the ttwList might contain time windows for targets that were not in the imaging schedule
+    # that was passed to the transmission scheduler in the first place.
+    # TODO test whether removing this will result in more scheduled tasks
+    ttwListUnscheduled = [ttw for ttw in ttwListUnscheduled if any(ot.GT == ttw.GT for ot in otListUnscheduled)]
+
     # Remove the time windows that we have already tried to schedule
     for ttw in ttwListUnscheduled:
         for otUnscheduled in otListUnscheduled:
