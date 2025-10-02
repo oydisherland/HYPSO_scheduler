@@ -192,6 +192,15 @@ def repairOperator(ttwList: list, otList: list, unfeasibleTargetsIdList: list, r
     #Find an observation task schedule
     otListRepared, objectiveValuesList = RHGA(ttwListSorted, otList, unfeasibleTargetsIdList, schedulingParameters, oh, greedyMode, randomMode)
 
+    ### INSERT downlink/buffer schedule function here
+
+    # #otListRepared = butchered_schedule
+    # #calculate the objective values of the buctchered_schedule = objectiveValuesList. that is done by including this in the code: 
+    # from data_preprocessing.objective_functions import objectiveFunctionPriority, objectiveFunctionImageQuality
+    # objectiveValues = []
+    # objectiveValues.append(objectiveFunctionPriority(otList))
+    # objectiveValues.append(objectiveFunctionImageQuality(otList, oh))
+
     return ttwListSorted, otListRepared, objectiveValuesList
 
 
