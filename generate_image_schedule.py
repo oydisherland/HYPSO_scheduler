@@ -14,10 +14,12 @@ from transmission_scheduling.util import plotSchedule
 
 
 # Utility functions
-def csvToDict(filepath):
+def csvToDict(filepath) -> dict:
     """
     Reads a CSV file and returns a dictionary where each row's first column is the key and the second column is the value.
     Ignores rows starting with #.
+    Output:
+    - dict: dictionary with key-value pairs ( the first and second element of each row) from the CSV file
     """
     dict= {}
     with open(filepath, mode='r', newline='') as csvfile:

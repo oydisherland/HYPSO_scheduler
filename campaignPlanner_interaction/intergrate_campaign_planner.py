@@ -7,9 +7,12 @@ from data_input.satellite_positioning_calculations import createSatelliteObject,
 
 from scheduling_model import OH, OT, GT, BT
 
-
+# function to calcuate quaternions for a given target at a given time
 def calculateQuaternions(hypsoNr: int, groundTarget: GT, timestamp: datetime.datetime):
-
+    """ Calculate the quaternions for a given target at a given time
+    Output:
+    - quaternions: dictionary with keys 'r', 'l', 'j', 'k'
+    """
     quaternions = {}
 
     satellite_skf = createSatelliteObject(hypsoNr)
@@ -22,7 +25,25 @@ def calculateQuaternions(hypsoNr: int, groundTarget: GT, timestamp: datetime.dat
     quaternions['k'] = q[3]
 
     return quaternions
+# Function that creates a map between id of a target and its corresponding priority
+def getTargetIdPriorityDict(targetsFilePath: str) -> dict:
+    """ Get the priority of a list of target IDs from the targets.csv file 
+    Output:
+    - priorityIdDict: dictionary with target ID as key and priority as value
+    """
 
+    priorityIdDict = {}
+    targets_df = pd.read_csv(targetsFilePath)
+    targets = targets_df.values.tolist()
+
+    for index, target in enumerate(targets):
+        target = target[0].split(';')
+        targetId = target[0]
+        targetPriority = len(targets) - index
+
+        priorityIdDict[targetId] = targetPriority
+
+    return priorityIdDict
 # Functions to reformat the schedule data
 def convertToUnixTime(dateTime: datetime.datetime) -> int:
     """Convert a timestamp string to Unix time"""
@@ -68,14 +89,12 @@ def getMiddleTime(startTime: datetime.datetime, endTime: datetime.datetime) -> d
     return middleTime
 
 # Function that format schedule data into campaign planner commands
-def createCmdFile(txtFilepath, cmdLines):
-    """ Each element in the cmdLines list is written to the txt file as a command line """
-
-    with open(txtFilepath, 'w') as f:
-        for line in cmdLines:
-            f.write(line.rstrip() + "\n")
 
 def createCaptureCmdLine(observationTask: OT, hypsoNr: int, quaternions: dict): 
+    """ Create the command line for capturing an observation task
+    Output:
+    - cmd_string: one command line string that Hypso can parse
+    """
     if hypsoNr not in [1, 2]:
         print("Invalid hypsoNr")
         return None
@@ -129,8 +148,11 @@ def createCaptureCmdLine(observationTask: OT, hypsoNr: int, quaternions: dict):
                  f' % {observationMiddleTime} - Predicted Cloud cover: {row['Predicted Cloud cover:']:5.1f} % Estimated downlink complete: \n'
 
     return cmd_string
-
 def createBufferCmdLine( bufferTask: BT, hypsoNr: int, quaternions: dict, observationTask: OT): 
+    """ Create the command line for buffering an observation task
+    Output:
+    - cmd_string: one command line string that Hypso can parse
+    """
     if hypsoNr not in [1, 2]:
         print("Invalid hypsoNr")
         return None
@@ -185,8 +207,11 @@ def createBufferCmdLine( bufferTask: BT, hypsoNr: int, quaternions: dict, observ
                  f' % {observationMiddleTime} - Predicted Cloud cover: {row['Predicted Cloud cover:']:5.1f} % Estimated downlink complete: \n'
 
     return cmd_string
-
 def createCmdLinesForCaptureAndBuffering(observationSchedule: list, bufferSchedule: list, inputParameters: dict, oh: OH) -> list:
+    """ Creates a list of command lines for capturing and buffering based on the observation and buffer schedules
+    Output:
+    - cmdLines: list of command lines that Hypso can parse
+    """
     schedule_dt = convertScheduleToDateTime(observationSchedule, oh)
     bufferschedule_dt = convertBufferScheduleToDateTime(bufferSchedule, oh)
     cmdLines = []
@@ -203,9 +228,19 @@ def createCmdLinesForCaptureAndBuffering(observationSchedule: list, bufferSchedu
             newBufferCommandLine = createBufferCmdLine(bt, int(inputParameters["hypsoNr"]), quaternions, ot)
             cmdLines.append(newBufferCommandLine)
     return cmdLines
+def createCmdFile(txtFilepath, cmdLines):
+    """ Each element in the cmdLines list is written to the txt file as a command line """
+
+    with open(txtFilepath, 'w') as f:
+        for line in cmdLines:
+            f.write(line.rstrip() + "\n")
 # Function that reformats the campaign planner commands into schedule objects 
 def getScheduleFromCmdLine(cmdLine: str, captureDurationSec: int = 60):
-    
+    """ Takes in a command line string and returns an OT object representing the same cmd and the type of command
+    Output:
+    - observationTask: OT object created from the command line
+    - commandType: 'Capture', 'Buffer' or 'Unknown'
+    """
     cmds = cmdLine.split(" ")
     cmds = [cmd for cmd in cmds if cmd != '']
 
@@ -253,19 +288,3 @@ def getScheduleFromCmdLine(cmdLine: str, captureDurationSec: int = 60):
     
     return observationTask, 'Unknown'
 
-# Function that creates a map between id of a target and its corresponding priority
-def getTargetIdPriorityDict(targetsFilePath: str) -> dict:
-    """ Get the priority of a list of target IDs from the targets.csv file """
-
-    priorityIdDict = {}
-    targets_df = pd.read_csv(targetsFilePath)
-    targets = targets_df.values.tolist()
-
-    for index, target in enumerate(targets):
-        target = target[0].split(';')
-        targetId = target[0]
-        targetPriority = len(targets) - index
-
-        priorityIdDict[targetId] = targetPriority
-
-    return priorityIdDict

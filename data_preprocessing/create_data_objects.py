@@ -9,9 +9,9 @@ from data_preprocessing.parseTargetsFile import getTargetDataFromJsonFile
    
 
 def getAllTargetPasses(captureTimeSeconds: int, startTimeOH: datetime.datetime, endTimeOH: datetime.datetime, targetsFilePath: str, hypsoNr: int) -> list:# captureTimeSeconds: int, timewindow: int, startTimeDelay: int, targetsFilePath: str, hypsoNr: int) -> list:
-    """ Get the timewindows for each time the satellte passes the targets
+    """ Get the TTW for each time the satellite passes the every requested target
     Output:
-    - List of all targetPasses, represend as dicts: [{GT, [startTimes], [EndTimes]}]
+    - allTargetPasses: list of TTWs for each target in the target request file
     """
 
     # Read data from targets.json into the array targets
@@ -97,7 +97,10 @@ def getAllTargetPasses(captureTimeSeconds: int, startTimeOH: datetime.datetime, 
     return allTargetPasses
 
 def removeNonIlluminatedPasses(allTargetPasses: list, startTimeOH: datetime.datetime, endTimeOH: datetime.datetime)-> list:
-
+    """ Remove time windows where the target is not illuminated by the sun
+    Output:
+    - targetPassesWithIllumination: list of TTWs that have sufficient illumination
+    """
     targetPassesWithIllumination = []    
     
     for targetPass in allTargetPasses:
@@ -199,7 +202,10 @@ def getGroundStationTimeWindows(startTimeOH: datetime.datetime, endTimeOH: datet
     return gstwList
 
 def removeCloudObscuredPasses(allTargetPasses: list, startTimeOH: datetime.datetime, endTimeOH: datetime.datetime)-> list:
-    """ Remove targets that are obscured by clouds """
+    """ Remove time windows where the target is obscured by clouds, based on weather forecast data
+    Output:
+    - targetPassesWithoutClouds: list of TTWs that are not obscured by clouds
+    """
 
     targetPassesWithoutClouds = []
 

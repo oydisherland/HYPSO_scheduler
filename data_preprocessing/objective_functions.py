@@ -4,9 +4,12 @@ import datetime
 from data_input.satellite_positioning_calculations import findSatelliteTargetElevation
 
 
-""" Objective function repserenting the sum of the priority of the targets observed """
-def objectiveFunctionPriority(otList: list):
 
+def objectiveFunctionPriority(otList: list) -> int:
+    """ Calculates the sum of the priority objective for a list of observation tasks
+    Output:
+    - priority: sum of priorities
+    """
     priority = 0
     for ot in otList:
         priority += ot.GT.priority

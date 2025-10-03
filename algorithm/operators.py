@@ -20,8 +20,9 @@ class RepairType(Enum):
 
 #### Sorting functions for different target prioritizing strategies
 
-""" Sort target list randomly """
+
 def randomSort(ttwListOriginal: list):
+    """ Sort TTW list randomly """
     ttwList = ttwListOriginal.copy()
     ttwListSorted = []
 
@@ -30,8 +31,9 @@ def randomSort(ttwListOriginal: list):
         ttwListSorted.append(ttwList.pop(random.randint(0,len(ttwList)-1)))
     return ttwListSorted
 
-""" Sort target list so hight priority gt are first"""
+
 def greedyPrioritySort(ttwListOriginal: list):
+    """ Sort TTW list so high priority GT are first"""
     ttwList = ttwListOriginal.copy()
     ttwListSorted = []
 
@@ -47,6 +49,7 @@ def greedyPrioritySort(ttwListOriginal: list):
     return ttwListSorted
 
 def greedyImageQualitySort(otListOriginal: list, oh: OH):
+    """ Sort OT list so GT with highest image quality are first"""
     otList = otListOriginal.copy()
     otListSorted = []
 
@@ -61,8 +64,9 @@ def greedyImageQualitySort(otListOriginal: list, oh: OH):
         otListSorted.append(otList.pop(maxIndex))
     return otListSorted
 
-""" Sort target list so gt with small tw are first"""
+
 def smallTWSort(ttwListOriginal: list):
+    """ Sort TTW list so GT with small TWs are first"""
     ttwList = ttwListOriginal.copy()
     ttwListSorted = []
 
@@ -80,8 +84,9 @@ def smallTWSort(ttwListOriginal: list):
     return ttwListSorted
 
 
-""" Sort target list so gt with little congestion are first"""
+
 def congestionSort(ttwListOriginal: list):
+    """ Sort TTW list so GT with little congestion are first"""
     ttwList = ttwListOriginal.copy()
     congestionLevelsList = []
 
@@ -119,12 +124,10 @@ def congestionSort(ttwListOriginal: list):
 #### Destroy operator
 
 def destroyOperator(otList: list, ttwList: list, destroyNumber: int, destroyType: DestroyType, oh: OH):
-    """
-    destroyType:
-    - random
-    - greedy_priority
-    - greedy_imageQuality   
-    - congestion
+    """ Takes in a list of OT and removes destroyNumber of them. Selects which ones to remove based on destroyType.
+    destroyTypes: random, greedy_priority, greedy_imageQuality, congestion. \n
+    Output:
+    - otList: list of OTs with destroyNumber less elements
     """
     removedTargetsIdList = []
 
@@ -162,13 +165,13 @@ def destroyOperator(otList: list, ttwList: list, destroyNumber: int, destroyType
     return otListsorted, removedTargetsIdList
 
 def repairOperator(ttwList: list, otList: list, unfeasibleTargetsIdList: list, repairType: RepairType, schedulingParameters: SP, oh: OH):
+    """ Takes in a list of OTs and inserts new OTs untill no more feasible insertions can be performed. Selects which ones to insert based on repairType.
+    After inserting all new OTs, the scheduled is ajusted to fulfill downlink/buffering requirements.
+    repairType: random, greedy, smallTW, congestion.\n
+    Output:
+    - otList: list of OTs with new OTs inserted
     """
-    repairType:
-    - random
-    - greedy   
-    - smallTW
-    - congestion
-    """
+
     ttwListSorted =  []
     greedyMode = False
     randomMode = True
