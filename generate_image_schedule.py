@@ -32,7 +32,6 @@ def csvToDict(filepath):
     return dict
 
 
-
 ### Create the image schedule ####
 
 filePath_inputParameters = os.path.join(os.path.dirname(__file__),"data_input/input_parameters.csv")
@@ -109,7 +108,8 @@ plotSchedule(
 
 ### CREATE COMMAND LINES FOR SATELLITE CAPTURE AND BUFFERING ###
 cmdLines = createCmdLinesForCaptureAndBuffering(modifiedObservationSchedule, bufferSchedule, inputParameters, oh)
-createCmdFile(os.path.join(os.path.dirname(__file__), f"campaignPlanner_interaction/{inputParameters['testName']}_TargetsCmds.txt"), cmdLines)
+outputFolderPath = os.path.join(os.path.dirname(__file__), f"output_folder/")
+createCmdFile(f"{outputFolderPath}{inputParameters['testName']}_cmdLines.txt", cmdLines)
 
 
 
