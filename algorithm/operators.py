@@ -2,7 +2,6 @@ import random
 from enum import Enum
 
 from algorithm.rhga import RHGA
-from data_preprocessing.get_target_passes import getModelInput
 from scheduling_model import OH,SP, OT
 from data_preprocessing.objective_functions import objectiveFunctionImageQuality
 
@@ -202,18 +201,3 @@ def repairOperator(ttwList: list, otList: list, unfeasibleTargetsIdList: list, r
     # objectiveValues.append(objectiveFunctionImageQuality(otList, oh))
 
     return ttwListSorted, otListRepared, objectiveValuesList
-
-
-# Test the functions
-# oh, ttwList = getModelInput(50, 2, 2, 1)
-# otList = []
-# sp = SP(40,50,60)
-# ttwList, otList, objectiveVals = repairOperator(ttwList, otList, [], RepairType.RANDOM, sp, oh)
-# print(objectiveVals)
- 
-# otList, unfesaibleTargs = destroyOperator(otList, ttwList, 7, DestroyType.GREEDY_IQ, oh)
-# print(len(otList))
-
-# ttwList, otList, objectiveVals = repairOperator(ttwList, otList, unfesaibleTargs, RepairType.GREEDY, sp, oh)
-# print(objectiveVals)
-# print(len(otList))

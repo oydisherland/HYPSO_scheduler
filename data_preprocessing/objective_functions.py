@@ -13,7 +13,7 @@ def objectiveFunctionPriority(otList: list):
     return priority
 
 
-def objectiveFunctionImageQuality(otList:list, oh: OH) -> int:
+def objectiveFunctionImageQuality(otList:list, oh: OH, hypsoNr: int) -> int:
     """ Objective function representing the angle between satellite and target when capturing 
     Output: 
     - Image quality score (0 = min, 90 = max)
@@ -25,8 +25,8 @@ def objectiveFunctionImageQuality(otList:list, oh: OH) -> int:
     for ot in otList:
         captureTimeMiddel = ot.start + (ot.end - ot.start) / 2
         utcTime = oh.utcStart + datetime.timedelta(seconds=captureTimeMiddel)
-        
-        elevation = findSatelliteTargetElevation(float(ot.GT.lat), float(ot.GT.long), utcTime, oh.hypsoNr)
+
+        elevation = findSatelliteTargetElevation(float(ot.GT.lat), float(ot.GT.long), utcTime, hypsoNr)
         if elevation < 0:
             # This should not happen
             print(f"Elevation value: {elevation} for {ot.GT.id} at {utcTime}")
