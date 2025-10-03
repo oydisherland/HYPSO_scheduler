@@ -151,7 +151,7 @@ class SlideInsertion(InsertionInterface):
                                                      dtList, gstwList)
         if bt is not None:
             taskID = otListOriginal.index(otToBuffer) + 1
-            print(f"Successfully inserted task {taskID} by shifting observation tasks")
+            # print(f"Successfully inserted task {taskID} by shifting observation tasks")
             return bt, otListModified, btListModified
         else:
             return None, otListOriginal, btListOriginal
