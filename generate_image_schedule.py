@@ -41,6 +41,7 @@ filePath_inputParameters = os.path.join(os.path.dirname(__file__),"data_input/in
 inputParameters = csvToDict(filePath_inputParameters)
 parametersFilePath = os.path.join(os.path.dirname(__file__),"data_input/input_parameters.csv")
 transmissionParameters = getTransmissionInputParams(parametersFilePath)
+ttwListFilePath = os.path.join(os.path.dirname(__file__),"data_input/HYPSO_data/ttw_list.json")
 
 # Check if start time is now
 if inputParameters["startTimeOH"] == "now":
@@ -62,8 +63,8 @@ ttwList, gstwList = getDataObjects(
     int(inputParameters["captureDuration"]),
     oh,
     int(inputParameters["hypsoNr"]),
-    inputParamsTransmission.minGSWindowTime)
-ttwlistCopy = ttwList.copy()
+    inputParamsTransmission.minGSWindowTime,
+    ttwListFilePath)
 
 # Create observation schedule
 observationSchedule, _, _, _, _ = runNSGA(
@@ -82,9 +83,6 @@ observationSchedule, _, _, _, _ = runNSGA(
 )
 
 # Sort the schedule by priority to indicate for which tasks buffering should be scheduled first
-### Comment: maby the sorting should be done in the twoStageTransmissionScheduling function, not being dependent on being sorted beforehand
-observationSchedule = sorted(observationSchedule, key=lambda x: x.GT.priority, reverse=True)
-
 _, bufferSchedule, downlinkSchedule, modifiedObservationSchedule = twoStageTransmissionScheduling(
     observationSchedule,
     ttwList,

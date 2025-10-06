@@ -1,7 +1,7 @@
 import datetime
 
 import data_postprocessing.algorithmData_api as AD_api
-from HYPSO_scheduler.data_preprocessing.create_data_objects import getGroundStationTimeWindows
+from data_preprocessing.create_data_objects import getGroundStationTimeWindows
 from scheduling_model import TTW, TW
 import time
 
