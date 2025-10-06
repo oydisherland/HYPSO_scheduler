@@ -14,6 +14,11 @@ from transmission_scheduling.input_parameters import TransmissionParams
 INDIVIDUAL = namedtuple("INDIVIDUAL", ["id", "objectiveValues", "schedule", "ttwList"])
 
 def findKneePoint(fronts, objectiveSpace):
+        """ Finds the knee point in the Pareto front using the HighTradeoffPoints method
+        Output:
+        - bestSolution: the objective values of the best solution found
+        - bestIndex: the index of the best solution in the final population
+        """
         pareto_front_indices = fronts[0]
         pareto_front = objectiveSpace[pareto_front_indices]
         bestIndex = 0
@@ -49,6 +54,15 @@ def runNSGA(
             maxSizeTabooBank: int,
             optimalTermination: bool=False):
     
+    """ Runs the NSGA2 algorithm to optimize the observation schedule
+    Output:
+    - bestSchedule: the schedule of the best solution found
+    - iterationData: list with data from each iteration (fronts, objectiveSpace, selectedobjective values)
+    - bestSolution: the objective values of the best solution found
+    - bestIndex: the index of the best solution in the final population
+    - oldPopulation: the final population of solutions
+    """
+
     iterationData = []
     population = []
 

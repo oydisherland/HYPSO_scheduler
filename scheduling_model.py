@@ -5,7 +5,7 @@ dataclass could be used if flexibility is needed
 """
 
 #Observation Horizon
-OH = namedtuple("OH", ["utcStart", "utcEnd", "durationInDays", "delayInHours", "hypsoNr"])
+OH = namedtuple("OH", ["utcStart", "utcEnd"])
 
 #Ground target
 GT = namedtuple("GT", ["id", "lat", "long", "priority", "cloudCoverage" ,"exposureTime", "captureMode"])
@@ -20,7 +20,7 @@ TTW = namedtuple("TTW", ["GT", "TWs"])
 OT = namedtuple("OT", [ "GT", "start", "end"])
 
 #Scheduling Parameters for the model
-SP = namedtuple("SP", ["maxCaptures", "captureDuration", "transitionTime"])
+SP = namedtuple("SP", ["maxCaptures", "captureDuration", "transitionTime", "hypsoNr"])
 
 #Buffering Task
 BT = namedtuple("BT", ["GT", "fileID", "start", "end"])

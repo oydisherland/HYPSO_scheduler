@@ -77,7 +77,7 @@ def RHGA(ttwList: list, otList: list, unfeasibleTargetsIdList: list, schedulingP
 
     objectiveValues = []
     objectiveValues.append(objectiveFunctionPriority(otList))
-    objectiveValues.append(objectiveFunctionImageQuality(otList, oh))
+    objectiveValues.append(objectiveFunctionImageQuality(otList, oh, schedulingParameters.hypsoNr))
 
     return otList, objectiveValues
 

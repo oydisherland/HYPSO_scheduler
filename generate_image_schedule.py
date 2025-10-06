@@ -5,7 +5,7 @@ import datetime
 from data_preprocessing.objective_functions import objectiveFunctionPriority, objectiveFunctionImageQuality
 from scheduling_model import SP
 from algorithm.NSGA2 import runNSGA
-from data_preprocessing.get_target_passes import getModelInput
+from data_preprocessing.create_data_objects import getDataObjects, createOHObject
 from campaignPlanner_interaction.intergrate_campaign_planner import createCmdFile, createCmdLinesForCaptureAndBuffering
 
 from transmission_scheduling.clean_schedule import cleanUpSchedule, OrderType
@@ -15,10 +15,12 @@ from transmission_scheduling.util import plotSchedule
 
 
 # Utility functions
-def csvToDict(filepath):
+def csvToDict(filepath) -> dict:
     """
     Reads a CSV file and returns a dictionary where each row's first column is the key and the second column is the value.
     Ignores rows starting with #.
+    Output:
+    - dict: dictionary with key-value pairs ( the first and second element of each row) from the CSV file
     """
     dict= {}
     with open(filepath, mode='r', newline='') as csvfile:
@@ -33,8 +35,7 @@ def csvToDict(filepath):
     return dict
 
 
-
-### RUN THE ALGORITHM ####
+### Create the image schedule ####
 
 filePath_inputParameters = os.path.join(os.path.dirname(__file__),"data_input/input_parameters.csv")
 inputParameters = csvToDict(filePath_inputParameters)
@@ -45,20 +46,27 @@ transmissionParameters = getTransmissionInputParams(parametersFilePath)
 if inputParameters["startTimeOH"] == "now":
     inputParameters["startTimeOH"] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
 
-oh, ttwList, gstwList = getModelInput(
-    int(inputParameters["captureDuration"]),
-    int(inputParameters["durationInDaysOH"]),
-    int(inputParameters["delayInHoursOH"]),
-    int(inputParameters["hypsoNr"]),
-    transmissionParameters.minGSWindowTime,
-    (inputParameters["startTimeOH"]))
-
+# Get model parameters
 schedulingParameters = SP(
     int(inputParameters["maxCaptures"]), 
     int(inputParameters["captureDuration"]), 
-    int(inputParameters["transitionTime"]))
+    int(inputParameters["transitionTime"]),
+    int(inputParameters["hypsoNr"]))
+oh = createOHObject(
+    datetime.datetime.fromisoformat(inputParameters["startTimeOH"]), 
+    int(inputParameters["durationInDaysOH"]))
+inputParamsTransmission = getTransmissionInputParams(parametersFilePath)
 
-schedule, _, _, _, _ = runNSGA(
+# Get data objects
+ttwList, gstwList = getDataObjects(
+    int(inputParameters["captureDuration"]),
+    oh,
+    int(inputParameters["hypsoNr"]),
+    inputParamsTransmission.minGSWindowTime)
+ttwlistCopy = ttwList.copy()
+
+# Create observation schedule
+observationSchedule, _, _, _, _ = runNSGA(
     int(inputParameters["populationSize"]), 
     int(inputParameters["NSGA2Runds"]), 
     ttwList,
@@ -74,10 +82,11 @@ schedule, _, _, _, _ = runNSGA(
 )
 
 # Sort the schedule by priority to indicate for which tasks buffering should be scheduled first
-schedule = sorted(schedule, key=lambda x: x.GT.priority, reverse=True)
+### Comment: maby the sorting should be done in the twoStageTransmissionScheduling function, not being dependent on being sorted beforehand
+observationSchedule = sorted(observationSchedule, key=lambda x: x.GT.priority, reverse=True)
 
 _, bufferSchedule, downlinkSchedule, modifiedObservationSchedule = twoStageTransmissionScheduling(
-    schedule,
+    observationSchedule,
     ttwList,
     gstwList,
     transmissionParameters
@@ -95,7 +104,7 @@ bufferSchedule, downlinkSchedule = cleanUpSchedule(
 
 plotSchedule(
     modifiedObservationSchedule,
-    schedule,
+    observationSchedule,
     bufferSchedule,
     downlinkSchedule,
     gstwList,
@@ -106,12 +115,15 @@ plotSchedule(
 print(f"Priority objective value: {objectiveFunctionPriority(modifiedObservationSchedule)}")
 print(f"Image quality objective value: {objectiveFunctionImageQuality(modifiedObservationSchedule, oh)}")
 
-## Create command lines for campaign planner
+### CREATE COMMAND LINES FOR SATELLITE CAPTURE AND BUFFERING ###
 
 cmdLines = createCmdLinesForCaptureAndBuffering(modifiedObservationSchedule, bufferSchedule, inputParameters, oh)
-createCmdFile(os.path.join(os.path.dirname(__file__), f"campaignPlanner_interaction/{inputParameters['testName']}_TargetsCmds.txt"), cmdLines)
+outputFolderPath = os.path.join(os.path.dirname(__file__), f"output_folder/")
+createCmdFile(f"{outputFolderPath}{inputParameters['testName']}_cmdLines.txt", cmdLines)
 
 
+
+### COMPARE SCRIPTS ###
 # myScript = "campaignPlanner_interaction/campaign_scripts_h2_2025-09-26_mine.txt"
 # campaignScript = "campaignPlanner_interaction/campaign_scripts_h2_2025-09-26.txt"
 # fullPathMyScript= os.path.join(os.path.dirname(__file__),myScript)

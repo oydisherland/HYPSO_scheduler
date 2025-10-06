@@ -4,16 +4,19 @@ import datetime
 from data_input.satellite_positioning_calculations import findSatelliteTargetElevation
 
 
-""" Objective function repserenting the sum of the priority of the targets observed """
-def objectiveFunctionPriority(otList: list):
 
+def objectiveFunctionPriority(otList: list) -> int:
+    """ Calculates the sum of the priority objective for a list of observation tasks
+    Output:
+    - priority: sum of priorities
+    """
     priority = 0
     for ot in otList:
         priority += ot.GT.priority
     return priority
 
 
-def objectiveFunctionImageQuality(otList:list, oh: OH) -> int:
+def objectiveFunctionImageQuality(otList:list, oh: OH, hypsoNr: int) -> int:
     """ Objective function representing the angle between satellite and target when capturing 
     Output: 
     - Image quality score (0 = min, 90 = max)
@@ -25,8 +28,8 @@ def objectiveFunctionImageQuality(otList:list, oh: OH) -> int:
     for ot in otList:
         captureTimeMiddel = ot.start + (ot.end - ot.start) / 2
         utcTime = oh.utcStart + datetime.timedelta(seconds=captureTimeMiddel)
-        
-        elevation = findSatelliteTargetElevation(float(ot.GT.lat), float(ot.GT.long), utcTime, oh.hypsoNr)
+
+        elevation = findSatelliteTargetElevation(float(ot.GT.lat), float(ot.GT.long), utcTime, hypsoNr)
         if elevation < 0:
             # This should not happen
             print(f"Elevation value: {elevation} for {ot.GT.id} at {utcTime}")

@@ -9,9 +9,9 @@ from data_preprocessing.parseTargetsFile import getTargetDataFromJsonFile
    
 
 def getAllTargetPasses(captureTimeSeconds: int, startTimeOH: datetime.datetime, endTimeOH: datetime.datetime, targetsFilePath: str, hypsoNr: int) -> list:# captureTimeSeconds: int, timewindow: int, startTimeDelay: int, targetsFilePath: str, hypsoNr: int) -> list:
-    """ Get the timewindows for each time the satellte passes the targets
+    """ Get the TTW for each time the satellite passes the every requested target
     Output:
-    - List of all targetPasses, represend as dicts: [{GT, [startTimes], [EndTimes]}]
+    - allTargetPasses: list of TTWs for each target in the target request file
     """
 
     # Read data from targets.json into the array targets
@@ -97,7 +97,10 @@ def getAllTargetPasses(captureTimeSeconds: int, startTimeOH: datetime.datetime, 
     return allTargetPasses
 
 def removeNonIlluminatedPasses(allTargetPasses: list, startTimeOH: datetime.datetime, endTimeOH: datetime.datetime)-> list:
-
+    """ Remove time windows where the target is not illuminated by the sun
+    Output:
+    - targetPassesWithIllumination: list of TTWs that have sufficient illumination
+    """
     targetPassesWithIllumination = []    
     
     for targetPass in allTargetPasses:
@@ -130,7 +133,6 @@ def removeNonIlluminatedPasses(allTargetPasses: list, startTimeOH: datetime.date
 
     return targetPassesWithIllumination
   
-
 def getGroundStationTimeWindows(startTimeOH: datetime.datetime, endTimeOH: datetime.datetime, minWindowLength: float,
                                 groundStationsFilePath: str, hypsoNr: int):
     """
@@ -199,9 +201,11 @@ def getGroundStationTimeWindows(startTimeOH: datetime.datetime, endTimeOH: datet
 
     return gstwList
 
-
 def removeCloudObscuredPasses(allTargetPasses: list, startTimeOH: datetime.datetime, endTimeOH: datetime.datetime)-> list:
-    """ Remove targets that are obscured by clouds """
+    """ Remove time windows where the target is obscured by clouds, based on weather forecast data
+    Output:
+    - targetPassesWithoutClouds: list of TTWs that are not obscured by clouds
+    """
 
     targetPassesWithoutClouds = []
 
@@ -235,46 +239,43 @@ def removeCloudObscuredPasses(allTargetPasses: list, startTimeOH: datetime.datet
 
     return targetPassesWithoutClouds
 
-
-def getModelInput(captureTime: int, ohDurationInDays: int, ohDelayInHours: int, hypsoNr: int, minGSWindowLength: float,
-                  defineStartTime='now'):
-    """ Put the targetpasses-data into objects defined in scheduling_model.py
+def createOHObject(startTimeOH: datetime.datetime, ohDurationInDays: int) -> OH:
+    """ Create optimalization horizon object form input parameters, and print the time interval. 
     Output:
-    - oh: OH object
-    - ttwList: list of TTW objects
+     - oh: OH object
     """
 
-    #Define the OH - Optimalization Horizon
-    if defineStartTime == 'now':
-        startTimeOH = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=ohDelayInHours)
-    else:
-        startTimeOH = datetime.datetime.strptime(defineStartTime, '%Y-%m-%d %H:%M:%S.%f').replace(tzinfo=datetime.timezone.utc)
     endTimeOH = startTimeOH + datetime.timedelta(days=ohDurationInDays)
     print("Start time OH:", startTimeOH.strftime('%Y-%m-%dT%H:%M:%SZ'), "End time OH:", endTimeOH.strftime('%Y-%m-%dT%H:%M:%SZ'))
-    
+
+    oh = OH(
+        utcStart=startTimeOH,
+        utcEnd=endTimeOH
+    )
+
+    return oh
+
+def getDataObjects(captureDuration: int, oh: OH, hypsoNr: int, minGSWindowLength: float):
+    """ Calculate the satellite passes and store in data objects defined in scheduling_model.py
+    Output:
+    - ttwList: list of TTW objects
+    - gstwList: list of GSTW objects
+    """
+
     # Path to the file containing the ground targets data
     targetsFilePath = os.path.join(os.path.dirname(__file__),"../data_input/HYPSO_data/targets.json")
 
     # Get the target passes
-    allTargetPasses = getAllTargetPasses(captureTime, startTimeOH, endTimeOH, targetsFilePath, hypsoNr)
+    allTargetPasses = getAllTargetPasses(captureDuration, oh.utcStart, oh.utcEnd, targetsFilePath, hypsoNr)
     print(f"Without filtering, targets: {len(allTargetPasses)}, captures: {howManyPasses(allTargetPasses)}")
     
     # Filter out night passes that are not illuminated by the sun
-    illuminatedPasses = removeNonIlluminatedPasses(allTargetPasses, startTimeOH, endTimeOH)
+    illuminatedPasses = removeNonIlluminatedPasses(allTargetPasses, oh.utcStart, oh.utcEnd)
     print(f"After filtering out non-illuminated passes, targets: {len(illuminatedPasses)}, captures: {howManyPasses(illuminatedPasses)}")
     
     # Fileter out targets that are obscured by clouds
-    cloudlessTargetpasses = removeCloudObscuredPasses(illuminatedPasses, startTimeOH, endTimeOH)
-    
+    cloudlessTargetpasses = removeCloudObscuredPasses(illuminatedPasses, oh.utcStart, oh.utcEnd)
     print(f"After filtering out cloud-obscured passes, targets: {len(cloudlessTargetpasses)}, captures: {howManyPasses(cloudlessTargetpasses)}")
-    # Create Optimalization Horizon object
-    oh = OH(
-        utcStart=startTimeOH,
-        utcEnd=endTimeOH,
-        durationInDays=ohDurationInDays,
-        delayInHours=ohDelayInHours,
-        hypsoNr=hypsoNr
-    )
 
     # Create objects from the ground targets data
     ttwList = []
@@ -300,21 +301,9 @@ def getModelInput(captureTime: int, ohDurationInDays: int, ohDelayInHours: int, 
 
     # Get the passes over the ground stations
     groundStationFilePath = os.path.join(os.path.dirname(__file__),"../data_input/HYPSO_data/ground_stations.csv")
-    gstwList = getGroundStationTimeWindows(startTimeOH, endTimeOH, minGSWindowLength, groundStationFilePath, hypsoNr)
+    gstwList = getGroundStationTimeWindows(oh.utcStart, oh.utcEnd, minGSWindowLength, groundStationFilePath, hypsoNr)
 
-    return oh, ttwList, gstwList
-
-
-def printModelInput():
-    """ Print the input data for the model """
-
-    oh, ttws, _ = getModelInput(50, 2, 2, 1, 0)
-    print("Observation Horizon:", oh.utcStart, oh.utcEnd, "\nDuration and delay:", oh.durationInDays, oh.delayInHours)
-    for ttw in ttws:
-        print(ttw.GT.id)
-        for tw in ttw.TWs:
-            print(tw.start, tw.end)
-
+    return ttwList, gstwList
 
 def howManyPasses(targetPassList: list) -> int:
     """ Return the total number of target passes in the OH """
