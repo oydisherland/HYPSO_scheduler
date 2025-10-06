@@ -2,7 +2,6 @@ import random
 from enum import Enum
 
 from algorithm.rhga import RHGA
-from data_preprocessing.objective_functions import objectiveFunctionImageQuality
 from scheduling_model import OH, SP, GSTW
 from transmission_scheduling.input_parameters import TransmissionParams
 from transmission_scheduling.two_stage_transmission_insert import twoStageTransmissionScheduling
@@ -202,7 +201,7 @@ def repairOperator(ttwList: list, otList: list, gstwList: list[GSTW], unfeasible
 
     ### Downlink/buffer scheduling
     # Adjust the imaging schedule such that the buffer and downlink tasks fit
-    _, _, _, otListAdjusted = twoStageTransmissionScheduling(otListRepaired, ttwList, gstwList, transmissionParams)
+    _, _, _, otListAdjusted = twoStageTransmissionScheduling(otListRepaired, ttwList, gstwList, transmissionParams, False)
     # Calculate the objective values of the adjusted schedule
     objectiveValuesList = [objectiveFunctionPriority(otListAdjusted),
                            objectiveFunctionImageQuality(otListAdjusted, oh, schedulingParameters.hypsoNr)]
