@@ -2,7 +2,8 @@ import csv
 import os
 import datetime
 
-from scheduling_model import SP, GT
+from data_preprocessing.objective_functions import objectiveFunctionPriority, objectiveFunctionImageQuality
+from scheduling_model import SP
 from algorithm.NSGA2 import runNSGA
 from data_preprocessing.create_data_objects import getDataObjects, createOHObject
 from campaignPlanner_interaction.intergrate_campaign_planner import createCmdFile, createCmdLinesForCaptureAndBuffering
@@ -39,6 +40,7 @@ def csvToDict(filepath) -> dict:
 filePath_inputParameters = os.path.join(os.path.dirname(__file__),"data_input/input_parameters.csv")
 inputParameters = csvToDict(filePath_inputParameters)
 parametersFilePath = os.path.join(os.path.dirname(__file__),"data_input/input_parameters.csv")
+transmissionParameters = getTransmissionInputParams(parametersFilePath)
 
 # Check if start time is now
 if inputParameters["startTimeOH"] == "now":
@@ -67,8 +69,10 @@ ttwlistCopy = ttwList.copy()
 observationSchedule, _, _, _, _ = runNSGA(
     int(inputParameters["populationSize"]), 
     int(inputParameters["NSGA2Runds"]), 
-    ttwList, 
-    schedulingParameters, 
+    ttwList,
+    gstwList,
+    schedulingParameters,
+    transmissionParameters,
     oh, 
     int(inputParameters["ALNSRuns"]), 
     bool(inputParameters["isTabooBankFIFO"]), 
@@ -85,7 +89,7 @@ _, bufferSchedule, downlinkSchedule, modifiedObservationSchedule = twoStageTrans
     observationSchedule,
     ttwList,
     gstwList,
-    inputParamsTransmission
+    transmissionParameters
 )
 
 bufferSchedule, downlinkSchedule = cleanUpSchedule(
@@ -93,7 +97,7 @@ bufferSchedule, downlinkSchedule = cleanUpSchedule(
     bufferSchedule,
     downlinkSchedule,
     gstwList,
-    inputParamsTransmission,
+    transmissionParameters,
     OrderType.FIFO,
     OrderType.PRIORITY
 )
@@ -105,10 +109,14 @@ plotSchedule(
     downlinkSchedule,
     gstwList,
     ttwList,
-    inputParamsTransmission
+    transmissionParameters
 )
 
+print(f"Priority objective value: {objectiveFunctionPriority(modifiedObservationSchedule)}")
+print(f"Image quality objective value: {objectiveFunctionImageQuality(modifiedObservationSchedule, oh)}")
+
 ### CREATE COMMAND LINES FOR SATELLITE CAPTURE AND BUFFERING ###
+
 cmdLines = createCmdLinesForCaptureAndBuffering(modifiedObservationSchedule, bufferSchedule, inputParameters, oh)
 outputFolderPath = os.path.join(os.path.dirname(__file__), f"output_folder/")
 createCmdFile(f"{outputFolderPath}{inputParameters['testName']}_cmdLines.txt", cmdLines)

@@ -2,8 +2,12 @@ import random
 from enum import Enum
 
 from algorithm.rhga import RHGA
-from scheduling_model import OH,SP, OT
 from data_preprocessing.objective_functions import objectiveFunctionImageQuality
+from scheduling_model import OH, SP, GSTW
+from transmission_scheduling.input_parameters import TransmissionParams
+from transmission_scheduling.two_stage_transmission_insert import twoStageTransmissionScheduling
+from data_preprocessing.objective_functions import objectiveFunctionPriority, objectiveFunctionImageQuality
+
 
 class DestroyType(Enum):
     RANDOM = 0
@@ -140,18 +144,18 @@ def destroyOperator(otList: list, ttwList: list, destroyNumber: int, destroyType
 
     #Sort list based on destroyType
     if destroyType == DestroyType.RANDOM:
-        otListsorted = randomSort(otList)
+        otListSorted = randomSort(otList)
     elif destroyType == DestroyType.GREEDY_P:
-        otListsorted = greedyPrioritySort(otList)
+        otListSorted = greedyPrioritySort(otList)
     elif destroyType == DestroyType.GREEDY_IQ:
-        otListsorted = greedyImageQualitySort(otList, oh)
+        otListSorted = greedyImageQualitySort(otList, oh)
     elif destroyType == DestroyType.CONGESTION:
         ttwListSorted = congestionSort(ttwList)
-        otListsorted = []
+        otListSorted = []
         for ttw in ttwListSorted:         
             for ot in otList:   
                 if ot.GT.id == ttw.GT.id:
-                    otListsorted.append(ot)
+                    otListSorted.append(ot)
                     break
 
     else:
@@ -160,9 +164,9 @@ def destroyOperator(otList: list, ttwList: list, destroyNumber: int, destroyType
 
     #Remove elements at end of list 
     for _ in range(destroyNumber):
-        removedTargetsIdList.append(otListsorted.pop(-1).GT.id)
+        removedTargetsIdList.append(otListSorted.pop(-1).GT.id)
         
-    return otListsorted, removedTargetsIdList
+    return otListSorted, removedTargetsIdList
 
 def repairOperator(ttwList: list, otList: list, unfeasibleTargetsIdList: list, repairType: RepairType, schedulingParameters: SP, oh: OH):
     """ Takes in a list of OTs and inserts new OTs untill no more feasible insertions can be performed. Selects which ones to insert based on repairType.
@@ -173,6 +177,7 @@ def repairOperator(ttwList: list, otList: list, unfeasibleTargetsIdList: list, r
     """
 
     ttwListSorted =  []
+    # TODO, check the effect of flipping this around
     greedyMode = False
     randomMode = True
 
@@ -192,15 +197,14 @@ def repairOperator(ttwList: list, otList: list, unfeasibleTargetsIdList: list, r
         return 0
     
     #Find an observation task schedule
-    otListRepared, objectiveValuesList = RHGA(ttwListSorted, otList, unfeasibleTargetsIdList, schedulingParameters, oh, greedyMode, randomMode)
+    otListRepaired, objectiveValuesList = RHGA(ttwListSorted, otList, unfeasibleTargetsIdList, schedulingParameters, oh, greedyMode, randomMode)
 
-    ### INSERT downlink/buffer schedule function here
+    ### Downlink/buffer scheduling
+    # Adjust the imaging schedule such that the buffer and downlink tasks fit
+    otListPrioritySorted = sorted(otListRepaired, key=lambda x: x.GT.priority, reverse=True)
+    _, _, _, otListAdjusted = twoStageTransmissionScheduling(otListPrioritySorted, ttwList, gstwList, transmissionParams)
+    # Calculate the objective values of the adjusted schedule
+    objectiveValuesList = [objectiveFunctionPriority(otListAdjusted), objectiveFunctionImageQuality(otListAdjusted, oh)]
+    
+    return ttwListSorted, otListAdjusted, objectiveValuesList
 
-    # #otListRepared = butchered_schedule
-    # #calculate the objective values of the buctchered_schedule = objectiveValuesList. that is done by including this in the code: 
-    # from data_preprocessing.objective_functions import objectiveFunctionPriority, objectiveFunctionImageQuality
-    # objectiveValues = []
-    # objectiveValues.append(objectiveFunctionPriority(otList))
-    # objectiveValues.append(objectiveFunctionImageQuality(otList, oh))
-
-    return ttwListSorted, otListRepared, objectiveValuesList
