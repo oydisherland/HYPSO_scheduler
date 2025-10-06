@@ -41,6 +41,7 @@ filePath_inputParameters = os.path.join(os.path.dirname(__file__),"data_input/in
 inputParameters = csvToDict(filePath_inputParameters)
 parametersFilePath = os.path.join(os.path.dirname(__file__),"data_input/input_parameters.csv")
 transmissionParameters = getTransmissionInputParams(parametersFilePath)
+ttwListFilePath = os.path.join(os.path.dirname(__file__),"data_input/HYPSO_data/ttw_list.json")
 
 # Check if start time is now
 if inputParameters["startTimeOH"] == "now":
@@ -62,8 +63,8 @@ ttwList, gstwList = getDataObjects(
     int(inputParameters["captureDuration"]),
     oh,
     int(inputParameters["hypsoNr"]),
-    inputParamsTransmission.minGSWindowTime)
-ttwlistCopy = ttwList.copy()
+    inputParamsTransmission.minGSWindowTime,
+    ttwListFilePath)
 
 # Create observation schedule
 observationSchedule, _, _, _, _ = runNSGA(
