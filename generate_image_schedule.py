@@ -82,9 +82,6 @@ observationSchedule, _, _, _, _ = runNSGA(
 )
 
 # Sort the schedule by priority to indicate for which tasks buffering should be scheduled first
-### Comment: maby the sorting should be done in the twoStageTransmissionScheduling function, not being dependent on being sorted beforehand
-observationSchedule = sorted(observationSchedule, key=lambda x: x.GT.priority, reverse=True)
-
 _, bufferSchedule, downlinkSchedule, modifiedObservationSchedule = twoStageTransmissionScheduling(
     observationSchedule,
     ttwList,

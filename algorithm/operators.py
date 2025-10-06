@@ -202,8 +202,7 @@ def repairOperator(ttwList: list, otList: list, gstwList: list[GSTW], unfeasible
 
     ### Downlink/buffer scheduling
     # Adjust the imaging schedule such that the buffer and downlink tasks fit
-    otListPrioritySorted = sorted(otListRepaired, key=lambda x: x.GT.priority, reverse=True)
-    _, _, _, otListAdjusted = twoStageTransmissionScheduling(otListPrioritySorted, ttwList, gstwList, transmissionParams)
+    _, _, _, otListAdjusted = twoStageTransmissionScheduling(otListRepaired, ttwList, gstwList, transmissionParams)
     # Calculate the objective values of the adjusted schedule
     objectiveValuesList = [objectiveFunctionPriority(otListAdjusted),
                            objectiveFunctionImageQuality(otListAdjusted, oh, schedulingParameters.hypsoNr)]
