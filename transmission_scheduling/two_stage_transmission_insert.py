@@ -53,12 +53,12 @@ def twoStageTransmissionScheduling(otList: list[OT], ttwList: list[TTW], gstwLis
         possibleTTW = findPossibleTTW(possibleTTW, otListReInsert, otListScheduled)
         otListReInsert = generateNewOTList(possibleTTW, otListScheduled, btList, gstwList, p)
 
-        print("======= Starting re-insertion phase for unscheduled observation tasks =======")
+        # print("======= Starting re-insertion phase for unscheduled observation tasks =======")
         n_before = len(otListScheduled)
         fullScheduleFound, btList, dtList, otListScheduled = scheduleTransmissions(otListReInsert, ttwList, gstwList, p,
                                                                                    otListScheduled, btList, dtList)
         n_after = len(otListScheduled)
-        print(f"Successfully re-inserted {n_after - n_before} observation tasks out of {len(otListReInsert)}")
+        # print(f"Successfully re-inserted {n_after - n_before} observation tasks out of {len(otListReInsert)}")
 
     return fullScheduleFound, btList, dtList, otListScheduled
 
@@ -170,7 +170,7 @@ def scheduleTransmissions(otList: list[OT], ttwList: list[TTW], gstwList: list[G
 
         if not validBTFound:
             # No valid GSTW has been found to downlink the buffered data
-            print(f"Transmission scheduling failed for {otToBuffer.GT.id} at {otToBuffer.start}")
+            # print(f"Transmission scheduling failed for {otToBuffer.GT.id} at {otToBuffer.start}")
             # Remove the currently considered observation task by checking if ground target matches
             otListMod.remove(otToBuffer)
 

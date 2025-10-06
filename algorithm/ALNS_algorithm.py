@@ -1,22 +1,26 @@
 from alns import ALNS
-from alns.accept import HillClimbing, SimulatedAnnealing
+from alns.accept import HillClimbing
 from alns.select import RandomSelect
-from alns.stop import MaxRuntime, NoImprovement, MaxIterations
+from alns.stop import MaxIterations
 
 import numpy.random as rnd
 import copy
-import matplotlib.pyplot as plt
 
-from scheduling_model import OH ,SP
+from scheduling_model import OH, SP, GSTW
 from algorithm.operators import repairOperator, destroyOperator, RepairType, DestroyType
+from transmission_scheduling.input_parameters import TransmissionParams
+
 
 class ProblemState:
-    def __init__(self, otList, ttwList, oh, destructionNumber, schedulingParameters, maxSizeTabooBank, isTabooBankFIFO):
+    def __init__(self, otList, ttwList, gstwList, oh, destructionNumber, schedulingParameters, transmissionParameters,
+                 maxSizeTabooBank, isTabooBankFIFO):
         self.otList = otList
         self.ttwList = ttwList
+        self.gstwList = gstwList
         self.oh = oh
         self.destructionNumber = destructionNumber
         self.schedulingParameters = schedulingParameters
+        self.transmissionParameters = transmissionParameters
         self.tabooBank = []
         self.maxSizeTabooBank = maxSizeTabooBank
         self.isTabooBankFIFO = isTabooBankFIFO
@@ -41,26 +45,34 @@ class ProblemState:
 
 ##### Functions to create initial solution as input to algorithm ###
 
-def initial_state(otList: list, ttwList: list, schedulingParameters: SP, oh: OH, destructionNumber: int, maxSizeTabooBank: int, isTabooBankFIFO: bool) -> ProblemState:
+def initial_state(otList: list, ttwList: list, gstwList: list[GSTW], schedulingParameters: SP,
+                  transmissionParams: TransmissionParams, oh: OH, destructionNumber: int, maxSizeTabooBank: int,
+                  isTabooBankFIFO: bool) -> ProblemState:
     tabooBank = []
     ttwListResorted, otList, objectiveValues = repairOperator(
         ttwList, 
-        otList, 
+        otList,
+        gstwList,
         tabooBank, 
-        RepairType.RANDOM, 
-        schedulingParameters, 
+        RepairType.RANDOM,
+        schedulingParameters,
+        transmissionParams,
         oh)
     
-    state = ProblemState(otList, ttwListResorted, oh, destructionNumber, schedulingParameters, maxSizeTabooBank, isTabooBankFIFO)
+    state = ProblemState(otList, ttwListResorted, gstwList, oh, destructionNumber, schedulingParameters,
+                         transmissionParams, maxSizeTabooBank, isTabooBankFIFO)
     state.maxObjective = objectiveValues
     return state
-def createInitialSolution(ttwList: list, schedulingParameters: SP, oh: OH, destructionNumber: int, maxSizeTabooBank: int, isTabooBankFIFO: bool):
+def createInitialSolution(ttwList: list, gstwList: list[GSTW], schedulingParameters: SP,
+                          transmissionParams: TransmissionParams, oh: OH, destructionNumber: int, maxSizeTabooBank: int,
+                          isTabooBankFIFO: bool):
     """ Creates a randomized initial solution for the ALNS algorithm
     Output:
     - init_sol: the initial ProblemState object for the ALNS algorithm
     """
     otListEmpty = []
-    init_sol = initial_state(otListEmpty, ttwList, schedulingParameters, oh, destructionNumber, maxSizeTabooBank, isTabooBankFIFO)
+    init_sol = initial_state(otListEmpty, ttwList, gstwList, schedulingParameters, transmissionParams, oh,
+                             destructionNumber, maxSizeTabooBank, isTabooBankFIFO)
     return init_sol
 
 ### Helper functions for destroy and repair operators ###
@@ -99,7 +111,8 @@ def destroyRandom(current: ProblemState, rng: rnd.Generator) -> ProblemState:
         destroyed.ttwList,
         numberOfTargetsToRemove, 
         DestroyType.RANDOM,
-        destroyed.oh)
+        destroyed.oh,
+        destroyed.schedulingParameters.hypsoNr)
     
     destroyed.tabooBank.extend(removedTargetsIdList)
     return destroyed
@@ -120,7 +133,8 @@ def destroyGreedyPriority(current: ProblemState, rng: rnd.Generator) -> ProblemS
         destroyed.ttwList,
         numberOfTargetsToRemove, 
         DestroyType.GREEDY_P,
-        destroyed.oh)
+        destroyed.oh,
+        destroyed.schedulingParameters.hypsoNr)
     
     destroyed.tabooBank.extend(removedTargetsIdList)
     return destroyed
@@ -141,7 +155,8 @@ def destroyGreedyImageQuality(current: ProblemState, rng: rnd.Generator) -> Prob
         destroyed.ttwList,
         numberOfTargetsToRemove, 
         DestroyType.GREEDY_IQ,
-        destroyed.oh)
+        destroyed.oh,
+        destroyed.schedulingParameters.hypsoNr)
     
     destroyed.tabooBank.extend(removedTargetsIdList)
     return destroyed
@@ -162,7 +177,8 @@ def destroyCongestion(current: ProblemState, rng: rnd.Generator) -> ProblemState
         current.ttwList,
         numberOfTargetsToRemove, 
         DestroyType.CONGESTION,
-        destroyed.oh)
+        destroyed.oh,
+        destroyed.schedulingParameters.hypsoNr)
     
     destroyed.tabooBank.extend(removedTargetsIdList)
     return destroyed
@@ -171,10 +187,12 @@ def repairRandom(current: ProblemState, rng: rnd.Generator) -> ProblemState:
     repaired = copy.deepcopy(current) #Do not know if deep copy is nessecary for the repair operator
     repaired.ttwList, repaired.otList, objectiveValues = repairOperator(
         repaired.ttwList, 
-        repaired.otList, 
+        repaired.otList,
+        repaired.gstwList,
         repaired.tabooBank, 
         RepairType.RANDOM, 
-        repaired.schedulingParameters, 
+        repaired.schedulingParameters,
+        repaired.transmissionParameters,
         repaired.oh)
     repaired.imageQuality = objectiveValues[1]
     if objectiveValues[0] > repaired.maxObjective[0]:
@@ -186,10 +204,12 @@ def repairGreedy(current: ProblemState, rng: rnd.Generator) -> ProblemState:
     repaired = copy.deepcopy(current)
     repaired.ttwList, repaired.otList, objectiveValues = repairOperator(
         repaired.ttwList, 
-        repaired.otList, 
+        repaired.otList,
+        repaired.gstwList,
         repaired.tabooBank, 
         RepairType.GREEDY, 
-        repaired.schedulingParameters, 
+        repaired.schedulingParameters,
+        repaired.transmissionParameters,
         repaired.oh)
     
     repaired.imageQuality = objectiveValues[1]
@@ -203,10 +223,12 @@ def repairSmallTW(current: ProblemState, rng: rnd.Generator) -> ProblemState:
 
     repaired.ttwList, repaired.otList, objectiveValues = repairOperator(
         repaired.ttwList, 
-        repaired.otList, 
+        repaired.otList,
+        repaired.gstwList,
         repaired.tabooBank, 
         RepairType.SMALL_TW, 
-        repaired.schedulingParameters, 
+        repaired.schedulingParameters,
+        repaired.transmissionParameters,
         repaired.oh)
     
     repaired.imageQuality = objectiveValues[1]
@@ -220,10 +242,12 @@ def repairCongestion(current: ProblemState, rng: rnd.Generator) -> ProblemState:
 
     repaired.ttwList, repaired.otList, objectiveValues = repairOperator(
         repaired.ttwList, 
-        repaired.otList, 
+        repaired.otList,
+        repaired.gstwList,
         repaired.tabooBank, 
         RepairType.CONGESTION, 
-        repaired.schedulingParameters, 
+        repaired.schedulingParameters,
+        repaired.transmissionParameters,
         repaired.oh)
     
     repaired.imageQuality = objectiveValues[1]
@@ -235,14 +259,17 @@ def repairCongestion(current: ProblemState, rng: rnd.Generator) -> ProblemState:
 
 ### Function to run ALNS algorithm
 
-def runALNS( inital_otList: list, initial_ttwList: list, schedulingParameters: SP, oh: OH, destructionNumber: int, maxSizeTabooBank: int, maxItr: int, isTabooBankFIFO: bool):
+def runALNS( inital_otList: list, initial_ttwList: list, gstwList: list[GSTW], schedulingParameters: SP,
+             transmissionParameters: TransmissionParams, oh: OH, destructionNumber: int, maxSizeTabooBank: int,
+             maxItr: int, isTabooBankFIFO: bool):
     """ Runs the ALNS algorithm to find a good heuristic solution
     Output:
     - result: the result object from the ALNS run, containing the best solution found
     - state: the final ProblemState object of the problem after the ALNS run
     """
     # Format the problem state
-    state = ProblemState(inital_otList, initial_ttwList, oh, destructionNumber, schedulingParameters, maxSizeTabooBank, isTabooBankFIFO)
+    state = ProblemState(inital_otList, initial_ttwList, gstwList, oh, destructionNumber, schedulingParameters,
+                         transmissionParameters, maxSizeTabooBank, isTabooBankFIFO)
     state.maxObjective = [0,0]
 
     # Create ALNS and add one or more destroy and repair operators
