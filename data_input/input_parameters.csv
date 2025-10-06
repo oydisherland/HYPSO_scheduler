@@ -1,7 +1,7 @@
 testName, 10-04-25
 
 #scheduling spesific parameters
-maxCaptures, 40
+maxCaptures, 24
 captureDuration, 60
 transitionTime, 660
 startTimeOH, 2025-10-04 14:00:00.000000

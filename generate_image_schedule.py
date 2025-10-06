@@ -2,7 +2,8 @@ import csv
 import os
 import datetime
 
-from scheduling_model import SP, GT
+from data_preprocessing.objective_functions import objectiveFunctionPriority, objectiveFunctionImageQuality
+from scheduling_model import SP
 from algorithm.NSGA2 import runNSGA
 from data_preprocessing.get_target_passes import getModelInput
 from campaignPlanner_interaction.intergrate_campaign_planner import createCmdFile, createCmdLinesForCaptureAndBuffering
@@ -38,7 +39,7 @@ def csvToDict(filepath):
 filePath_inputParameters = os.path.join(os.path.dirname(__file__),"data_input/input_parameters.csv")
 inputParameters = csvToDict(filePath_inputParameters)
 parametersFilePath = os.path.join(os.path.dirname(__file__),"data_input/input_parameters.csv")
-inputParamsTransmission = getTransmissionInputParams(parametersFilePath)
+transmissionParameters = getTransmissionInputParams(parametersFilePath)
 
 # Check if start time is now
 if inputParameters["startTimeOH"] == "now":
@@ -49,9 +50,9 @@ oh, ttwList, gstwList = getModelInput(
     int(inputParameters["durationInDaysOH"]),
     int(inputParameters["delayInHoursOH"]),
     int(inputParameters["hypsoNr"]),
-    inputParamsTransmission.minGSWindowTime,
+    transmissionParameters.minGSWindowTime,
     (inputParameters["startTimeOH"]))
-ttwlistCopy = ttwList.copy()
+
 schedulingParameters = SP(
     int(inputParameters["maxCaptures"]), 
     int(inputParameters["captureDuration"]), 
@@ -60,8 +61,10 @@ schedulingParameters = SP(
 schedule, _, _, _, _ = runNSGA(
     int(inputParameters["populationSize"]), 
     int(inputParameters["NSGA2Runds"]), 
-    ttwList, 
-    schedulingParameters, 
+    ttwList,
+    gstwList,
+    schedulingParameters,
+    transmissionParameters,
     oh, 
     int(inputParameters["ALNSRuns"]), 
     bool(inputParameters["isTabooBankFIFO"]), 
@@ -77,7 +80,7 @@ _, bufferSchedule, downlinkSchedule, modifiedObservationSchedule = twoStageTrans
     schedule,
     ttwList,
     gstwList,
-    inputParamsTransmission
+    transmissionParameters
 )
 
 bufferSchedule, downlinkSchedule = cleanUpSchedule(
@@ -85,7 +88,7 @@ bufferSchedule, downlinkSchedule = cleanUpSchedule(
     bufferSchedule,
     downlinkSchedule,
     gstwList,
-    inputParamsTransmission,
+    transmissionParameters,
     OrderType.FIFO,
     OrderType.PRIORITY
 )
@@ -97,8 +100,11 @@ plotSchedule(
     downlinkSchedule,
     gstwList,
     ttwList,
-    inputParamsTransmission
+    transmissionParameters
 )
+
+print(f"Priority objective value: {objectiveFunctionPriority(modifiedObservationSchedule)}")
+print(f"Image quality objective value: {objectiveFunctionImageQuality(modifiedObservationSchedule, oh)}")
 
 ## Create command lines for campaign planner
 
