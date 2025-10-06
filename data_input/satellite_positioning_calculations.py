@@ -3,6 +3,7 @@ from skyfield import almanac
 import datetime 
 import os
 
+ts = skf.load.timescale()
 
 def createSatelliteObject(HYPSOnr: int) -> skf.EarthSatellite:
     """ Create a satellite object for a given HYPSO satellite number
@@ -63,7 +64,6 @@ def findSatelliteTargetElevation(targetLat: float, targetLong: float, time: date
     target_location = skf.wgs84.latlon(targetLat * skf.N, targetLong * skf.E, 100.0)
 
     # Convert the utc time to skyfield time type
-    ts = skf.load.timescale()
     t = ts.utc(time.year, time.month, time.day, time.hour, time.minute, time.second)
 
     # Find the elevation of the satellite at the target location at time t
