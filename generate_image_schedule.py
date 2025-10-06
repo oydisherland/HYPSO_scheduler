@@ -113,7 +113,7 @@ plotSchedule(
 )
 
 print(f"Priority objective value: {objectiveFunctionPriority(modifiedObservationSchedule)}")
-print(f"Image quality objective value: {objectiveFunctionImageQuality(modifiedObservationSchedule, oh)}")
+print(f"Image quality objective value: {objectiveFunctionImageQuality(modifiedObservationSchedule, oh, schedulingParameters.hypsoNr)}")
 
 ### CREATE COMMAND LINES FOR SATELLITE CAPTURE AND BUFFERING ###
 

@@ -63,13 +63,16 @@ def initial_state(otList: list, ttwList: list, gstwList: list[GSTW], schedulingP
                          transmissionParams, maxSizeTabooBank, isTabooBankFIFO)
     state.maxObjective = objectiveValues
     return state
-def createInitialSolution(ttwList: list, schedulingParameters: SP, oh: OH, destructionNumber: int, maxSizeTabooBank: int, isTabooBankFIFO: bool):
+def createInitialSolution(ttwList: list, gstwList: list[GSTW], schedulingParameters: SP,
+                          transmissionParams: TransmissionParams, oh: OH, destructionNumber: int, maxSizeTabooBank: int,
+                          isTabooBankFIFO: bool):
     """ Creates a randomized initial solution for the ALNS algorithm
     Output:
     - init_sol: the initial ProblemState object for the ALNS algorithm
     """
     otListEmpty = []
-    init_sol = initial_state(otListEmpty, ttwList, schedulingParameters, oh, destructionNumber, maxSizeTabooBank, isTabooBankFIFO)
+    init_sol = initial_state(otListEmpty, ttwList, gstwList, schedulingParameters, transmissionParams, oh,
+                             destructionNumber, maxSizeTabooBank, isTabooBankFIFO)
     return init_sol
 
 ### Helper functions for destroy and repair operators ###
@@ -108,7 +111,8 @@ def destroyRandom(current: ProblemState, rng: rnd.Generator) -> ProblemState:
         destroyed.ttwList,
         numberOfTargetsToRemove, 
         DestroyType.RANDOM,
-        destroyed.oh)
+        destroyed.oh,
+        destroyed.schedulingParameters.hypsoNr)
     
     destroyed.tabooBank.extend(removedTargetsIdList)
     return destroyed
@@ -129,7 +133,8 @@ def destroyGreedyPriority(current: ProblemState, rng: rnd.Generator) -> ProblemS
         destroyed.ttwList,
         numberOfTargetsToRemove, 
         DestroyType.GREEDY_P,
-        destroyed.oh)
+        destroyed.oh,
+        destroyed.schedulingParameters.hypsoNr)
     
     destroyed.tabooBank.extend(removedTargetsIdList)
     return destroyed
@@ -150,7 +155,8 @@ def destroyGreedyImageQuality(current: ProblemState, rng: rnd.Generator) -> Prob
         destroyed.ttwList,
         numberOfTargetsToRemove, 
         DestroyType.GREEDY_IQ,
-        destroyed.oh)
+        destroyed.oh,
+        destroyed.schedulingParameters.hypsoNr)
     
     destroyed.tabooBank.extend(removedTargetsIdList)
     return destroyed
@@ -171,7 +177,8 @@ def destroyCongestion(current: ProblemState, rng: rnd.Generator) -> ProblemState
         current.ttwList,
         numberOfTargetsToRemove, 
         DestroyType.CONGESTION,
-        destroyed.oh)
+        destroyed.oh,
+        destroyed.schedulingParameters.hypsoNr)
     
     destroyed.tabooBank.extend(removedTargetsIdList)
     return destroyed
@@ -252,7 +259,9 @@ def repairCongestion(current: ProblemState, rng: rnd.Generator) -> ProblemState:
 
 ### Function to run ALNS algorithm
 
-def runALNS( inital_otList: list, initial_ttwList: list, schedulingParameters: SP, oh: OH, destructionNumber: int, maxSizeTabooBank: int, maxItr: int, isTabooBankFIFO: bool):
+def runALNS( inital_otList: list, initial_ttwList: list, gstwList: list[GSTW], schedulingParameters: SP,
+             transmissionParameters: TransmissionParams, oh: OH, destructionNumber: int, maxSizeTabooBank: int,
+             maxItr: int, isTabooBankFIFO: bool):
     """ Runs the ALNS algorithm to find a good heuristic solution
     Output:
     - result: the result object from the ALNS run, containing the best solution found

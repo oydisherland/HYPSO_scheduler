@@ -52,8 +52,8 @@ def greedyPrioritySort(ttwListOriginal: list):
         ttwListSorted.append(ttwList.pop(maxIndex))
     return ttwListSorted
 
-def greedyImageQualitySort(otListOriginal: list, oh: OH):
-    """ Sort OT list so GT with highest image quality are first"""
+def greedyImageQualitySort(otListOriginal: list, oh: OH, hypsoNr):
+    """ Sort OT list so GT with the highest image quality are first"""
     otList = otListOriginal.copy()
     otListSorted = []
 
@@ -61,7 +61,7 @@ def greedyImageQualitySort(otListOriginal: list, oh: OH):
         maxImageQuality = 0
         maxIndex = 0
         for j in range(len(otList)):
-            imageQuality = objectiveFunctionImageQuality([otList[j]], oh)
+            imageQuality = objectiveFunctionImageQuality([otList[j]], oh, hypsoNr)
             if imageQuality > maxImageQuality:
                 maxImageQuality = imageQuality
                 maxIndex = j
@@ -127,7 +127,7 @@ def congestionSort(ttwListOriginal: list):
 
 #### Destroy operator
 
-def destroyOperator(otList: list, ttwList: list, destroyNumber: int, destroyType: DestroyType, oh: OH):
+def destroyOperator(otList: list, ttwList: list, destroyNumber: int, destroyType: DestroyType, oh: OH, hypsoNr: int):
     """ Takes in a list of OT and removes destroyNumber of them. Selects which ones to remove based on destroyType.
     destroyTypes: random, greedy_priority, greedy_imageQuality, congestion. \n
     Output:
@@ -148,7 +148,7 @@ def destroyOperator(otList: list, ttwList: list, destroyNumber: int, destroyType
     elif destroyType == DestroyType.GREEDY_P:
         otListSorted = greedyPrioritySort(otList)
     elif destroyType == DestroyType.GREEDY_IQ:
-        otListSorted = greedyImageQualitySort(otList, oh)
+        otListSorted = greedyImageQualitySort(otList, oh, hypsoNr)
     elif destroyType == DestroyType.CONGESTION:
         ttwListSorted = congestionSort(ttwList)
         otListSorted = []
@@ -168,7 +168,8 @@ def destroyOperator(otList: list, ttwList: list, destroyNumber: int, destroyType
         
     return otListSorted, removedTargetsIdList
 
-def repairOperator(ttwList: list, otList: list, unfeasibleTargetsIdList: list, repairType: RepairType, schedulingParameters: SP, oh: OH):
+def repairOperator(ttwList: list, otList: list, gstwList: list[GSTW], unfeasibleTargetsIdList: list,
+                   repairType: RepairType, schedulingParameters: SP, transmissionParams: TransmissionParams, oh: OH):
     """ Takes in a list of OTs and inserts new OTs untill no more feasible insertions can be performed. Selects which ones to insert based on repairType.
     After inserting all new OTs, the scheduled is ajusted to fulfill downlink/buffering requirements.
     repairType: random, greedy, smallTW, congestion.\n
@@ -204,7 +205,8 @@ def repairOperator(ttwList: list, otList: list, unfeasibleTargetsIdList: list, r
     otListPrioritySorted = sorted(otListRepaired, key=lambda x: x.GT.priority, reverse=True)
     _, _, _, otListAdjusted = twoStageTransmissionScheduling(otListPrioritySorted, ttwList, gstwList, transmissionParams)
     # Calculate the objective values of the adjusted schedule
-    objectiveValuesList = [objectiveFunctionPriority(otListAdjusted), objectiveFunctionImageQuality(otListAdjusted, oh)]
+    objectiveValuesList = [objectiveFunctionPriority(otListAdjusted),
+                           objectiveFunctionImageQuality(otListAdjusted, oh, schedulingParameters.hypsoNr)]
     
     return ttwListSorted, otListAdjusted, objectiveValuesList
 
