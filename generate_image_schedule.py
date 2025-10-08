@@ -66,7 +66,7 @@ ttwlistCopy = ttwList.copy()
 # Create observation schedule
 observationSchedule, _, _, _, _ = runNSGA(
     int(inputParameters["populationSize"]), 
-    int(inputParameters["NSGA2Runds"]), 
+    int(inputParameters["NSGA2Runs"]), 
     ttwList, 
     schedulingParameters, 
     oh, 

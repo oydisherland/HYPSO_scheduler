@@ -1,6 +1,6 @@
 from alns import ALNS
 from alns.accept import HillClimbing, SimulatedAnnealing
-from alns.select import RandomSelect
+from alns.select import RandomSelect, RouletteWheel
 from alns.stop import MaxRuntime, NoImprovement, MaxIterations
 
 import numpy.random as rnd
@@ -257,9 +257,18 @@ def runALNS( inital_otList: list, initial_ttwList: list, schedulingParameters: S
     alns.add_repair_operator(repairCongestion)
    
     # Configure ALNS
-    select = RandomSelect(num_destroy=3, num_repair=4)  # see alns.select for others
-    accept = HillClimbing()  # see alns.accept for others
-    stop = MaxIterations(maxItr)   # Create a new MaxRuntime instance for each run MaxRuntime(20)#NoImprovement(100) NoImprovement(10) #
+    select = RouletteWheel(scores=[1.0] * 7, decay=0.8, num_destroy=3, num_repair=4) # initialize with equal operator weights
+    # Start configuration
+    #accept = SimulatedAnnealing(start_temperature=100, end_temperature=1, step=0.99) 
+    # Moderate
+    #accept = SimulatedAnnealing(start_temperature=500, end_temperature=1, step=0.99)
+    # Agressive (fast cooling)
+    accept = SimulatedAnnealing(start_temperature=100, end_temperature=5, step=0.95)
+    # High Exploration
+    #accept = SimulatedAnnealing(start_temperature=2000, end_temperature=0.01, step=0.998)
+    # Quick Convergence
+    #accept = SimulatedAnnealing(start_temperature=200, end_temperature=10, step=0.90)
+    stop = MaxIterations(maxItr)  
 
     # Run the ALNS algorithm
     result = alns.iterate(state, select, accept, stop)
