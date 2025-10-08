@@ -327,7 +327,7 @@ def getDataObjects(captureDuration: int, oh: OH, hypsoNr: int, minGSWindowLength
 
     return ttwList, gstwList
 
-def howManyPasses(targetPassList: list) -> int:
+def howManyPasses(targetPassList: list) -> tuple[int, int]:
     """ Return the total number of target passes in the OH """
     count = 0
     for targetDict in targetPassList:
