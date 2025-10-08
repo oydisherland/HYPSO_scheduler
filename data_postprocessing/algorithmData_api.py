@@ -36,7 +36,7 @@ def saveTTWListInJsonFile(filepath: str, ttwList: list):
     serializable_ttwList = []
     for ttw in ttwList:
         ttwData = {
-            "Ground Target": [ttw.GT.id, ttw.GT.priority],
+            "Ground Target": ttw.GT,
             "Time Windows": [{"start": tw.start, "end": tw.end} for tw in ttw.TWs]
         }
         serializable_ttwList.append(ttwData)
@@ -187,9 +187,9 @@ def getFinalPopulation(filepath: str):
         print(f"An error occurred: {e}")
 
     return schedualsFinalPop
-def getBSTTW(filepath: str):
+def getTTWListFromFile(filepath: str):
     """ Extract JSON object from file and recreate ttwList object of best schedule """
-
+    ttwList = None
     try:
         # Load the ttwList data from the JSON file
         with open(filepath, mode='r') as file:
@@ -201,10 +201,12 @@ def getBSTTW(filepath: str):
             groundTarget = entry["Ground Target"]
             gt = GT(
                 id = groundTarget[0],
-                lat = None,
-                long = None,
-                priority = groundTarget[1],
-                idealIllumination = None
+                lat = groundTarget[1],
+                long = groundTarget[2],
+                priority = groundTarget[3],
+                cloudCoverage = groundTarget[4],
+                exposureTime = groundTarget[5],
+                captureMode = groundTarget[6]
             )
             tws = []
             for tw in entry["Time Windows"]:

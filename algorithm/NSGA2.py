@@ -8,8 +8,8 @@ from pymoo.visualization.scatter import Scatter
 from collections import namedtuple
 
 from algorithm.ALNS_algorithm import runALNS, createInitialSolution
-from scheduling_model import SP, OH
-
+from scheduling_model import SP, OH, GSTW
+from transmission_scheduling.input_parameters import TransmissionParams
 
 INDIVIDUAL = namedtuple("INDIVIDUAL", ["id", "objectiveValues", "schedule", "ttwList"])
 
@@ -42,8 +42,10 @@ def findKneePoint(fronts, objectiveSpace):
 def runNSGA(
             populationSize: int, 
             nsga2Runs: int,
-            ttwList: list, 
-            schedulingParameters: SP,  
+            ttwList: list,
+            gstwList: list[GSTW],
+            schedulingParameters: SP,
+            transmissionParameters: TransmissionParams,
             oh: OH,
             alnsRuns: int,
             isTabooBankFIFO: bool,
@@ -65,12 +67,15 @@ def runNSGA(
     population = []
 
     #### Create initial induvidual
-    initSolution = createInitialSolution(ttwList.copy(), schedulingParameters, oh, destructionNumber, maxSizeTabooBank, isTabooBankFIFO)
+    initSolution = createInitialSolution(ttwList.copy(), gstwList, schedulingParameters, transmissionParameters,
+                                         oh, destructionNumber, maxSizeTabooBank, isTabooBankFIFO)
 
     result, _ = runALNS(
         initSolution.otList.copy(),
         initSolution.ttwList.copy(),
-        schedulingParameters,  
+        gstwList,
+        schedulingParameters,
+        transmissionParameters,
         oh, 
         destructionNumber, 
         maxSizeTabooBank,
@@ -102,7 +107,9 @@ def runNSGA(
             newIndividual, _ = runALNS(
                 otList_i,
                 ttwList.copy(),
-                schedulingParameters, 
+                gstwList,
+                schedulingParameters,
+                transmissionParameters,
                 oh, 
                 destructionNumber, 
                 maxSizeTabooBank,

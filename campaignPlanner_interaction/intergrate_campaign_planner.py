@@ -1,4 +1,6 @@
 import datetime
+from pathlib import Path
+
 import pandas as pd
 import skyfield.api as skf
 from datetime import timedelta
@@ -231,7 +233,12 @@ def createCmdLinesForCaptureAndBuffering(observationSchedule: list, bufferSchedu
 def createCmdFile(txtFilepath, cmdLines):
     """ Each element in the cmdLines list is written to the txt file as a command line """
 
-    with open(txtFilepath, 'w') as f:
+    txtPath = Path(txtFilepath)
+    # Create parent folder if it doesn't exist
+    txtPath.parent.mkdir(parents=True, exist_ok=True)
+
+    # Write lines to file
+    with open(txtPath, 'w') as f:
         for line in cmdLines:
             f.write(line.rstrip() + "\n")
 # Function that reformats the campaign planner commands into schedule objects 

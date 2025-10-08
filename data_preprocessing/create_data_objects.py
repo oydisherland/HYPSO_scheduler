@@ -4,6 +4,7 @@ import os
 
 from data_input.extract_cloud_data import getCloudData
 from data_input.satellite_positioning_calculations import findSatelliteTargetPasses, findIllumminationPeriods
+from data_postprocessing.algorithmData_api import getTTWListFromFile, saveTTWListInJsonFile
 from scheduling_model import OH, GT, TW, TTW, GSTW, GS
 from data_preprocessing.parseTargetsFile import getTargetDataFromJsonFile
    
@@ -255,12 +256,34 @@ def createOHObject(startTimeOH: datetime.datetime, ohDurationInDays: int) -> OH:
 
     return oh
 
-def getDataObjects(captureDuration: int, oh: OH, hypsoNr: int, minGSWindowLength: float):
+def getDataObjects(captureDuration: int, oh: OH, hypsoNr: int, minGSWindowLength: float, ttwFilePathRead: str = None, ttwFilePathWrite: str = None):
     """ Calculate the satellite passes and store in data objects defined in scheduling_model.py
-    Output:
-    - ttwList: list of TTW objects
-    - gstwList: list of GSTW objects
+
+    Args:
+        captureDuration (int): Duration of each image capture in seconds.
+        oh (OH): Observation Horizon object containing start and end times.
+        hypsoNr (int): HYPSO satellite number.
+        minGSWindowLength (float): Minimum length of a ground station time window in seconds.
+        ttwFilePathRead (str, optional): File path to read pre-calculated TTW data. If provided, TTW data will be read from this file instead of being calculated. Defaults to None.
+        ttwFilePathWrite (str, optional): File path to write calculated TTW data. If provided, calculated TTW data will be saved to this file. Defaults to None.
+
+    Returns:
+        tuple: A tuple containing two elements:
+            - list of TTW objects representing target time windows.
+            - list of GSTW objects representing ground station time windows.
     """
+
+    # Get the passes over the ground stations
+    groundStationFilePath = os.path.join(os.path.dirname(__file__), "../data_input/HYPSO_data/ground_stations.csv")
+    gstwList = getGroundStationTimeWindows(oh.utcStart, oh.utcEnd, minGSWindowLength, groundStationFilePath, hypsoNr)
+
+    # If a file path is provided for the TTW data, read the data from the file instead of calculating it
+    if ttwFilePathRead is not None:
+        ttwList = getTTWListFromFile(ttwFilePathRead)
+        if ttwList is not None:
+            return ttwList, gstwList
+        else:
+            print("Error reading TTW data from file, calculating TTW data instead")
 
     # Path to the file containing the ground targets data
     targetsFilePath = os.path.join(os.path.dirname(__file__),"../data_input/HYPSO_data/targets.json")
@@ -299,9 +322,8 @@ def getDataObjects(captureDuration: int, oh: OH, hypsoNr: int, minGSWindowLength
         )
         ttwList.append(ttw)
 
-    # Get the passes over the ground stations
-    groundStationFilePath = os.path.join(os.path.dirname(__file__),"../data_input/HYPSO_data/ground_stations.csv")
-    gstwList = getGroundStationTimeWindows(oh.utcStart, oh.utcEnd, minGSWindowLength, groundStationFilePath, hypsoNr)
+    if ttwFilePathWrite is not None:
+        saveTTWListInJsonFile(ttwFilePathWrite, ttwList)
 
     return ttwList, gstwList
 
