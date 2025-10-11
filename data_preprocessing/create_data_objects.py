@@ -134,7 +134,7 @@ def removeNonIlluminatedPasses(allTargetPasses: list, startTimeOH: datetime.date
 
     return targetPassesWithIllumination
   
-def getGroundStationTimeWindows(startTimeOH: datetime.datetime, endTimeOH: datetime.datetime, minWindowLength: float,
+def createGSTWList(startTimeOH: datetime.datetime, endTimeOH: datetime.datetime, minWindowLength: float,
                                 groundStationsFilePath: str, hypsoNr: int):
     """
     Get the time windows when the satellite passes over one of the ground stations.
@@ -240,7 +240,7 @@ def removeCloudObscuredPasses(allTargetPasses: list, startTimeOH: datetime.datet
 
     return targetPassesWithoutClouds
 
-def createOHObject(startTimeOH: datetime.datetime, ohDurationInDays: int) -> OH:
+def createOH(startTimeOH: datetime.datetime, ohDurationInDays: int) -> OH:
     """ Create optimalization horizon object form input parameters, and print the time interval. 
     Output:
      - oh: OH object
@@ -256,7 +256,8 @@ def createOHObject(startTimeOH: datetime.datetime, ohDurationInDays: int) -> OH:
 
     return oh
 
-def getDataObjects(captureDuration: int, oh: OH, hypsoNr: int, minGSWindowLength: float, ttwFilePathRead: str = None, ttwFilePathWrite: str = None):
+
+def createTTWList(captureDuration: int, oh: OH, hypsoNr: int, ttwFilePathRead: str = None, ttwFilePathWrite: str = None) -> list:
     """ Calculate the satellite passes and store in data objects defined in scheduling_model.py
 
     Args:
@@ -273,15 +274,11 @@ def getDataObjects(captureDuration: int, oh: OH, hypsoNr: int, minGSWindowLength
             - list of GSTW objects representing ground station time windows.
     """
 
-    # Get the passes over the ground stations
-    groundStationFilePath = os.path.join(os.path.dirname(__file__), "../data_input/HYPSO_data/ground_stations.csv")
-    gstwList = getGroundStationTimeWindows(oh.utcStart, oh.utcEnd, minGSWindowLength, groundStationFilePath, hypsoNr)
-
     # If a file path is provided for the TTW data, read the data from the file instead of calculating it
     if ttwFilePathRead is not None:
         ttwList = getTTWListFromFile(ttwFilePathRead)
         if ttwList is not None:
-            return ttwList, gstwList
+            return ttwList
         else:
             print("Error reading TTW data from file, calculating TTW data instead")
 
@@ -325,7 +322,7 @@ def getDataObjects(captureDuration: int, oh: OH, hypsoNr: int, minGSWindowLength
     if ttwFilePathWrite is not None:
         saveTTWListInJsonFile(ttwFilePathWrite, ttwList)
 
-    return ttwList, gstwList
+    return ttwList
 
 def howManyPasses(targetPassList: list) -> int:
     """ Return the total number of target passes in the OH """

@@ -5,13 +5,14 @@ import datetime
 from data_preprocessing.objective_functions import objectiveFunctionPriority, objectiveFunctionImageQuality
 from scheduling_model import SP
 from algorithm.NSGA2 import runNSGA
-from data_preprocessing.create_data_objects import getDataObjects, createOHObject
-from campaignPlanner_interaction.intergrate_campaign_planner import createCmdFile, createCmdLinesForCaptureAndBuffering
+from data_preprocessing.create_data_objects import createTTWList, createOH, createGSTWList
+from campaignPlanner_interaction.intergrate_campaign_planner import createCmdFile, createCmdLinesForCaptureAndBuffering, recreateOTListFromCmdFile
 
 from transmission_scheduling.clean_schedule import cleanUpSchedule, OrderType
 from transmission_scheduling.input_parameters import getTransmissionInputParams
 from transmission_scheduling.two_stage_transmission_insert import twoStageTransmissionScheduling
-from transmission_scheduling.util import plotSchedule
+from transmission_scheduling.util import plotSchedule, plotCompareSchedule
+
 
 
 # Utility functions
@@ -37,34 +38,28 @@ def csvToDict(filepath) -> dict:
 
 ### Create the image schedule ####
 
-filePath_inputParameters = os.path.join(os.path.dirname(__file__),"data_input/input_parameters.csv")
-inputParameters = csvToDict(filePath_inputParameters)
-parametersFilePath = os.path.join(os.path.dirname(__file__),"data_input/input_parameters.csv")
-transmissionParameters = getTransmissionInputParams(parametersFilePath)
+groundStationFilePath = os.path.join(os.path.dirname(__file__), "data_input/HYPSO_data/ground_stations.csv")
+inputParametersFilePath = os.path.join(os.path.dirname(__file__),"data_input/input_parameters.csv")
 ttwListFilePath = os.path.join(os.path.dirname(__file__),"data_input/HYPSO_data/ttw_list.json")
 
-# Check if start time is now
+inputParameters = csvToDict(inputParametersFilePath)
+
+# # Check if start time is now
 if inputParameters["startTimeOH"] == "now":
     inputParameters["startTimeOH"] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
 
-# Get model parameters
+# Create model parameters
 schedulingParameters = SP(
     int(inputParameters["maxCaptures"]), 
     int(inputParameters["captureDuration"]), 
     int(inputParameters["transitionTime"]),
     int(inputParameters["hypsoNr"]))
-oh = createOHObject(
-    datetime.datetime.fromisoformat(inputParameters["startTimeOH"]), 
-    int(inputParameters["durationInDaysOH"]))
-inputParamsTransmission = getTransmissionInputParams(parametersFilePath)
+oh = createOH(datetime.datetime.fromisoformat(inputParameters["startTimeOH"]), int(inputParameters["durationInDaysOH"]))
+transmissionParameters = getTransmissionInputParams(inputParametersFilePath)
 
-# Get data objects
-ttwList, gstwList = getDataObjects(
-    int(inputParameters["captureDuration"]),
-    oh,
-    int(inputParameters["hypsoNr"]),
-    inputParamsTransmission.minGSWindowTime,
-    ttwListFilePath)
+# Create data Objects
+ttwList = createTTWList( int(inputParameters["captureDuration"]), oh, int(inputParameters["hypsoNr"]), ttwListFilePath)
+gstwList = createGSTWList(oh.utcStart, oh.utcEnd, transmissionParameters.minGSWindowTime, groundStationFilePath, int(inputParameters["hypsoNr"]))
 
 # Create observation schedule
 observationSchedule, _, _, _, _ = runNSGA(
@@ -99,7 +94,7 @@ bufferSchedule, downlinkSchedule = cleanUpSchedule(
     OrderType.FIFO,
     OrderType.PRIORITY
 )
-
+saveplotPathCompare = os.path.join(os.path.dirname(__file__), f"output_folder/{inputParameters['testName']}_schedule")
 plotSchedule(
     modifiedObservationSchedule,
     observationSchedule,
@@ -107,7 +102,8 @@ plotSchedule(
     downlinkSchedule,
     gstwList,
     ttwList,
-    transmissionParameters
+    transmissionParameters,
+    savePlotPath=saveplotPathCompare
 )
 
 print(f"Priority objective value: {objectiveFunctionPriority(modifiedObservationSchedule)}")
@@ -122,16 +118,25 @@ createCmdFile(f"{outputFolderPath}{inputParameters['testName']}_cmdLines.txt", c
 
 
 ### COMPARE SCRIPTS ###
-# myScript = "campaignPlanner_interaction/campaign_scripts_h2_2025-09-26_mine.txt"
-# campaignScript = "campaignPlanner_interaction/campaign_scripts_h2_2025-09-26.txt"
-# fullPathMyScript= os.path.join(os.path.dirname(__file__),myScript)
-# fullPathCampaignScript= os.path.join(os.path.dirname(__file__),campaignScript)
+pathScript = os.path.join(os.path.dirname(__file__), "output_folder/CP_output/cp_test.txt")
 
-# priorities, uniqueCaptures = compareScripts(fullPathMyScript, fullPathCampaignScript)
+otList = recreateOTListFromCmdFile(pathScript, oh)
+for ot in otList:
+    print(f"Target ID: {ot.GT.id:10}, Start: {ot.start}")
+print(f"Total number of observation tasks: {len(otList)}")  
+for ot in modifiedObservationSchedule:
+    print(f"Target ID: {ot.GT.id:10}, Start: {ot.start}")
+print(f"Total number of observation tasks: {len(modifiedObservationSchedule)}")
+saveplotPathCompare = os.path.join(os.path.dirname(__file__), f"output_folder/{inputParameters['testName']}_compare_schedule")
 
-# p_me, p_camp = priorities
-# print(f"Sum of priorities - My script: {p_me}, Campaign script: {p_camp}")
-
-# unique_me, unique_camp = uniqueCaptures
-# print(f"Unique captures - My script: {unique_me}, \nCampaign script: {unique_camp}")
-
+plotCompareSchedule(
+    modifiedObservationSchedule,
+    otList,
+    observationSchedule,
+    bufferSchedule,
+    downlinkSchedule,
+    gstwList,
+    ttwList,
+    transmissionParameters,
+    savePlotPath=saveplotPathCompare
+)

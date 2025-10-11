@@ -2,7 +2,7 @@ import os
 
 
 
-from campaignPlanner_interaction.intergrate_campaign_planner import getScheduleFromCmdLine, getTargetIdPriorityDict
+from campaignPlanner_interaction.intergrate_campaign_planner import getScheduleFromCmdLine, getTargetIdPriorityDict, recreateOTListFromCmdFile
 
 def getListOfTargetIdsFromScript(pathScript: str) -> list:
     """ Get a list of target IDs from a command line script """
@@ -115,4 +115,18 @@ def captureScriptVsCampaignScript(pathCaptureScript, pathCampaignScript):
             campaignAddedCmdLines.append(cmdLines_campaign[i])
     return campaignAddedCmdLines, campaignRemovedCmdLines
 
+
+def testRecreateCPScript():
+    """ Test the function recreateOTListFromCmdFile """
+    pathScript = "HYPSO_scheduler/output_folder/CP_output/cp_test.txt"
+    cmdLines = []
+
+    with open(pathScript, 'r') as f:
+            for line in f:
+                cmdLines.append(line.rstrip())
+    
+    otList = recreateOTListFromCmdFile(cmdLines)
+    for ot in otList:
+        print(f"Target ID: {ot.GT.id}, Start: {ot.start}, End: {ot.end}, Priority: {ot.GT.priority}, Exposure time: {ot.GT.exposureTime}")
+    print(f"Total number of observation tasks: {len(otList)}")
 
