@@ -6,7 +6,7 @@ import skyfield.api as skf
 from datetime import timedelta
 from data_postprocessing.quaternions import generate_quaternions
 from data_input.satellite_positioning_calculations import createSatelliteObject, findSatelliteTargetElevation
-
+from data_input.utility_functions import InputParameters
 from scheduling_model import OH, OT, GT, BT, OH
 
 # function to calcuate quaternions for a given target at a given time
@@ -212,7 +212,7 @@ def createBufferCmdLine( bufferTask: BT, hypsoNr: int, quaternions: dict, observ
                  f' % {observationMiddleTime} - Predicted Cloud cover: {row['Predicted Cloud cover:']:5.1f} % Estimated downlink complete: \n'
 
     return cmd_string
-def createCmdLinesForCaptureAndBuffering(observationSchedule: list, bufferSchedule: list, inputParameters: dict, oh: OH) -> list:
+def createCmdLinesForCaptureAndBuffering(observationSchedule: list, bufferSchedule: list, inputParameters: InputParameters, oh: OH) -> list:
     """ Creates a list of command lines for capturing and buffering based on the observation and buffer schedules
     Output:
     - cmdLines: list of command lines that Hypso can parse
@@ -222,15 +222,15 @@ def createCmdLinesForCaptureAndBuffering(observationSchedule: list, bufferSchedu
     cmdLines = []
     for ot in schedule_dt:
         groundTarget = ot.GT
-        quaternions = calculateQuaternions(int(inputParameters["hypsoNr"]), groundTarget, ot.start)
-        newCaptureCommandLine = createCaptureCmdLine(ot, int(inputParameters["hypsoNr"]), quaternions)
+        quaternions = calculateQuaternions(int(inputParameters.hypsoNr), groundTarget, ot.start)
+        newCaptureCommandLine = createCaptureCmdLine(ot, int(inputParameters.hypsoNr), quaternions)
         cmdLines.append(newCaptureCommandLine)
 
 
         for bt in bufferschedule_dt:
             if bt.GT.id != groundTarget.id:
                 continue
-            newBufferCommandLine = createBufferCmdLine(bt, int(inputParameters["hypsoNr"]), quaternions, ot)
+            newBufferCommandLine = createBufferCmdLine(bt, int(inputParameters.hypsoNr), quaternions, ot)
             cmdLines.append(newBufferCommandLine)
     return cmdLines
 def createCmdFile(txtFilepath, cmdLines):
