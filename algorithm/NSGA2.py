@@ -4,7 +4,6 @@ import matplotlib.pyplot as plt
 from pymoo.util.nds.non_dominated_sorting import NonDominatedSorting
 from pymoo.operators.survival.rank_and_crowding.metrics import get_crowding_function
 from pymoo.mcdm.high_tradeoff import HighTradeoffPoints
-from pymoo.visualization.scatter import Scatter
 from collections import namedtuple
 
 from algorithm.ALNS_algorithm import runALNS, createInitialSolution
@@ -21,16 +20,18 @@ def findKneePoint(fronts, objectiveSpace):
         """
         pareto_front_indices = fronts[0]
         pareto_front = objectiveSpace[pareto_front_indices]
-        bestIndex = 0
-        if pareto_front.shape[1] == 0:
+
+        if pareto_front.shape[0] == 0:
             # Should not happen, means no solution in objective space
             raise ValueError("No solutions found")
-        elif pareto_front.shape[1] == 1:
+        elif pareto_front.shape[0] == 1:
             bestSolution = pareto_front[0]
-        elif pareto_front.shape[1] == 2:
+            bestIndex = pareto_front_indices[0]
+        elif pareto_front.shape[0] == 2:
             # Select the solution with the highest priority and image quality
-            bestSolution = pareto_front[np.argmax(pareto_front[:, 0])]
-            bestIndex = np.argmax(pareto_front[:, 0])
+            bestFrontIndex = np.argmax(pareto_front[:, 0])
+            bestSolution = pareto_front[bestFrontIndex]
+            bestIndex = pareto_front_indices[bestFrontIndex]
         else:
             selector = HighTradeoffPoints()
             selected = selector.do(pareto_front, n_points=1)
@@ -66,25 +67,6 @@ def runNSGA(
     iterationData = []
     population = []
 
-    #### Create initial induvidual
-    initSolution = createInitialSolution(ttwList.copy(), gstwList, schedulingParameters, transmissionParameters,
-                                         oh, destructionNumber, maxSizeTabooBank, isTabooBankFIFO)
-
-    result, _ = runALNS(
-        initSolution.otList.copy(),
-        initSolution.ttwList.copy(),
-        gstwList,
-        schedulingParameters,
-        transmissionParameters,
-        oh, 
-        destructionNumber, 
-        maxSizeTabooBank,
-        alnsRuns,
-        isTabooBankFIFO)
-    
-    best = result.best_state
-    schedule = best.otList
-    population.append(INDIVIDUAL(0, best.maxObjective, schedule, best.ttwList.copy()))
     previousParetoFront = []
     terminationCounter = 0
 
@@ -95,11 +77,12 @@ def runNSGA(
 
         nrOfOffsprings = populationSize - len(population)
         for i in range(nrOfOffsprings):
-            # Create mutation of the induvidual population[i], or create initial population
+            # Create mutation of the individual population[i], or create initial population
 
-            if(i >= len(population)):
+            if i >= len(population):
                 # Create initial population
-                otList_i = initSolution.otList.copy()
+                otList_i = createInitialSolution(ttwList.copy(), gstwList, schedulingParameters, transmissionParameters,
+                                         oh, destructionNumber, maxSizeTabooBank, isTabooBankFIFO).otList
             else:
                 # create mutation
                 otList_i = population[i].schedule.copy()
@@ -110,25 +93,25 @@ def runNSGA(
                 gstwList,
                 schedulingParameters,
                 transmissionParameters,
-                oh, 
-                destructionNumber, 
+                oh,
+                destructionNumber,
                 maxSizeTabooBank,
                 alnsRuns,
                 isTabooBankFIFO)
             
             best = newIndividual.best_state
             schedule = best.otList
-            population.append(INDIVIDUAL(len(population) + 1 , best.maxObjective, schedule, best.ttwList.copy()))
+            population.append(INDIVIDUAL(len(population) , best.maxObjective, schedule, best.ttwList.copy()))
 
 
         #### Selection using non dominated sorting and crowding distance
 
         # Represent population in objective space scaled from 1 to 100
         objectiveSpace = np.empty((0, 2))
-        for induvidual in population:
+        for individual in population:
 
-            priority = induvidual.objectiveValues[0]
-            imageQuality = induvidual.objectiveValues[1]
+            priority = individual.objectiveValues[0]
+            imageQuality = individual.objectiveValues[1]
             
            
             if IQNonLinear:
@@ -144,7 +127,7 @@ def runNSGA(
         reducedPopulationSize = populationSize // 2
         selected_indices = []
 
-        #### Select top 50% of induviduals in population and store their index in selected_indices
+        #### Select top 50% of individuals in population and store their index in selected_indices
         for front in fronts:
 
             if len(selected_indices) + len(front) <= reducedPopulationSize:
@@ -159,7 +142,7 @@ def runNSGA(
                 crowding_function = get_crowding_function('cd')
                 crowding_distances = crowding_function.do(F=objectiveSpace[front], n_remove=1)
 
-                # Sort the indicies of the front based on crowding distance
+                # Sort the indices of the front based on crowding distance
                 front_with_crowding = list(zip(front, crowding_distances))
                 front_with_crowding.sort(key=lambda x: x[1], reverse=True)
 
@@ -182,7 +165,7 @@ def runNSGA(
         iterationData.append((fronts, objectiveSpace, selectedObjectiveVals))
 
         #### Check termination criteria
-        if optimalTermination == False:
+        if not optimalTermination:
             ### Termination criteria: continue iterations for nsga2Runs, main loop ends here
             continue
     

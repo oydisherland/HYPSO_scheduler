@@ -6,6 +6,7 @@ from alns.stop import MaxRuntime, NoImprovement, MaxIterations
 import numpy.random as rnd
 import copy
 
+from data_preprocessing.objective_functions import objectiveFunctionPriority, objectiveFunctionImageQuality
 from scheduling_model import OH, SP, GSTW
 from algorithm.operators import repairOperator, destroyOperator, RepairType, DestroyType
 from transmission_scheduling.input_parameters import TransmissionParams
@@ -26,16 +27,20 @@ class ProblemState:
         self.isTabooBankFIFO = isTabooBankFIFO
         self.maxObjective = [0, 0]
         self.imageQuality = 0
+        self.maxPriority = max(ot.GT.priority for ot in otList)
 
     def objective(self) -> float:
         sum_priority = 0
-        priotityMax = 12454
+        # Assume the max priority score is if the max amount of captures is scheduled with the highest priority found
+        maxPrioritySchedule = self.schedulingParameters.maxCaptures * self.maxPriority
+        # Assume the max image quality score is if all captures are made exactly on nadir
+        imageQualityMax = 90 * self.schedulingParameters.maxCaptures
         for ot in self.otList:
             sum_priority += ot.GT.priority
             #Negating the sum since the alns solves the minimization problem
-        sum = 100 * (sum_priority / priotityMax)
-        sum += self.imageQuality
-        return -sum
+        objective = sum_priority / maxPrioritySchedule
+        objective += self.imageQuality / imageQualityMax
+        return -objective
 
     def get_context(self):
         # TODO implement a method returning a context vector. This is only
@@ -49,7 +54,7 @@ def initial_state(otList: list, ttwList: list, gstwList: list[GSTW], schedulingP
                   transmissionParams: TransmissionParams, oh: OH, destructionNumber: int, maxSizeTabooBank: int,
                   isTabooBankFIFO: bool) -> ProblemState:
     tabooBank = []
-    ttwListResorted, otList, objectiveValues = repairOperator(
+    ttwListResorted, otListAdjusted, objectiveValues = repairOperator(
         ttwList, 
         otList,
         gstwList,
@@ -57,9 +62,10 @@ def initial_state(otList: list, ttwList: list, gstwList: list[GSTW], schedulingP
         RepairType.RANDOM,
         schedulingParameters,
         transmissionParams,
-        oh)
+        oh,
+        True)
     
-    state = ProblemState(otList, ttwListResorted, gstwList, oh, destructionNumber, schedulingParameters,
+    state = ProblemState(otListAdjusted, ttwListResorted, gstwList, oh, destructionNumber, schedulingParameters,
                          transmissionParams, maxSizeTabooBank, isTabooBankFIFO)
     state.maxObjective = objectiveValues
     return state
@@ -259,18 +265,19 @@ def repairCongestion(current: ProblemState, rng: rnd.Generator) -> ProblemState:
 
 ### Function to run ALNS algorithm
 
-def runALNS( inital_otList: list, initial_ttwList: list, gstwList: list[GSTW], schedulingParameters: SP,
-             transmissionParameters: TransmissionParams, oh: OH, destructionNumber: int, maxSizeTabooBank: int,
-             maxItr: int, isTabooBankFIFO: bool):
+def runALNS(initial_otList: list, initial_ttwList: list, gstwList: list[GSTW], schedulingParameters: SP,
+            transmissionParameters: TransmissionParams, oh: OH, destructionNumber: int, maxSizeTabooBank: int,
+            maxItr: int, isTabooBankFIFO: bool):
     """ Runs the ALNS algorithm to find a good heuristic solution
     Output:
     - result: the result object from the ALNS run, containing the best solution found
     - state: the final ProblemState object of the problem after the ALNS run
     """
     # Format the problem state
-    state = ProblemState(inital_otList, initial_ttwList, gstwList, oh, destructionNumber, schedulingParameters,
+    state = ProblemState(initial_otList, initial_ttwList, gstwList, oh, destructionNumber, schedulingParameters,
                          transmissionParameters, maxSizeTabooBank, isTabooBankFIFO)
-    state.maxObjective = [0,0]
+    state.maxObjective = [objectiveFunctionPriority(initial_otList),
+                           objectiveFunctionImageQuality(initial_otList, oh, schedulingParameters.hypsoNr)]
 
     # Create ALNS and add one or more destroy and repair operators
     alns = ALNS() # Initialize without a random seed
@@ -284,13 +291,13 @@ def runALNS( inital_otList: list, initial_ttwList: list, gstwList: list[GSTW], s
     alns.add_repair_operator(repairCongestion)
    
     # Configure ALNS
-    select = RouletteWheel(scores=[1.0] * 7, decay=0.8, num_destroy=3, num_repair=4) # initialize with equal operator weights
+    select = RouletteWheel(scores=[5, 2, 1, 0.5], decay=0.8, num_destroy=3, num_repair=4) # initialize with equal operator weights
     # Start configuration
     #accept = SimulatedAnnealing(start_temperature=100, end_temperature=1, step=0.99) 
     # Moderate
     #accept = SimulatedAnnealing(start_temperature=500, end_temperature=1, step=0.99)
     # Agressive (fast cooling)
-    accept = SimulatedAnnealing(start_temperature=100, end_temperature=5, step=0.95)
+    accept = SimulatedAnnealing(start_temperature=0.05, end_temperature=0.0025, step=0.9)
     # High Exploration
     #accept = SimulatedAnnealing(start_temperature=2000, end_temperature=0.01, step=0.998)
     # Quick Convergence
