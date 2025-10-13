@@ -10,7 +10,7 @@ from transmission_scheduling.util import getClosestGSTW, gstwToSortedTupleList, 
 
 def twoStageTransmissionScheduling(otList: list[OT], ttwList: list[TTW], gstwList: list[GSTW],
                                    parameters: TransmissionParams, sortOtList: bool = True,
-                                   fullReschedule: bool = False) -> tuple[bool, list[BT], list[DT], list[OT]]:
+                                   fullReinsert: bool = False) -> tuple[bool, list[BT], list[DT], list[OT]]:
     """
     Try to schedule the transmission of each observed target in otList.
     Transmission consists of transmitting to Ground Station and buffering the capture before actually transmitting.
@@ -26,7 +26,7 @@ def twoStageTransmissionScheduling(otList: list[OT], ttwList: list[TTW], gstwLis
         gstwList (list[GSTW]): List of ground station time windows with time windows corresponding to each GS.
         parameters (TransmissionParams): Parameters for the transmission scheduling.
         sortOtList (bool, optional): Whether the observation tasks should be sorted by priority by this function.
-        fullReschedule (bool): Whether to try to reschedule observation tasks which were not included in otList.
+        fullReinsert (bool): Whether to try to re-insert observation tasks which were not included in otList.
 
     Returns:
         tuple[bool, list[BT], list[DT], list[OT]]: A tuple containing:
@@ -54,7 +54,7 @@ def twoStageTransmissionScheduling(otList: list[OT], ttwList: list[TTW], gstwLis
     possibleTTW = copy.deepcopy(ttwList)
     otListReInsert = otListCopy
     for i in range(p.reInsertIterations):
-        possibleTTW = findPossibleTTW(possibleTTW, otListReInsert, otListScheduled, fullReschedule)
+        possibleTTW = findPossibleTTW(possibleTTW, otListReInsert, otListScheduled, fullReinsert)
         otListReInsert = generateNewOTList(possibleTTW, otListScheduled, btList, gstwList, p)
 
         # print("======= Starting re-insertion phase for unscheduled observation tasks =======")

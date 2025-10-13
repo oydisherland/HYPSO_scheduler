@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 
 
 def findPossibleTTW(ttwListToUpdate: list[TTW], otListLastInsertionAttempt: list[OT], scheduledOTList: list[OT],
-                    fullReschedule: bool = False) -> list[TTW]:
+                    fullReinsert: bool = False) -> list[TTW]:
     """
     Find a list of target time windows that could still be used to schedule the unscheduled observation tasks
 
@@ -14,7 +14,7 @@ def findPossibleTTW(ttwListToUpdate: list[TTW], otListLastInsertionAttempt: list
         ttwListToUpdate (list[TTW]): List of target time windows to select the possible TTWs from.
         otListLastInsertionAttempt (list[OT]): List of observation tasks that where lastly attempted to be scheduled.
         scheduledOTList (list[OT]): List of observation tasks that have been successfully scheduled.
-        fullReschedule (bool): Whether to try to reschedule observation tasks which were not included in last insertion attempt.
+        fullReinsert (bool): Whether to try to reinsert observation tasks which were not included in last insertion attempt.
 
     Returns:
         list[TTW]: List of target time windows that could still be used to schedule the unscheduled observation tasks.
@@ -32,7 +32,7 @@ def findPossibleTTW(ttwListToUpdate: list[TTW], otListLastInsertionAttempt: list
                 otListUnscheduled.remove(ot)
                 break
 
-    if not fullReschedule:
+    if not fullReinsert:
         # We only want to find TTWs for targets that failed to be scheduled by the transmission scheduler
         # However, the ttwList might contain time windows for targets that were not in the imaging schedule
         # that was passed to the transmission scheduler in the first place.
