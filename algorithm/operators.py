@@ -168,7 +168,8 @@ def destroyOperator(otList: list, ttwList: list, destroyNumber: int, destroyType
     return otListSorted, removedTargetsIdList
 
 def repairOperator(ttwList: list, otList: list, gstwList: list[GSTW], unfeasibleTargetsIdList: list,
-                   repairType: RepairType, schedulingParameters: SP, transmissionParams: TransmissionParams, oh: OH):
+                   repairType: RepairType, schedulingParameters: SP, transmissionParams: TransmissionParams, oh: OH,
+                   fullReschedule = False):
     """ Takes in a list of OTs and inserts new OTs untill no more feasible insertions can be performed. Selects which ones to insert based on repairType.
     After inserting all new OTs, the scheduled is ajusted to fulfill downlink/buffering requirements.
     repairType: random, greedy, smallTW, congestion.\n
@@ -176,10 +177,12 @@ def repairOperator(ttwList: list, otList: list, gstwList: list[GSTW], unfeasible
     - otList: list of OTs with new OTs inserted
     """
 
-    ttwListSorted =  []
-    # TODO, check the effect of flipping this around
-    greedyMode = False
-    randomMode = True
+    otListCopy = otList.copy()
+
+    # This is set to greedy mode for HYPSO-2, because inserting OT in the middle of time windows works well enough for HYPSO-2
+    # This is because agile capturing of two overlaying targets is almost not possible for HYPSO-2
+    greedyMode = True
+    randomMode = False
 
     #Sort list based on repairType
     if repairType == RepairType.RANDOM:
@@ -197,11 +200,12 @@ def repairOperator(ttwList: list, otList: list, gstwList: list[GSTW], unfeasible
         return 0
     
     #Find an observation task schedule
-    otListRepaired, objectiveValuesList = RHGA(ttwListSorted, otList, unfeasibleTargetsIdList, schedulingParameters, oh, greedyMode, randomMode)
+    otListRepaired, objectiveValuesList = RHGA(ttwListSorted, otListCopy, unfeasibleTargetsIdList, schedulingParameters, oh, greedyMode, randomMode)
 
     ### Downlink/buffer scheduling
     # Adjust the imaging schedule such that the buffer and downlink tasks fit
-    _, _, _, otListAdjusted = twoStageTransmissionScheduling(otListRepaired, ttwList, gstwList, transmissionParams, False)
+    _, _, _, otListAdjusted = twoStageTransmissionScheduling(otListRepaired, ttwList, gstwList, transmissionParams,
+                                                             True, fullReschedule)
     # Calculate the objective values of the adjusted schedule
     objectiveValuesList = [objectiveFunctionPriority(otListAdjusted),
                            objectiveFunctionImageQuality(otListAdjusted, oh, schedulingParameters.hypsoNr)]
