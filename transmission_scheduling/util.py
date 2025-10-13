@@ -416,9 +416,9 @@ def plotCompareSchedule(otListMod: list[OT], otListCp: list[OT], otList: list[OT
             width=ot.end - ot.start,
             left=ot.start,
             height=0.3,
-            color="orange",
+            color="magenta",
             alpha=1,
-            label="OT comparison" if i == 1 else ""
+            label="OT campaign planner" if i == 1 else ""
         )
         # Label under the box
         ax.text(
@@ -428,7 +428,7 @@ def plotCompareSchedule(otListMod: list[OT], otListCp: list[OT], otList: list[OT
             ha="center",
             va="top",
             fontsize=10,
-            color="lightgrey"
+            color="grey"
         )
 
     # Buffering Tasks (orange)
