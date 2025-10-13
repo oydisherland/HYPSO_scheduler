@@ -22,6 +22,7 @@ groundStationFilePath = os.path.join(os.path.dirname(__file__), "data_input/HYPS
 inputParametersFilePath = os.path.join(os.path.dirname(__file__),"data_input/input_parameters.csv")
 ttwListFilePath = os.path.join(os.path.dirname(__file__),"data_input/HYPSO_data/ttw_list.json")
 
+#inputParameters = csvToDict(inputParametersFilePath). # REMOVE
 inputParameters = InputParameters.from_csv(inputParametersFilePath)
 
 # # Check if start time is now
@@ -38,7 +39,7 @@ oh = createOH(datetime.datetime.fromisoformat(inputParameters.startTimeOH), int(
 transmissionParameters = getTransmissionInputParams(inputParametersFilePath)
 
 # Create data Objects
-ttwList = createTTWList( int(inputParameters.captureDuration), oh, int(inputParameters.hypsoNr))
+ttwList = createTTWList( int(inputParameters.captureDuration), oh, int(inputParameters.hypsoNr), ttwListFilePath)
 gstwList = createGSTWList(oh.utcStart, oh.utcEnd, transmissionParameters.minGSWindowTime, groundStationFilePath, int(inputParameters.hypsoNr))
 
 # Create observation schedule
@@ -74,7 +75,7 @@ bufferSchedule, downlinkSchedule = cleanUpSchedule(
     OrderType.FIFO,
     OrderType.PRIORITY
 )
-saveplotPathCompare = os.path.join(os.path.dirname(__file__), f"output/{inputParameters.testName}_schedule")
+saveplotPathCompare = os.path.join(os.path.dirname(__file__), f"output_folder/{inputParameters.testName}_schedule")
 plotSchedule(
     modifiedObservationSchedule,
     observationSchedule,

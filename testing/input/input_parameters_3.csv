@@ -1,4 +1,4 @@
-testName, 10-04-25
+testName, par3
 
 # Scheduling specific parameters
 maxCaptures, 40
@@ -10,13 +10,13 @@ delayInHoursOH, 0
 hypsoNr, 2
 
 # Algorithm specific parameters
-populationSize, 10
+populationSize, 5
 isTabooBankFIFO, True
 iqNonLinear, False
-NSGA2Runs, 5
-ALNSRuns, 40
+NSGA2Runs, 3
+ALNSRuns, 10
 maxTabBank, 12
-desNumber, 5
+desNumber, 4
 
 # Transmission timing parameters
 bufferingTime, 1500

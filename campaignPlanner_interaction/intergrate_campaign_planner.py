@@ -6,8 +6,8 @@ import skyfield.api as skf
 from datetime import timedelta
 from data_postprocessing.quaternions import generate_quaternions
 from data_input.satellite_positioning_calculations import createSatelliteObject, findSatelliteTargetElevation
-
-from scheduling_model import OH, OT, GT, BT
+from data_input.utility_functions import InputParameters
+from scheduling_model import OH, OT, GT, BT, OH
 
 # function to calcuate quaternions for a given target at a given time
 def calculateQuaternions(hypsoNr: int, groundTarget: GT, timestamp: datetime.datetime):
@@ -50,6 +50,9 @@ def getTargetIdPriorityDict(targetsFilePath: str) -> dict:
 def convertToUnixTime(dateTime: datetime.datetime) -> int:
     """Convert a timestamp string to Unix time"""
     return int(dateTime.timestamp())
+def convertFromUnixTime(unixTime: int) -> datetime.datetime:
+    """Convert Unix time to a timezone-aware datetime object (UTC)"""
+    return datetime.datetime.fromtimestamp(unixTime, tz=datetime.timezone.utc)
 def convertBufferScheduleToDateTime(bufferScheduleWithRelativeTime: list, oh: OH) -> list:
     """ Convert the time representation in the buffer schedule to the absolute datetime representation, 
     instead of relative to the start of optimization horizon"""
@@ -209,7 +212,7 @@ def createBufferCmdLine( bufferTask: BT, hypsoNr: int, quaternions: dict, observ
                  f' % {observationMiddleTime} - Predicted Cloud cover: {row['Predicted Cloud cover:']:5.1f} % Estimated downlink complete: \n'
 
     return cmd_string
-def createCmdLinesForCaptureAndBuffering(observationSchedule: list, bufferSchedule: list, inputParameters: dict, oh: OH) -> list:
+def createCmdLinesForCaptureAndBuffering(observationSchedule: list, bufferSchedule: list, inputParameters: InputParameters, oh: OH) -> list:
     """ Creates a list of command lines for capturing and buffering based on the observation and buffer schedules
     Output:
     - cmdLines: list of command lines that Hypso can parse
@@ -219,15 +222,15 @@ def createCmdLinesForCaptureAndBuffering(observationSchedule: list, bufferSchedu
     cmdLines = []
     for ot in schedule_dt:
         groundTarget = ot.GT
-        quaternions = calculateQuaternions(int(inputParameters["hypsoNr"]), groundTarget, ot.start)
-        newCaptureCommandLine = createCaptureCmdLine(ot, int(inputParameters["hypsoNr"]), quaternions)
+        quaternions = calculateQuaternions(int(inputParameters.hypsoNr), groundTarget, ot.start)
+        newCaptureCommandLine = createCaptureCmdLine(ot, int(inputParameters.hypsoNr), quaternions)
         cmdLines.append(newCaptureCommandLine)
 
 
         for bt in bufferschedule_dt:
             if bt.GT.id != groundTarget.id:
                 continue
-            newBufferCommandLine = createBufferCmdLine(bt, int(inputParameters["hypsoNr"]), quaternions, ot)
+            newBufferCommandLine = createBufferCmdLine(bt, int(inputParameters.hypsoNr), quaternions, ot)
             cmdLines.append(newBufferCommandLine)
     return cmdLines
 def createCmdFile(txtFilepath, cmdLines):
@@ -242,7 +245,7 @@ def createCmdFile(txtFilepath, cmdLines):
         for line in cmdLines:
             f.write(line.rstrip() + "\n")
 # Function that reformats the campaign planner commands into schedule objects 
-def getScheduleFromCmdLine(cmdLine: str, captureDurationSec: int = 60):
+def getScheduleFromCmdLine(cmdLine: str, oh: OH, captureDurationSec: int = 60):
     """ Takes in a command line string and returns an OT object representing the same cmd and the type of command
     Output:
     - observationTask: OT object created from the command line
@@ -267,7 +270,12 @@ def getScheduleFromCmdLine(cmdLine: str, captureDurationSec: int = 60):
                     continue
 
             cmdDict[cmd] = cmdNext
-
+    
+    # convert start and end time to relative time
+    startDateTime = convertFromUnixTime(int(cmdDict['-u'])) - timedelta(seconds=captureDurationSec//2)
+    endDateTime = convertFromUnixTime(int(cmdDict['-u'])) + timedelta(seconds=captureDurationSec//2)
+    relativeStart = int((startDateTime - oh.utcStart).total_seconds())
+    relativeEnd = int((endDateTime - oh.utcStart).total_seconds())
 
     observationTask = OT(
         GT=GT(
@@ -279,8 +287,8 @@ def getScheduleFromCmdLine(cmdLine: str, captureDurationSec: int = 60):
             exposureTime=cmdDict['-e'],
             captureMode=cmdDict['-p']
         ),
-        start = int(cmdDict['-u']) - captureDurationSec//2,
-        end = int(cmdDict['-u']) + captureDurationSec//2
+        start = relativeStart,
+        end = relativeEnd
     )
 
     try: 
@@ -295,3 +303,16 @@ def getScheduleFromCmdLine(cmdLine: str, captureDurationSec: int = 60):
     
     return observationTask, 'Unknown'
 
+def recreateOTListFromCmdFile(cmdFilePath: str, oh: OH,captureDurationSec: int = 60):
+    """ Reads a command file and recreates the list of OT objects from the command lines
+    Output:
+    - otList: list of OT objects
+    """
+    otList = []
+    with open(cmdFilePath, 'r') as f:
+        cmdLines = f.readlines()
+        for cmdLine in cmdLines:
+            ot, commandType = getScheduleFromCmdLine(cmdLine, oh, captureDurationSec)
+            if commandType == 'Capture':
+                otList.append(ot)
+    return otList

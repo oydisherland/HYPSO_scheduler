@@ -1,7 +1,7 @@
 import datetime
 
 import data_postprocessing.algorithmData_api as AD_api
-from data_preprocessing.create_data_objects import getGroundStationTimeWindows
+from data_preprocessing.create_data_objects import createGSTWList
 from scheduling_model import TTW, TW
 import time
 
@@ -44,7 +44,7 @@ def generate_schedule():
     endTimeOH = startTimeOH + datetime.timedelta(seconds=p.ohDuration)
 
     groundStationFilePath = "data_input/HYPSO_data/ground_stations.csv"
-    gstwList = getGroundStationTimeWindows(startTimeOH, endTimeOH, p.minGSWindowTime, groundStationFilePath, p.hypsoNr)
+    gstwList = createGSTWList(startTimeOH, endTimeOH, p.minGSWindowTime, groundStationFilePath, p.hypsoNr)
 
     start_time = time.perf_counter()
     valid, btList, dtList, otListModified = twoStageTransmissionScheduling(otListPrioSorted, ttwList, gstwList, p)
