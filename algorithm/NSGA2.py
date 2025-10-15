@@ -1,16 +1,15 @@
 import numpy as np
 import math
-import matplotlib.pyplot as plt
 from pymoo.util.nds.non_dominated_sorting import NonDominatedSorting
 from pymoo.operators.survival.rank_and_crowding.metrics import get_crowding_function
 from pymoo.mcdm.high_tradeoff import HighTradeoffPoints
 from collections import namedtuple
 
 from algorithm.ALNS_algorithm import runALNS, createInitialSolution
-from scheduling_model import SP, OH, GSTW
+from scheduling_model import SP, OH, GSTW, OT, BT, DT
 from transmission_scheduling.input_parameters import TransmissionParams
 
-INDIVIDUAL = namedtuple("INDIVIDUAL", ["id", "objectiveValues", "schedule", "ttwList"])
+INDIVIDUAL = namedtuple("INDIVIDUAL", ["id", "solutionState"])
 
 def findKneePoint(fronts, objectiveSpace):
         """ Finds the knee point in the Pareto front using the HighTradeoffPoints method
@@ -20,6 +19,10 @@ def findKneePoint(fronts, objectiveSpace):
         """
         pareto_front_indices = fronts[0]
         pareto_front = objectiveSpace[pareto_front_indices]
+
+        # Remove duplicates from pareto front
+        pareto_front, unique_indices = np.unique(pareto_front, axis=0, return_index=True)
+        pareto_front_indices = [pareto_front_indices[i] for i in unique_indices]
 
         if pareto_front.shape[0] == 0:
             # Should not happen, means no solution in objective space
@@ -33,8 +36,9 @@ def findKneePoint(fronts, objectiveSpace):
             bestSolution = pareto_front[bestFrontIndex]
             bestIndex = pareto_front_indices[bestFrontIndex]
         else:
+            # HighTradeoffPoints is made for minimization, so we need to invert the objective space
             selector = HighTradeoffPoints()
-            selected = selector.do(pareto_front, n_points=1)
+            selected = selector.do(-pareto_front, n_points=1)
             bestSolution = pareto_front[selected[0]]
             bestIndex = pareto_front_indices[selected[0]]
 
@@ -53,7 +57,7 @@ def runNSGA(
             IQNonLinear: bool,
             destructionNumber: int,
             maxSizeTabooBank: int,
-            optimalTermination: bool=False):
+            optimalTermination: bool=False) -> tuple[list[OT], list[BT], list[DT], list, list, list, list]:
     
     """ Runs the NSGA2 algorithm to optimize the observation schedule
     Output:
@@ -66,6 +70,7 @@ def runNSGA(
 
     iterationData = []
     population = []
+    individualID = 0
 
     previousParetoFront = []
     terminationCounter = 0
@@ -85,9 +90,9 @@ def runNSGA(
                                          oh, destructionNumber, maxSizeTabooBank, isTabooBankFIFO).otList
             else:
                 # create mutation
-                otList_i = population[i].schedule.copy()
+                otList_i = population[i].solutionState.otList.copy()
 
-            newIndividual, _ = runALNS(
+            newIndividual = runALNS(
                 otList_i,
                 ttwList.copy(),
                 gstwList,
@@ -98,10 +103,10 @@ def runNSGA(
                 maxSizeTabooBank,
                 alnsRuns,
                 isTabooBankFIFO)
-            
+
             best = newIndividual.best_state
-            schedule = best.otList
-            population.append(INDIVIDUAL(len(population) , best.maxObjective, schedule, best.ttwList.copy()))
+            population.append(INDIVIDUAL(individualID , best))
+            individualID += 1
 
 
         #### Selection using non dominated sorting and crowding distance
@@ -110,8 +115,9 @@ def runNSGA(
         objectiveSpace = np.empty((0, 2))
         for individual in population:
 
-            priority = individual.objectiveValues[0]
-            imageQuality = individual.objectiveValues[1]
+            # Get the positive scaled objective values
+            priority = individual.solutionState.getScaledObjectiveValues()[0]
+            imageQuality = individual.solutionState.getScaledObjectiveValues()[1]
             
            
             if IQNonLinear:
@@ -191,10 +197,14 @@ def runNSGA(
     ##### end main loop
 
     bestSolution, bestIndex = findKneePoint(fronts, objectiveSpace)
+    bestBufferSchedule = None
+    bestDownlinkSchedule = None
     try:
-        bestSchedule = oldPopulation[bestIndex].schedule
+        bestSchedule = oldPopulation[bestIndex].solutionState.otList
+        bestBufferSchedule = oldPopulation[bestIndex].solutionState.btList
+        bestDownlinkSchedule = oldPopulation[bestIndex].solutionState.dtList
     except IndexError:
         print(f"IndexError: bestIndex {bestIndex} and population size {len(oldPopulation)}")
         bestSchedule = None
 
-    return bestSchedule, iterationData, bestSolution, bestIndex, oldPopulation
+    return bestSchedule, bestBufferSchedule, bestDownlinkSchedule, iterationData, bestSolution, bestIndex, oldPopulation

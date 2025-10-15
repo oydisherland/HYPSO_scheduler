@@ -10,7 +10,7 @@ from transmission_scheduling.util import getClosestGSTW, gstwToSortedTupleList, 
 
 def twoStageTransmissionScheduling(otList: list[OT], ttwList: list[TTW], gstwList: list[GSTW],
                                    parameters: TransmissionParams, sortOtList: bool = True,
-                                   fullReinsert: bool = False) -> tuple[bool, list[BT], list[DT], list[OT]]:
+                                   fullReinsert: bool = False) -> tuple[list[BT], list[DT], list[OT]]:
     """
     Try to schedule the transmission of each observed target in otList.
     Transmission consists of transmitting to Ground Station and buffering the capture before actually transmitting.
@@ -29,10 +29,8 @@ def twoStageTransmissionScheduling(otList: list[OT], ttwList: list[TTW], gstwLis
         fullReinsert (bool): Whether to try to re-insert observation tasks which were not included in otList.
 
     Returns:
-        tuple[bool, list[BT], list[DT], list[OT]]: A tuple containing:
+        tuple[list[BT], list[DT], list[OT]]: A tuple containing:
 
-            - A boolean indicating if a transmission schedule has been found for all observation tasks.
-              If false, there can still be a useful output containing a schedule for the tasks that were able to fit.
             - A list of scheduled buffering tasks (BT).
             - A list of scheduled downlink tasks (DT).
             - A list of observation tasks, possibly changed to fit the buffering and downlinking tasks.
@@ -46,7 +44,7 @@ def twoStageTransmissionScheduling(otList: list[OT], ttwList: list[TTW], gstwLis
     fullScheduleFound, btList, dtList, otListScheduled = scheduleTransmissions(otListCopy, ttwList, gstwList, p)
 
     if fullScheduleFound:
-        return fullScheduleFound, btList, dtList, otListScheduled
+        return btList, dtList, otListScheduled
 
     """
     Phase 2: Re-insertion phase for the observation tasks that could not be scheduled in the first phase
@@ -57,14 +55,10 @@ def twoStageTransmissionScheduling(otList: list[OT], ttwList: list[TTW], gstwLis
         possibleTTW = findPossibleTTW(possibleTTW, otListReInsert, otListScheduled, fullReinsert)
         otListReInsert = generateNewOTList(possibleTTW, otListScheduled, btList, gstwList, p)
 
-        # print("======= Starting re-insertion phase for unscheduled observation tasks =======")
-        n_before = len(otListScheduled)
-        fullScheduleFound, btList, dtList, otListScheduled = scheduleTransmissions(otListReInsert, ttwList, gstwList, p,
+        _, btList, dtList, otListScheduled = scheduleTransmissions(otListReInsert, ttwList, gstwList, p,
                                                                                    otListScheduled, btList, dtList)
-        n_after = len(otListScheduled)
-        # print(f"Successfully re-inserted {n_after - n_before} observation tasks out of {len(otListReInsert)}")
 
-    return fullScheduleFound, btList, dtList, otListScheduled
+    return btList, dtList, otListScheduled
 
 
 def scheduleTransmissions(otList: list[OT], ttwList: list[TTW], gstwList: list[GSTW], parameters: TransmissionParams,

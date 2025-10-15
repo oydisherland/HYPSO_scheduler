@@ -1,23 +1,25 @@
 from alns import ALNS
-from alns.accept import HillClimbing, SimulatedAnnealing
-from alns.select import RandomSelect, RouletteWheel
-from alns.stop import MaxRuntime, NoImprovement, MaxIterations
+from alns.accept import SimulatedAnnealing
+from alns.select import AlphaUCB
+from alns.stop import MaxIterations
 
 import numpy.random as rnd
 import copy
 
 from data_preprocessing.objective_functions import objectiveFunctionPriority, objectiveFunctionImageQuality
-from scheduling_model import OH, SP, GSTW
+from scheduling_model import OH, SP, GSTW, OT, BT, DT, TTW
 from algorithm.operators import repairOperator, destroyOperator, RepairType, DestroyType
 from transmission_scheduling.input_parameters import TransmissionParams
 
 
 class ProblemState:
-    def __init__(self, otList, ttwList, gstwList, oh, destructionNumber, schedulingParameters, transmissionParameters,
+    def __init__(self, otList, btList, dtList, ttwList, gstwList, oh, destructionNumber, schedulingParameters, transmissionParameters,
                  maxSizeTabooBank, isTabooBankFIFO):
-        self.otList = otList
-        self.ttwList = ttwList
-        self.gstwList = gstwList
+        self.otList: list[OT] = otList
+        self.btList: list[BT] = btList
+        self.dtList: list[DT] = dtList
+        self.ttwList: list[TTW] = ttwList
+        self.gstwList: list[GSTW] = gstwList
         self.oh = oh
         self.destructionNumber = destructionNumber
         self.schedulingParameters = schedulingParameters
@@ -25,22 +27,26 @@ class ProblemState:
         self.tabooBank = []
         self.maxSizeTabooBank = maxSizeTabooBank
         self.isTabooBankFIFO = isTabooBankFIFO
-        self.maxObjective = [0, 0]
-        self.imageQuality = 0
-        self.maxPriority = max(ot.GT.priority for ot in otList)
+        self.objectiveValues = [0, 0] # Summed priority score and average image quality
+        self.maxCapturePriority = max([ttw.GT.priority for ttw in ttwList])
 
     def objective(self) -> float:
-        sum_priority = 0
-        # Assume the max priority score is if the max amount of captures is scheduled with the highest priority found
-        maxPrioritySchedule = self.schedulingParameters.maxCaptures * self.maxPriority
-        # Assume the max image quality score is if all captures are made exactly on nadir
-        imageQualityMax = 90 * self.schedulingParameters.maxCaptures
-        for ot in self.otList:
-            sum_priority += ot.GT.priority
-            #Negating the sum since the alns solves the minimization problem
-        objective = sum_priority / maxPrioritySchedule
-        objective += self.imageQuality / imageQualityMax
+        """
+        Return the scaled objective values for the ALNS algorithm to minimize.
+        """
+        objective = sum(self.getScaledObjectiveValues())
         return -objective
+
+    def getScaledObjectiveValues(self) -> tuple[float, float]:
+        # Assume the max priority score is if the max amount of captures is scheduled with the highest priority found
+        maxPrioritySchedule = self.schedulingParameters.maxCaptures * self.maxCapturePriority
+        # Max image quality score is an average of 90 degrees elevation
+        imageQualityMax = 90
+        priority = self.objectiveValues[0] / maxPrioritySchedule
+        # TODO make the scaling of image quality clearer and easier to adjust
+        imageQuality = self.objectiveValues[1] / imageQualityMax * 0.25
+
+        return priority, imageQuality
 
     def get_context(self):
         # TODO implement a method returning a context vector. This is only
@@ -54,7 +60,7 @@ def initial_state(otList: list, ttwList: list, gstwList: list[GSTW], schedulingP
                   transmissionParams: TransmissionParams, oh: OH, destructionNumber: int, maxSizeTabooBank: int,
                   isTabooBankFIFO: bool) -> ProblemState:
     tabooBank = []
-    ttwListResorted, otListAdjusted, objectiveValues = repairOperator(
+    ttwListResorted, otListAdjusted, btList, dtList, objectiveValues = repairOperator(
         ttwList, 
         otList,
         gstwList,
@@ -65,9 +71,9 @@ def initial_state(otList: list, ttwList: list, gstwList: list[GSTW], schedulingP
         oh,
         True)
     
-    state = ProblemState(otListAdjusted, ttwListResorted, gstwList, oh, destructionNumber, schedulingParameters,
+    state = ProblemState(otListAdjusted, btList, dtList, ttwListResorted, gstwList, oh, destructionNumber, schedulingParameters,
                          transmissionParams, maxSizeTabooBank, isTabooBankFIFO)
-    state.maxObjective = objectiveValues
+    state.objectiveValues = objectiveValues
     return state
 def createInitialSolution(ttwList: list, gstwList: list[GSTW], schedulingParameters: SP,
                           transmissionParams: TransmissionParams, oh: OH, destructionNumber: int, maxSizeTabooBank: int,
@@ -86,15 +92,17 @@ def createInitialSolution(ttwList: list, gstwList: list[GSTW], schedulingParamet
 def removeElementsFromTabooBank(current: ProblemState) -> ProblemState:
     # Remove targets from FIFO queue If the queue is full
     while len(current.tabooBank) + current.destructionNumber >= current.maxSizeTabooBank:
+        if len(current.tabooBank) == 0:
+            break
         # Remove the oldest target from the queue
         current.tabooBank.pop(0)
     return current
 def getDestructionNumber(current: ProblemState) -> int:
     if len(current.tabooBank) + current.destructionNumber >= current.maxSizeTabooBank:
-        # No targets can be romoved
+        # No targets can be removed
         return 0
     elif len(current.tabooBank) >= current.maxSizeTabooBank - current.destructionNumber:
-        # Cannot remove as many taregts as destruction dumber says
+        # Cannot remove as many targets as destruction dumber says
         return 1
     else: 
         return current.destructionNumber
@@ -191,7 +199,7 @@ def destroyCongestion(current: ProblemState, rng: rnd.Generator) -> ProblemState
 
 def repairRandom(current: ProblemState, rng: rnd.Generator) -> ProblemState:
     repaired = copy.deepcopy(current) #Do not know if deep copy is nessecary for the repair operator
-    repaired.ttwList, repaired.otList, objectiveValues = repairOperator(
+    repaired.ttwList, repaired.otList, repaired.btList, repaired.dtList, repaired.objectiveValues = repairOperator(
         repaired.ttwList, 
         repaired.otList,
         repaired.gstwList,
@@ -200,15 +208,11 @@ def repairRandom(current: ProblemState, rng: rnd.Generator) -> ProblemState:
         repaired.schedulingParameters,
         repaired.transmissionParameters,
         repaired.oh)
-    repaired.imageQuality = objectiveValues[1]
-    if objectiveValues[0] > repaired.maxObjective[0]:
-        repaired.maxObjective[0] = objectiveValues[0]
-    if objectiveValues[1] > repaired.maxObjective[1]:
-        repaired.maxObjective[1] = objectiveValues[1]
+
     return repaired
 def repairGreedy(current: ProblemState, rng: rnd.Generator) -> ProblemState: 
     repaired = copy.deepcopy(current)
-    repaired.ttwList, repaired.otList, objectiveValues = repairOperator(
+    repaired.ttwList, repaired.otList, repaired.btList, repaired.dtList, repaired.objectiveValues = repairOperator(
         repaired.ttwList, 
         repaired.otList,
         repaired.gstwList,
@@ -217,17 +221,12 @@ def repairGreedy(current: ProblemState, rng: rnd.Generator) -> ProblemState:
         repaired.schedulingParameters,
         repaired.transmissionParameters,
         repaired.oh)
-    
-    repaired.imageQuality = objectiveValues[1]
-    if objectiveValues[0] > repaired.maxObjective[0]:
-        repaired.maxObjective[0] = objectiveValues[0]
-    if objectiveValues[1] > repaired.maxObjective[1]:
-        repaired.maxObjective[1] = objectiveValues[1]
+
     return repaired
 def repairSmallTW(current: ProblemState, rng: rnd.Generator) -> ProblemState:
     repaired = copy.deepcopy(current)
 
-    repaired.ttwList, repaired.otList, objectiveValues = repairOperator(
+    repaired.ttwList, repaired.otList, repaired.btList, repaired.dtList, repaired.objectiveValues = repairOperator(
         repaired.ttwList, 
         repaired.otList,
         repaired.gstwList,
@@ -236,17 +235,12 @@ def repairSmallTW(current: ProblemState, rng: rnd.Generator) -> ProblemState:
         repaired.schedulingParameters,
         repaired.transmissionParameters,
         repaired.oh)
-    
-    repaired.imageQuality = objectiveValues[1]
-    if objectiveValues[0] > repaired.maxObjective[0]:
-        repaired.maxObjective[0] = objectiveValues[0]
-    if objectiveValues[1] > repaired.maxObjective[1]:
-        repaired.maxObjective[1] = objectiveValues[1]
+
     return repaired
 def repairCongestion(current: ProblemState, rng: rnd.Generator) -> ProblemState:
     repaired = copy.deepcopy(current)
 
-    repaired.ttwList, repaired.otList, objectiveValues = repairOperator(
+    repaired.ttwList, repaired.otList, repaired.btList, repaired.dtList, repaired.objectiveValues = repairOperator(
         repaired.ttwList, 
         repaired.otList,
         repaired.gstwList,
@@ -255,12 +249,7 @@ def repairCongestion(current: ProblemState, rng: rnd.Generator) -> ProblemState:
         repaired.schedulingParameters,
         repaired.transmissionParameters,
         repaired.oh)
-    
-    repaired.imageQuality = objectiveValues[1]
-    if objectiveValues[0] > repaired.maxObjective[0]:
-        repaired.maxObjective[0] = objectiveValues[0]
-    if objectiveValues[1] > repaired.maxObjective[1]:
-        repaired.maxObjective[1] = objectiveValues[1]
+
     return repaired
 
 ### Function to run ALNS algorithm
@@ -274,9 +263,9 @@ def runALNS(initial_otList: list, initial_ttwList: list, gstwList: list[GSTW], s
     - state: the final ProblemState object of the problem after the ALNS run
     """
     # Format the problem state
-    state = ProblemState(initial_otList, initial_ttwList, gstwList, oh, destructionNumber, schedulingParameters,
+    state = ProblemState(initial_otList, None, None, initial_ttwList, gstwList, oh, destructionNumber, schedulingParameters,
                          transmissionParameters, maxSizeTabooBank, isTabooBankFIFO)
-    state.maxObjective = [objectiveFunctionPriority(initial_otList),
+    state.objectiveValues = [objectiveFunctionPriority(initial_otList),
                            objectiveFunctionImageQuality(initial_otList, oh, schedulingParameters.hypsoNr)]
 
     # Create ALNS and add one or more destroy and repair operators
@@ -291,13 +280,14 @@ def runALNS(initial_otList: list, initial_ttwList: list, gstwList: list[GSTW], s
     alns.add_repair_operator(repairCongestion)
    
     # Configure ALNS
-    select = RouletteWheel(scores=[5, 2, 1, 0.5], decay=0.8, num_destroy=3, num_repair=4) # initialize with equal operator weights
+    # select = RouletteWheel(scores=[5, 2, 1, 0.5], decay=0.8, num_destroy=3, num_repair=4)
+    select = AlphaUCB(scores = [5, 2, 1, 0.5], alpha=0.1, num_destroy=3, num_repair=4)
     # Start configuration
     #accept = SimulatedAnnealing(start_temperature=100, end_temperature=1, step=0.99) 
     # Moderate
     #accept = SimulatedAnnealing(start_temperature=500, end_temperature=1, step=0.99)
-    # Agressive (fast cooling)
-    accept = SimulatedAnnealing(start_temperature=0.05, end_temperature=0.0025, step=0.9)
+    # Aggressive (fast cooling)
+    accept = SimulatedAnnealing(start_temperature=0.06, end_temperature=0.0001, step=0.95)
     # High Exploration
     #accept = SimulatedAnnealing(start_temperature=2000, end_temperature=0.01, step=0.998)
     # Quick Convergence
@@ -313,7 +303,7 @@ def runALNS(initial_otList: list, initial_ttwList: list, gstwList: list[GSTW], s
     # result.plot_objectives()
     # plt.show()
     # print()
-    return result, state
+    return result
 
 
 

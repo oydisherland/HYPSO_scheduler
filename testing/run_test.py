@@ -2,6 +2,7 @@ import os
 import datetime
 
 from data_preprocessing.objective_functions import objectiveFunctionPriority, objectiveFunctionImageQuality
+from generate_image_schedule import downlinkSchedule
 from scheduling_model import SP
 from algorithm.NSGA2 import runNSGA
 from data_preprocessing.create_data_objects import createTTWList, createOH, createGSTWList
@@ -43,7 +44,7 @@ ttwList = createTTWList( int(inputParameters.captureDuration), oh, int(inputPara
 gstwList = createGSTWList(oh.utcStart, oh.utcEnd, transmissionParameters.minGSWindowTime, groundStationFilePath, int(inputParameters.hypsoNr))
 
 # Create observation schedule
-observationSchedule, _, _, _, _ = runNSGA(
+observationSchedule, bufferSchedule, downlinkSchedule, _, _, _, _ = runNSGA(
     int(inputParameters.populationSize), 
     int(inputParameters.nsga2Runs), 
     ttwList,
@@ -58,16 +59,8 @@ observationSchedule, _, _, _, _ = runNSGA(
     int(inputParameters.maxTabBank)
 )
 
-# Sort the schedule by priority to indicate for which tasks buffering should be scheduled first
-_, bufferSchedule, downlinkSchedule, modifiedObservationSchedule = twoStageTransmissionScheduling(
-    observationSchedule,
-    ttwList,
-    gstwList,
-    transmissionParameters
-)
-
 bufferSchedule, downlinkSchedule = cleanUpSchedule(
-    modifiedObservationSchedule,
+    observationSchedule,
     bufferSchedule,
     downlinkSchedule,
     gstwList,
@@ -77,7 +70,7 @@ bufferSchedule, downlinkSchedule = cleanUpSchedule(
 )
 saveplotPathCompare = os.path.join(os.path.dirname(__file__), f"output_folder/{inputParameters.testName}_schedule")
 plotSchedule(
-    modifiedObservationSchedule,
+    observationSchedule,
     observationSchedule,
     bufferSchedule,
     downlinkSchedule,
@@ -87,12 +80,12 @@ plotSchedule(
     savePlotPath=saveplotPathCompare
 )
 
-print(f"Priority objective value: {objectiveFunctionPriority(modifiedObservationSchedule)}")
-print(f"Image quality objective value: {objectiveFunctionImageQuality(modifiedObservationSchedule, oh, schedulingParameters.hypsoNr)}")
+print(f"Priority objective value: {objectiveFunctionPriority(observationSchedule)}")
+print(f"Image quality objective value: {objectiveFunctionImageQuality(observationSchedule, oh, schedulingParameters.hypsoNr)}")
 
 ### CREATE COMMAND LINES FOR SATELLITE CAPTURE AND BUFFERING ###
 
-cmdLines = createCmdLinesForCaptureAndBuffering(modifiedObservationSchedule, bufferSchedule, inputParameters, oh)
+cmdLines = createCmdLinesForCaptureAndBuffering(observationSchedule, bufferSchedule, inputParameters, oh)
 outputFolderPath = os.path.join(os.path.dirname(__file__), f"output/")
 createCmdFile(f"{outputFolderPath}{inputParameters.testName}_cmdLines.txt", cmdLines)
 
@@ -105,13 +98,13 @@ otList = recreateOTListFromCmdFile(pathScript, oh)
 for ot in otList:
     print(f"Target ID: {ot.GT.id:10}, Start: {ot.start}")
 print(f"Total number of observation tasks: {len(otList)}")  
-for ot in modifiedObservationSchedule:
+for ot in observationSchedule:
     print(f"Target ID: {ot.GT.id:10}, Start: {ot.start}")
-print(f"Total number of observation tasks: {len(modifiedObservationSchedule)}")
+print(f"Total number of observation tasks: {len(observationSchedule)}")
 saveplotPathCompare = os.path.join(os.path.dirname(__file__), f"output/{inputParameters.testName}_compare_schedule")
 
 plotCompareSchedule(
-    modifiedObservationSchedule,
+    observationSchedule,
     otList,
     observationSchedule,
     bufferSchedule,
