@@ -345,7 +345,7 @@ def plotSchedule(otListMod: list[OT], otList: list[OT], btList: list[BT], dtList
     plt.xlim(0, p.ohDuration)
     plt.legend()
     plt.tight_layout()
-    if savePlotPath != None:
+    if savePlotPath is not None:
         plt.savefig(f"{savePlotPath}.png")
         plt.close()  # Close the figure to free memory
     else:
@@ -527,7 +527,7 @@ def plotCompareSchedule(otListMod: list[OT], otListCp: list[OT], otList: list[OT
     plt.xlim(0, p.ohDuration)
     plt.legend()
     plt.tight_layout()
-    if savePlotPath != None:
+    if savePlotPath is not None:
         plt.savefig(f"{savePlotPath}.png")
         plt.close()  # Close the figure to free memory
     else:
