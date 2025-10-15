@@ -1,6 +1,4 @@
-from data_preprocessing.objective_functions import objectiveFunctionPriority, objectiveFunctionImageQuality
-from scheduling_model import OH, GT, TW, TTW, OT ,SP
-from collections import Counter
+from scheduling_model import OH, OT, SP
 import random
 
 
@@ -73,13 +71,8 @@ def RHGA(ttwList: list, otList: list, unfeasibleTargetsIdList: list, schedulingP
     # duplicates = [ot for ot, count in ot_counts.items() if count > 1]
     # if duplicates:
     #     print("Duplicate observation tasks found after rnsga loop:", duplicates)
-    
 
-    objectiveValues = []
-    objectiveValues.append(objectiveFunctionPriority(otList))
-    objectiveValues.append(objectiveFunctionImageQuality(otList, oh, schedulingParameters.hypsoNr))
-
-    return otList, objectiveValues
+    return otList
 
 
 
