@@ -9,7 +9,6 @@ from campaignPlanner_interaction.intergrate_campaign_planner import createCmdFil
 
 from transmission_scheduling.clean_schedule import cleanUpSchedule, OrderType
 from transmission_scheduling.input_parameters import getTransmissionInputParams
-from transmission_scheduling.two_stage_transmission_insert import twoStageTransmissionScheduling
 from transmission_scheduling.util import plotSchedule, plotCompareSchedule
 from data_input.utility_functions import InputParameters
 
@@ -20,7 +19,7 @@ from data_input.utility_functions import InputParameters
 
 groundStationFilePath = os.path.join(os.path.dirname(__file__), "data_input/HYPSO_data/ground_stations.csv")
 inputParametersFilePath = os.path.join(os.path.dirname(__file__),"data_input/input_parameters.csv")
-ttwListFilePath = os.path.join(os.path.dirname(__file__),"data_input/HYPSO_data/ttw_list.json")
+ttwListFilePath = os.path.join(os.path.dirname(__file__),"data_input/HYPSO_data/ttw_list_2025_10_09_1600.json")
 
 inputParameters = InputParameters.from_csv(inputParametersFilePath)
 
@@ -30,8 +29,8 @@ if inputParameters.startTimeOH == "now":
 
 # Create model parameters
 schedulingParameters = SP(
-    int(inputParameters.maxCaptures), 
-    int(inputParameters.captureDuration), 
+    int(inputParameters.maxCaptures),
+    int(inputParameters.captureDuration),
     int(inputParameters.transitionTime),
     int(inputParameters.hypsoNr))
 oh = createOH(datetime.datetime.fromisoformat(inputParameters.startTimeOH), int(inputParameters.durationInDaysOH))
@@ -42,41 +41,33 @@ ttwList = createTTWList( int(inputParameters.captureDuration), oh, int(inputPara
 gstwList = createGSTWList(oh.utcStart, oh.utcEnd, transmissionParameters.minGSWindowTime, groundStationFilePath, int(inputParameters.hypsoNr))
 
 # Create observation schedule
-observationSchedule, _, _, _, _ = runNSGA(
-    int(inputParameters.populationSize), 
-    int(inputParameters.nsga2Runs), 
+observationSchedule, bufferSchedule, downlinkSchedule, _, _, _, _ = runNSGA(
+    int(inputParameters.populationSize),
+    int(inputParameters.nsga2Runs),
     ttwList,
     gstwList,
     schedulingParameters,
     transmissionParameters,
     oh, 
-    int(inputParameters.alnsRuns), 
-    bool(inputParameters.isTabooBankFIFO), 
-    bool(inputParameters.iqNonLinear), 
-    int(inputParameters.desNumber), 
+    int(inputParameters.alnsRuns),
+    bool(inputParameters.isTabooBankFIFO),
+    bool(inputParameters.iqNonLinear),
+    int(inputParameters.desNumber),
     int(inputParameters.maxTabBank)
 )
 
-# Sort the schedule by priority to indicate for which tasks buffering should be scheduled first
-_, bufferSchedule, downlinkSchedule, modifiedObservationSchedule = twoStageTransmissionScheduling(
-    observationSchedule,
-    ttwList,
-    gstwList,
-    transmissionParameters
-)
-
 bufferSchedule, downlinkSchedule = cleanUpSchedule(
-    modifiedObservationSchedule,
+    observationSchedule,
     bufferSchedule,
     downlinkSchedule,
     gstwList,
     transmissionParameters,
     OrderType.FIFO,
-    OrderType.PRIORITY
+    OrderType.FIFO
 )
 saveplotPathCompare = os.path.join(os.path.dirname(__file__), f"output/{inputParameters.testName}_schedule")
 plotSchedule(
-    modifiedObservationSchedule,
+    observationSchedule,
     observationSchedule,
     bufferSchedule,
     downlinkSchedule,
@@ -86,12 +77,12 @@ plotSchedule(
     savePlotPath=saveplotPathCompare
 )
 
-print(f"Priority objective value: {objectiveFunctionPriority(modifiedObservationSchedule)}")
-print(f"Image quality objective value: {objectiveFunctionImageQuality(modifiedObservationSchedule, oh, schedulingParameters.hypsoNr)}")
+print(f"Priority objective value: {objectiveFunctionPriority(observationSchedule)}")
+print(f"Image quality objective value: {objectiveFunctionImageQuality(observationSchedule, oh, schedulingParameters.hypsoNr)}")
 
 ### CREATE COMMAND LINES FOR SATELLITE CAPTURE AND BUFFERING ###
 
-cmdLines = createCmdLinesForCaptureAndBuffering(modifiedObservationSchedule, bufferSchedule, inputParameters, oh)
+cmdLines = createCmdLinesForCaptureAndBuffering(observationSchedule, bufferSchedule, inputParameters, oh)
 outputFolderPath = os.path.join(os.path.dirname(__file__), f"output/")
 createCmdFile(f"{outputFolderPath}{inputParameters.testName}_cmdLines.txt", cmdLines)
 
@@ -104,13 +95,13 @@ otList = recreateOTListFromCmdFile(pathScript, oh)
 for ot in otList:
     print(f"Target ID: {ot.GT.id:10}, Start: {ot.start}")
 print(f"Total number of observation tasks: {len(otList)}")  
-for ot in modifiedObservationSchedule:
+for ot in observationSchedule:
     print(f"Target ID: {ot.GT.id:10}, Start: {ot.start}")
-print(f"Total number of observation tasks: {len(modifiedObservationSchedule)}")
+print(f"Total number of observation tasks: {len(observationSchedule)}")
 saveplotPathCompare = os.path.join(os.path.dirname(__file__), f"output/{inputParameters.testName}_compare_schedule")
 
 plotCompareSchedule(
-    modifiedObservationSchedule,
+    observationSchedule,
     otList,
     observationSchedule,
     bufferSchedule,

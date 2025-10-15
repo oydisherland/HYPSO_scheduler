@@ -1,22 +1,22 @@
 testName, 10-04-25
 
 # Scheduling specific parameters
-maxCaptures, 40
+maxCaptures, 24
 captureDuration, 60
 transitionTime, 660
-startTimeOH, 2025-10-12 14:00:00.000000+00:00
+startTimeOH, 2025-10-09 16:00:00.000000+00:00
 durationInDaysOH, 2
 delayInHoursOH, 0
 hypsoNr, 2
 
 # Algorithm specific parameters
-populationSize, 10
+populationSize, 50
 isTabooBankFIFO, True
 iqNonLinear, False
 NSGA2Runs, 5
-ALNSRuns, 40
-maxTabBank, 12
-desNumber, 5
+ALNSRuns, 50
+maxTabBank, 2
+desNumber, 1
 
 # Transmission timing parameters
 bufferingTime, 1500

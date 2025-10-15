@@ -2,7 +2,7 @@ import random
 from enum import Enum
 
 from algorithm.rhga import RHGA
-from scheduling_model import OH, SP, GSTW
+from scheduling_model import OH, SP, GSTW, TTW, BT, DT, OT
 from transmission_scheduling.input_parameters import TransmissionParams
 from transmission_scheduling.two_stage_transmission_insert import twoStageTransmissionScheduling
 from data_preprocessing.objective_functions import objectiveFunctionPriority, objectiveFunctionImageQuality
@@ -169,9 +169,9 @@ def destroyOperator(otList: list, ttwList: list, destroyNumber: int, destroyType
 
 def repairOperator(ttwList: list, otList: list, gstwList: list[GSTW], unfeasibleTargetsIdList: list,
                    repairType: RepairType, schedulingParameters: SP, transmissionParams: TransmissionParams, oh: OH,
-                   fullReschedule = False):
-    """ Takes in a list of OTs and inserts new OTs untill no more feasible insertions can be performed. Selects which ones to insert based on repairType.
-    After inserting all new OTs, the scheduled is ajusted to fulfill downlink/buffering requirements.
+                   fullReinsert = False) -> tuple[list[TTW], list[OT], list[BT], list[DT], list]:
+    """ Takes in a list of OTs and inserts new OTs until no more feasible insertions can be performed. Selects which ones to insert based on repairType.
+    After inserting all new OTs, the scheduled is adjusted to fulfill downlink/buffering requirements.
     repairType: random, greedy, smallTW, congestion.\n
     Output:
     - otList: list of OTs with new OTs inserted
@@ -196,19 +196,18 @@ def repairOperator(ttwList: list, otList: list, gstwList: list[GSTW], unfeasible
     elif repairType == RepairType.CONGESTION:
         ttwListSorted = congestionSort(ttwList)
     else:
-        print("Repair type not found")
-        return 0
-    
+        raise Exception("The repair operator type could not be found")
+
     #Find an observation task schedule
-    otListRepaired, objectiveValuesList = RHGA(ttwListSorted, otListCopy, unfeasibleTargetsIdList, schedulingParameters, oh, greedyMode, randomMode)
+    otListRepaired = RHGA(ttwListSorted, otListCopy, unfeasibleTargetsIdList, schedulingParameters, oh, greedyMode, randomMode)
 
     ### Downlink/buffer scheduling
     # Adjust the imaging schedule such that the buffer and downlink tasks fit
-    _, _, _, otListAdjusted = twoStageTransmissionScheduling(otListRepaired, ttwList, gstwList, transmissionParams,
-                                                             True, fullReschedule)
+    btList, dtList, otListAdjusted = twoStageTransmissionScheduling(otListRepaired, ttwList, gstwList, transmissionParams,
+                                                             True, fullReinsert)
     # Calculate the objective values of the adjusted schedule
     objectiveValuesList = [objectiveFunctionPriority(otListAdjusted),
                            objectiveFunctionImageQuality(otListAdjusted, oh, schedulingParameters.hypsoNr)]
     
-    return ttwListSorted, otListAdjusted, objectiveValuesList
+    return ttwListSorted, otListAdjusted, btList, dtList, objectiveValuesList
 

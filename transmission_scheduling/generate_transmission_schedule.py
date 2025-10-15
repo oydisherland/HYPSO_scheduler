@@ -47,7 +47,7 @@ def generate_schedule():
     gstwList = createGSTWList(startTimeOH, endTimeOH, p.minGSWindowTime, groundStationFilePath, p.hypsoNr)
 
     start_time = time.perf_counter()
-    valid, btList, dtList, otListModified = twoStageTransmissionScheduling(otListPrioSorted, ttwList, gstwList, p)
+    btList, dtList, otListModified = twoStageTransmissionScheduling(otListPrioSorted, ttwList, gstwList, p)
     end_time = time.perf_counter()
     latencyCounter(otListModified, dtList)
     btList, dtList = cleanUpSchedule(otListModified, btList, dtList, gstwList, p, OrderType.FIFO, OrderType.PRIORITY)
