@@ -89,7 +89,7 @@ createCmdFile(f"{outputFolderPath}{inputParameters.testName}_cmdLines.txt", cmdL
 
 
 ### COMPARE SCRIPTS ###
-pathScript = os.path.join(os.path.dirname(__file__), "output/CP_output/cp_test.txt")
+pathScript = os.path.join(os.path.dirname(__file__), "output/cp_test.txt")
 
 otList = recreateOTListFromCmdFile(pathScript, oh)
 for ot in otList:

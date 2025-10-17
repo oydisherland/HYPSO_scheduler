@@ -97,6 +97,9 @@ def findIllumminationPeriods(targetLat: float, targetLong: float, startTime: dat
     times, events = almanac.find_discrete(t0, t1, findSunriseSunset)
     illuminatedPeriods = []
 
+    if events.size == 0:
+        return illuminatedPeriods
+
     if events[0] == 0:
         # first event is sunset, add a timestamp at start of OH
         illuminatedPeriods.append((t0.utc_datetime(), times[0].utc_datetime()))

@@ -1,4 +1,6 @@
 import datetime
+import json
+import os
 from pathlib import Path
 
 import pandas as pd
@@ -8,6 +10,7 @@ from data_postprocessing.quaternions import generate_quaternions
 from data_input.satellite_positioning_calculations import createSatelliteObject, findSatelliteTargetElevation
 from data_input.utility_functions import InputParameters
 from scheduling_model import OH, OT, GT, BT, OH
+
 
 # function to calcuate quaternions for a given target at a given time
 def calculateQuaternions(hypsoNr: int, groundTarget: GT, timestamp: datetime.datetime):
@@ -45,6 +48,25 @@ def getTargetIdPriorityDict(targetsFilePath: str) -> dict:
 
         priorityIdDict[targetId] = targetPriority
 
+    return priorityIdDict
+
+def getTargetIdPriorityDictFromJson(targetsJsonFilePath: str) -> dict:
+    """ Get the priority of a list of target IDs from a targets.json file 
+    Output:
+    - priorityIdDict: dictionary with target ID as key and priority as value
+    """
+    
+    priorityIdDict = {}
+    
+    with open(targetsJsonFilePath, 'r') as f:
+        targets = json.load(f)
+    
+    for index, target in enumerate(targets):
+        targetId = target['name'].strip()  # Remove any whitespace
+        targetPriority = len(targets) - index
+        
+        priorityIdDict[targetId] = targetPriority
+    
     return priorityIdDict
 # Functions to reformat the schedule data
 def convertToUnixTime(dateTime: datetime.datetime) -> int:
@@ -209,9 +231,9 @@ def createBufferCmdLine( bufferTask: BT, hypsoNr: int, quaternions: dict, observ
                  f' -n {row['-n']:20} -lat {round(row['-lat'], 4):8.4f} -lon {round(row['-lon'], 4):9.4f} --sunZenith {round((row['--sunZenith']),2):8.4f} {"           "}'\
                  f' -e {row['-e']:6.2f} -r {row['-r']:20.17f}  -l {row['-l']:20.17f}  -j {row['-j']:20.17f}  -k {row['-k']:20.17f}'\
                  f' {" -t " + row['-t']:24} {"":9} {"--buffer":9}'\
-                 f' % {observationMiddleTime} - Predicted Cloud cover: {row['Predicted Cloud cover:']:5.1f} % Estimated downlink complete: \n'
+                 f' % {observationMiddleTime} - Predicted Cloud cover: {row['Predicted Cloud cover:']:5.1f} % Estimated downlink complete: {observationMiddleTime.strftime("%Y-%m-%d %H:%M:%S")} \n'
 
-    return cmd_string
+    return cmd_string 
 def createCmdLinesForCaptureAndBuffering(observationSchedule: list, bufferSchedule: list, inputParameters: InputParameters, oh: OH) -> list:
     """ Creates a list of command lines for capturing and buffering based on the observation and buffer schedules
     Output:
@@ -276,6 +298,7 @@ def getScheduleFromCmdLine(cmdLine: str, oh: OH, captureDurationSec: int = 60):
     endDateTime = convertFromUnixTime(int(cmdDict['-u'])) + timedelta(seconds=captureDurationSec//2)
     relativeStart = int((startDateTime - oh.utcStart).total_seconds())
     relativeEnd = int((endDateTime - oh.utcStart).total_seconds())
+
 
     observationTask = OT(
         GT=GT(
