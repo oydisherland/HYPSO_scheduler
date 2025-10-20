@@ -1,5 +1,6 @@
 import csv
-from dataclasses import dataclass
+import json
+from dataclasses import dataclass, asdict
 
 def csvToDict(filepath) -> dict:
     """
@@ -59,4 +60,8 @@ class InputParameters:
             maxTabBank=int(params_dict['maxTabBank']),
             desNumber=int(params_dict['desNumber'])
         )
+    
+    def to_json(self) -> str:
+        """Convert InputParameters instance to JSON string"""
+        return json.dumps(asdict(self), indent=4)
 

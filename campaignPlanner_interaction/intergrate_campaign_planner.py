@@ -1,13 +1,17 @@
 import datetime
+import json
+import os
 from pathlib import Path
 
 import pandas as pd
 import skyfield.api as skf
 from datetime import timedelta
 from data_postprocessing.quaternions import generate_quaternions
+from data_preprocessing.parseTargetsFile import getTargetIdPriorityDictFromJson
 from data_input.satellite_positioning_calculations import createSatelliteObject, findSatelliteTargetElevation
 from data_input.utility_functions import InputParameters
 from scheduling_model import OH, OT, GT, BT, OH
+
 
 # function to calcuate quaternions for a given target at a given time
 def calculateQuaternions(hypsoNr: int, groundTarget: GT, timestamp: datetime.datetime):
@@ -28,14 +32,14 @@ def calculateQuaternions(hypsoNr: int, groundTarget: GT, timestamp: datetime.dat
 
     return quaternions
 # Function that creates a map between id of a target and its corresponding priority
-def getTargetIdPriorityDict(targetsFilePath: str) -> dict:
+def getTargetIdPriorityDictFromCsv(targetsCsvFilePath: str) -> dict:
     """ Get the priority of a list of target IDs from the targets.csv file 
     Output:
     - priorityIdDict: dictionary with target ID as key and priority as value
     """
 
     priorityIdDict = {}
-    targets_df = pd.read_csv(targetsFilePath)
+    targets_df = pd.read_csv(targetsCsvFilePath)
     targets = targets_df.values.tolist()
 
     for index, target in enumerate(targets):
@@ -46,6 +50,25 @@ def getTargetIdPriorityDict(targetsFilePath: str) -> dict:
         priorityIdDict[targetId] = targetPriority
 
     return priorityIdDict
+def getTargetIdPriorityDictFromJson(targetsJsonFilePath: str) -> dict:
+    """ Get the priority of a list of target IDs from a targets.json file 
+    Output:
+    - priorityIdDict: dictionary with target ID as key and priority as value
+    """
+    
+    priorityIdDict = {}
+    
+    with open(targetsJsonFilePath, 'r') as f:
+        targets = json.load(f)
+    
+    for index, target in enumerate(targets):
+        targetId = target['name'].strip()  # Remove any whitespace
+        targetPriority = len(targets) - index
+        
+        priorityIdDict[targetId] = targetPriority
+    
+    return priorityIdDict
+
 # Functions to reformat the schedule data
 def convertToUnixTime(dateTime: datetime.datetime) -> int:
     """Convert a timestamp string to Unix time"""
@@ -209,9 +232,9 @@ def createBufferCmdLine( bufferTask: BT, hypsoNr: int, quaternions: dict, observ
                  f' -n {row['-n']:20} -lat {round(row['-lat'], 4):8.4f} -lon {round(row['-lon'], 4):9.4f} --sunZenith {round((row['--sunZenith']),2):8.4f} {"           "}'\
                  f' -e {row['-e']:6.2f} -r {row['-r']:20.17f}  -l {row['-l']:20.17f}  -j {row['-j']:20.17f}  -k {row['-k']:20.17f}'\
                  f' {" -t " + row['-t']:24} {"":9} {"--buffer":9}'\
-                 f' % {observationMiddleTime} - Predicted Cloud cover: {row['Predicted Cloud cover:']:5.1f} % Estimated downlink complete: \n'
+                 f' % {observationMiddleTime} - Predicted Cloud cover: {row['Predicted Cloud cover:']:5.1f} % Estimated downlink complete: {observationMiddleTime.strftime("%Y-%m-%d %H:%M:%S")} \n'
 
-    return cmd_string
+    return cmd_string 
 def createCmdLinesForCaptureAndBuffering(observationSchedule: list, bufferSchedule: list, inputParameters: InputParameters, oh: OH) -> list:
     """ Creates a list of command lines for capturing and buffering based on the observation and buffer schedules
     Output:
@@ -245,7 +268,7 @@ def createCmdFile(txtFilepath, cmdLines):
         for line in cmdLines:
             f.write(line.rstrip() + "\n")
 # Function that reformats the campaign planner commands into schedule objects 
-def getScheduleFromCmdLine(cmdLine: str, oh: OH, captureDurationSec: int = 60):
+def getScheduleFromCmdLine(targetFilePath: str,cmdLine: str, oh: OH, captureDurationSec: int = 60):
     """ Takes in a command line string and returns an OT object representing the same cmd and the type of command
     Output:
     - observationTask: OT object created from the command line
@@ -277,12 +300,15 @@ def getScheduleFromCmdLine(cmdLine: str, oh: OH, captureDurationSec: int = 60):
     relativeStart = int((startDateTime - oh.utcStart).total_seconds())
     relativeEnd = int((endDateTime - oh.utcStart).total_seconds())
 
+    # Recreate target data object to find objectiveValue
+    targetIdPriorityDict = getTargetIdPriorityDictFromJson(targetFilePath)
+
     observationTask = OT(
         GT=GT(
             id=cmdDict['-n'],
             lat=cmdDict['-lat'],
             long=cmdDict['-lon'],
-            priority=None,
+            priority=targetIdPriorityDict.get(cmdDict['-n'], 0),
             cloudCoverage=0,
             exposureTime=cmdDict['-e'],
             captureMode=cmdDict['-p']
@@ -303,7 +329,7 @@ def getScheduleFromCmdLine(cmdLine: str, oh: OH, captureDurationSec: int = 60):
     
     return observationTask, 'Unknown'
 
-def recreateOTListFromCmdFile(cmdFilePath: str, oh: OH,captureDurationSec: int = 60):
+def recreateOTListFromCmdFile(targetFilePath: str, cmdFilePath: str, oh: OH, captureDurationSec: int = 60):
     """ Reads a command file and recreates the list of OT objects from the command lines
     Output:
     - otList: list of OT objects
@@ -312,7 +338,7 @@ def recreateOTListFromCmdFile(cmdFilePath: str, oh: OH,captureDurationSec: int =
     with open(cmdFilePath, 'r') as f:
         cmdLines = f.readlines()
         for cmdLine in cmdLines:
-            ot, commandType = getScheduleFromCmdLine(cmdLine, oh, captureDurationSec)
+            ot, commandType = getScheduleFromCmdLine(targetFilePath, cmdLine, oh, captureDurationSec)
             if commandType == 'Capture':
                 otList.append(ot)
     return otList

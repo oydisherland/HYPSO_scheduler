@@ -190,8 +190,6 @@ def repairOperator(ttwList: list, otList: list, gstwList: list[GSTW], unfeasible
         ttwListSorted = randomSort(ttwList)
     elif repairType == RepairType.GREEDY:
         ttwListSorted = greedyPrioritySort(ttwList)
-        # greedyMode = True
-        # randomMode = False
     elif repairType == RepairType.SMALL_TW:
         ttwListSorted = smallTWSort(ttwList)
     elif repairType == RepairType.CONGESTION:

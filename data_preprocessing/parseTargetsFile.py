@@ -15,7 +15,7 @@ class TargetData:
     t1: str
 
 
-def parse_target_json(json_obj):
+def parseTargetJson(json_obj):
     """
     Parse a JSON object into a TargetData object
     Only include keys that are defined in the TargetData dataclass
@@ -35,24 +35,24 @@ def getTargetDataFromJsonFile(targetsJsonFile: str):
 
     with open(targetsJsonFile, 'r') as f:
         targets_json = json.load(f)
-    targets = [parse_target_json(target) for target in targets_json]
+    targets = [parseTargetJson(target) for target in targets_json]
     return targets
 
+def getTargetIdPriorityDictFromJson(targetsJsonFile: str) -> dict:
+    """ 
+    Get a dictionary mapping target IDs to their priorities from a JSON file
+    Input: path to the JSON file
+    Output: Dictionary with target ID as key and priority as value
+    """
 
-# targetData = testJsonParsing('HYPSO_scheduler/data_input/HYPSO_data/targets.json')
+    with open(targetsJsonFile, 'r') as f:
+        targets_json = json.load(f)
+    
+    targetIdPriorityDict = {}
+    for target in targets_json:
+        targetId = target.get("id")
+        priority = target.get("priority", 0)
+        if targetId is not None:
+            targetIdPriorityDict[targetId] = priority
 
-# for target in targetData:
-#     id = target.name
-#     latitude = target.lat
-#     longitude = target.lon
-#     elevation = target.elev
-#     cloudCover = target.cc
-#     exposure = target.exp
-#     imagingMode = target.mode
-#     nightOnly = target.night
-#     timeWindowStart = target.t0
-#     timeWindowEnd = target.t1
-#     print(f"ID: {id}, Lat: {latitude}, Lon: {longitude}")
-
-
-# It works!
+    return targetIdPriorityDict

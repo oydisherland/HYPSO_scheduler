@@ -75,7 +75,8 @@ def runNSGA(
     previousParetoFront = []
     terminationCounter = 0
 
-    print(f"NSGA2 main loop using total of {nsga2Runs} runs: ", end='', flush=True)
+    # print(f"NSGA2 main loop using total of {nsga2Runs} runs: ", end='', flush=True) 
+
     ##### Main loop in the NSGA2 algorithm
     for generation in range(nsga2Runs):
         #### Creating offsprings using ALNS
@@ -165,7 +166,7 @@ def runNSGA(
         population = newPopulation
 
         #### Printing results: 
-        print(f"{generation + 1} | ", end='', flush=True)
+        # print(f"{generation + 1} | ", end='', flush=True)
 
         ### Save all data from this iteration in iterationData, to use for analysis of the algorithm
         iterationData.append((fronts, objectiveSpace, selectedObjectiveVals))
