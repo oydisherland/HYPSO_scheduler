@@ -37,7 +37,7 @@ oh = createOH(datetime.datetime.fromisoformat(inputParameters.startTimeOH), int(
 transmissionParameters = getTransmissionInputParams(inputParametersFilePath)
 
 # Create data Objects
-ttwList = createTTWList( int(inputParameters.captureDuration), oh, int(inputParameters.hypsoNr))
+ttwList = createTTWList( int(inputParameters.captureDuration), oh, int(inputParameters.hypsoNr), ttwListFilePath, ttwListFilePath)
 gstwList = createGSTWList(oh.utcStart, oh.utcEnd, transmissionParameters.minGSWindowTime, groundStationFilePath, int(inputParameters.hypsoNr))
 
 # Create observation schedule

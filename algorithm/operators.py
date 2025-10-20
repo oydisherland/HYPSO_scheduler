@@ -133,26 +133,27 @@ def destroyOperator(otList: list, ttwList: list, destroyNumber: int, destroyType
     - otList: list of OTs with destroyNumber less elements
     """
     removedTargetsIdList = []
+    otListCopy = otList.copy()
 
     #Ceck if otList is empty
-    if not otList:
-        return otList, removedTargetsIdList
+    if not otListCopy:
+        return otListCopy, removedTargetsIdList
 
     if len(ttwList) == 0:
         print("ttwList is empty")
 
     #Sort list based on destroyType
     if destroyType == DestroyType.RANDOM:
-        otListSorted = randomSort(otList)
+        otListSorted = randomSort(otListCopy)
     elif destroyType == DestroyType.GREEDY_P:
-        otListSorted = greedyPrioritySort(otList)
+        otListSorted = greedyPrioritySort(otListCopy)
     elif destroyType == DestroyType.GREEDY_IQ:
-        otListSorted = greedyImageQualitySort(otList, oh, hypsoNr)
+        otListSorted = greedyImageQualitySort(otListCopy, oh, hypsoNr)
     elif destroyType == DestroyType.CONGESTION:
         ttwListSorted = congestionSort(ttwList)
         otListSorted = []
         for ttw in ttwListSorted:         
-            for ot in otList:   
+            for ot in otListCopy:
                 if ot.GT.id == ttw.GT.id:
                     otListSorted.append(ot)
                     break
