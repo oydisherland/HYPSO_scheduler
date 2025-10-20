@@ -49,14 +49,20 @@ def twoStageTransmissionScheduling(otList: list[OT], ttwList: list[TTW], gstwLis
     """
     Phase 2: Re-insertion phase for the observation tasks that could not be scheduled in the first phase
     """
-    possibleTTW = copy.deepcopy(ttwList)
-    otListReInsert = otListCopy
+    possibleTTW = findPossibleTTW(ttwList, otListCopy, otListScheduled, fullReinsert)
+    otListReInsert = generateNewOTList(possibleTTW, otListScheduled, btList, gstwList, p)
+
     for i in range(p.reInsertIterations):
-        possibleTTW = findPossibleTTW(possibleTTW, otListReInsert, otListScheduled, fullReinsert)
-        otListReInsert = generateNewOTList(possibleTTW, otListScheduled, btList, gstwList, p)
 
         _, btList, dtList, otListScheduled = scheduleTransmissions(otListReInsert, ttwList, gstwList, p,
                                                                                    otListScheduled, btList, dtList)
+
+        if i == p.reInsertIterations - 1:
+            break  # No need to update for another iteration
+
+        # Update the possible TTW list and the OT list to re-insert for the next cycle
+        possibleTTW = findPossibleTTW(possibleTTW, otListReInsert, otListScheduled, fullReinsert)
+        otListReInsert = generateNewOTList(possibleTTW, otListScheduled, btList, gstwList, p)
 
     return btList, dtList, otListScheduled
 

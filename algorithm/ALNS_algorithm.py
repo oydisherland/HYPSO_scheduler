@@ -4,7 +4,6 @@ from alns.select import AlphaUCB
 from alns.stop import MaxIterations
 
 import numpy.random as rnd
-import copy
 
 from data_preprocessing.objective_functions import objectiveFunctionPriority, objectiveFunctionImageQuality
 from scheduling_model import OH, SP, GSTW, OT, BT, DT, TTW
@@ -89,14 +88,17 @@ def createInitialSolution(ttwList: list, gstwList: list[GSTW], schedulingParamet
 
 ### Helper functions for destroy and repair operators ###
 
-def removeElementsFromTabooBank(current: ProblemState) -> ProblemState:
+def adjustTabooBank(current: ProblemState) -> list:
     # Remove targets from FIFO queue If the queue is full
-    while len(current.tabooBank) + current.destructionNumber >= current.maxSizeTabooBank:
-        if len(current.tabooBank) == 0:
+    newTabooBank = current.tabooBank.copy()
+    while len(newTabooBank) + current.destructionNumber >= current.maxSizeTabooBank:
+        if len(newTabooBank) == 0:
             break
         # Remove the oldest target from the queue
-        current.tabooBank.pop(0)
-    return current
+        newTabooBank.pop(0)
+    return newTabooBank
+
+
 def getDestructionNumber(current: ProblemState) -> int:
     if len(current.tabooBank) + current.destructionNumber >= current.maxSizeTabooBank:
         # No targets can be removed
@@ -110,147 +112,196 @@ def getDestructionNumber(current: ProblemState) -> int:
 ### Destroy and repair operators ###
 
 def destroyRandom(current: ProblemState, rng: rnd.Generator) -> ProblemState:
-    # Make sure to (deep)copy the current state before modifying!
     if current.isTabooBankFIFO:
         # Make space in the taboobank for new round of destructions
-        current = removeElementsFromTabooBank(current)
+        newTabooBank = adjustTabooBank(current)
         numberOfTargetsToRemove = current.destructionNumber
     else:
         # Adjust destruction number after the size of the taboo bank
+        newTabooBank = current.tabooBank.copy()
         numberOfTargetsToRemove = getDestructionNumber(current)
 
-    destroyed = copy.deepcopy(current)
-    destroyed.otList, removedTargetsIdList = destroyOperator(
-        destroyed.otList, 
-        destroyed.ttwList,
-        numberOfTargetsToRemove, 
-        DestroyType.RANDOM,
-        destroyed.oh,
-        destroyed.schedulingParameters.hypsoNr)
-    
-    destroyed.tabooBank.extend(removedTargetsIdList)
-    return destroyed
-def destroyGreedyPriority(current: ProblemState, rng: rnd.Generator) -> ProblemState:
-    # Make sure to (deep)copy the current state before modifying!
-        # Make sure to (deep)copy the current state before modifying!
-    if current.isTabooBankFIFO:
-        # Make space in the taboobank for new round of destructions
-        current = removeElementsFromTabooBank(current)
-        numberOfTargetsToRemove = current.destructionNumber
-    else:
-        # Adjust destruction number after the size of the taboo bank
-        numberOfTargetsToRemove = getDestructionNumber(current)
-
-    destroyed = copy.deepcopy(current)
-    destroyed.otList, removedTargetsIdList = destroyOperator(
-        destroyed.otList, 
-        destroyed.ttwList,
-        numberOfTargetsToRemove, 
-        DestroyType.GREEDY_P,
-        destroyed.oh,
-        destroyed.schedulingParameters.hypsoNr)
-    
-    destroyed.tabooBank.extend(removedTargetsIdList)
-    return destroyed
-def destroyGreedyImageQuality(current: ProblemState, rng: rnd.Generator) -> ProblemState:
-    # Make sure to (deep)copy the current state before modifying!
-        # Make sure to (deep)copy the current state before modifying!
-    if current.isTabooBankFIFO:
-        # Make space in the taboobank for new round of destructions
-        current = removeElementsFromTabooBank(current)
-        numberOfTargetsToRemove = current.destructionNumber
-    else:
-        # Adjust destruction number after the size of the taboo bank
-        numberOfTargetsToRemove = getDestructionNumber(current) 
-
-    destroyed = copy.deepcopy(current)
-    destroyed.otList, removedTargetsIdList = destroyOperator(
-        destroyed.otList, 
-        destroyed.ttwList,
-        numberOfTargetsToRemove, 
-        DestroyType.GREEDY_IQ,
-        destroyed.oh,
-        destroyed.schedulingParameters.hypsoNr)
-    
-    destroyed.tabooBank.extend(removedTargetsIdList)
-    return destroyed
-def destroyCongestion(current: ProblemState, rng: rnd.Generator) -> ProblemState:
-    # Make sure to (deep)copy the current state before modifying!
-        # Make sure to (deep)copy the current state before modifying!
-    if current.isTabooBankFIFO:
-        # Make space in the taboobank for new round of destructions
-        current = removeElementsFromTabooBank(current)
-        numberOfTargetsToRemove = current.destructionNumber
-    else:
-        # Adjust destruction number after the size of the taboo bank
-        numberOfTargetsToRemove = getDestructionNumber(current)
-
-    destroyed = copy.deepcopy(current)
-    destroyed.otList, removedTargetsIdList = destroyOperator(
-        current.otList, 
+    otList, removedTargetsIdList = destroyOperator(
+        current.otList,
         current.ttwList,
         numberOfTargetsToRemove, 
-        DestroyType.CONGESTION,
-        destroyed.oh,
-        destroyed.schedulingParameters.hypsoNr)
-    
+        DestroyType.RANDOM,
+        current.oh,
+        current.schedulingParameters.hypsoNr)
+
+    destroyed = ProblemState(otList, current.btList, current.dtList, current.ttwList, current.gstwList, current.oh,
+                 current.destructionNumber, current.schedulingParameters,
+                 current.transmissionParameters, current.maxSizeTabooBank, current.isTabooBankFIFO)
+
+    destroyed.objectiveValues = current.objectiveValues
+    destroyed.tabooBank = newTabooBank
     destroyed.tabooBank.extend(removedTargetsIdList)
     return destroyed
 
+
+def destroyGreedyPriority(current: ProblemState, rng: rnd.Generator) -> ProblemState:
+    if current.isTabooBankFIFO:
+        # Make space in the taboobank for new round of destructions
+        newTabooBank = adjustTabooBank(current)
+        numberOfTargetsToRemove = current.destructionNumber
+    else:
+        # Adjust destruction number after the size of the taboo bank
+        newTabooBank = current.tabooBank.copy()
+        numberOfTargetsToRemove = getDestructionNumber(current)
+
+    otList, removedTargetsIdList = destroyOperator(
+        current.otList,
+        current.ttwList,
+        numberOfTargetsToRemove,
+        DestroyType.GREEDY_P,
+        current.oh,
+        current.schedulingParameters.hypsoNr)
+
+    destroyed = ProblemState(otList, current.btList, current.dtList, current.ttwList, current.gstwList, current.oh,
+                             current.destructionNumber, current.schedulingParameters,
+                             current.transmissionParameters, current.maxSizeTabooBank, current.isTabooBankFIFO)
+
+    destroyed.objectiveValues = current.objectiveValues
+    destroyed.tabooBank = newTabooBank
+    destroyed.tabooBank.extend(removedTargetsIdList)
+    return destroyed
+
+
+def destroyGreedyImageQuality(current: ProblemState, rng: rnd.Generator) -> ProblemState:
+    if current.isTabooBankFIFO:
+        # Make space in the taboobank for new round of destructions
+        newTabooBank = adjustTabooBank(current)
+        numberOfTargetsToRemove = current.destructionNumber
+    else:
+        # Adjust destruction number after the size of the taboo bank
+        newTabooBank = current.tabooBank.copy()
+        numberOfTargetsToRemove = getDestructionNumber(current)
+
+    otList, removedTargetsIdList = destroyOperator(
+        current.otList,
+        current.ttwList,
+        numberOfTargetsToRemove,
+        DestroyType.GREEDY_IQ,
+        current.oh,
+        current.schedulingParameters.hypsoNr)
+
+    destroyed = ProblemState(otList, current.btList, current.dtList, current.ttwList, current.gstwList, current.oh,
+                             current.destructionNumber, current.schedulingParameters,
+                             current.transmissionParameters, current.maxSizeTabooBank, current.isTabooBankFIFO)
+
+    destroyed.objectiveValues = current.objectiveValues
+    destroyed.tabooBank = newTabooBank
+    destroyed.tabooBank.extend(removedTargetsIdList)
+    return destroyed
+
+
+def destroyCongestion(current: ProblemState, rng: rnd.Generator) -> ProblemState:
+    if current.isTabooBankFIFO:
+        # Make space in the taboobank for new round of destructions
+        newTabooBank = adjustTabooBank(current)
+        numberOfTargetsToRemove = current.destructionNumber
+    else:
+        # Adjust destruction number after the size of the taboo bank
+        newTabooBank = current.tabooBank.copy()
+        numberOfTargetsToRemove = getDestructionNumber(current)
+
+    otList, removedTargetsIdList = destroyOperator(
+        current.otList,
+        current.ttwList,
+        numberOfTargetsToRemove,
+        DestroyType.CONGESTION,
+        current.oh,
+        current.schedulingParameters.hypsoNr)
+
+    destroyed = ProblemState(otList, current.btList, current.dtList, current.ttwList, current.gstwList, current.oh,
+                             current.destructionNumber, current.schedulingParameters,
+                             current.transmissionParameters, current.maxSizeTabooBank, current.isTabooBankFIFO)
+
+    destroyed.objectiveValues = current.objectiveValues
+    destroyed.tabooBank = newTabooBank
+    destroyed.tabooBank.extend(removedTargetsIdList)
+    return destroyed
+
+
 def repairRandom(current: ProblemState, rng: rnd.Generator) -> ProblemState:
-    repaired = copy.deepcopy(current) #Do not know if deep copy is nessecary for the repair operator
-    repaired.ttwList, repaired.otList, repaired.btList, repaired.dtList, repaired.objectiveValues = repairOperator(
-        repaired.ttwList, 
-        repaired.otList,
-        repaired.gstwList,
-        repaired.tabooBank, 
+    ttwList, otList, btList, dtList, objectiveValues = repairOperator(
+        current.ttwList,
+        current.otList,
+        current.gstwList,
+        current.tabooBank,
         RepairType.RANDOM, 
-        repaired.schedulingParameters,
-        repaired.transmissionParameters,
-        repaired.oh)
+        current.schedulingParameters,
+        current.transmissionParameters,
+        current.oh)
 
+    repaired = ProblemState(otList, btList, dtList, ttwList, current.gstwList, current.oh,
+                 current.destructionNumber, current.schedulingParameters,
+                 current.transmissionParameters, current.maxSizeTabooBank, current.isTabooBankFIFO)
+
+    repaired.tabooBank = current.tabooBank.copy()
+    repaired.objectiveValues = objectiveValues
     return repaired
+
+
 def repairGreedy(current: ProblemState, rng: rnd.Generator) -> ProblemState: 
-    repaired = copy.deepcopy(current)
-    repaired.ttwList, repaired.otList, repaired.btList, repaired.dtList, repaired.objectiveValues = repairOperator(
-        repaired.ttwList, 
-        repaired.otList,
-        repaired.gstwList,
-        repaired.tabooBank, 
-        RepairType.GREEDY, 
-        repaired.schedulingParameters,
-        repaired.transmissionParameters,
-        repaired.oh)
+    ttwList, otList, btList, dtList, objectiveValues = repairOperator(
+        current.ttwList,
+        current.otList,
+        current.gstwList,
+        current.tabooBank,
+        RepairType.GREEDY,
+        current.schedulingParameters,
+        current.transmissionParameters,
+        current.oh)
 
+    repaired = ProblemState(otList, btList, dtList, ttwList, current.gstwList, current.oh,
+                 current.destructionNumber, current.schedulingParameters,
+                 current.transmissionParameters, current.maxSizeTabooBank, current.isTabooBankFIFO)
+
+    repaired.tabooBank = current.tabooBank.copy()
+    repaired.objectiveValues = objectiveValues
     return repaired
+
+
 def repairSmallTW(current: ProblemState, rng: rnd.Generator) -> ProblemState:
-    repaired = copy.deepcopy(current)
+    ttwList, otList, btList, dtList, objectiveValues = repairOperator(
+        current.ttwList,
+        current.otList,
+        current.gstwList,
+        current.tabooBank,
+        RepairType.SMALL_TW,
+        current.schedulingParameters,
+        current.transmissionParameters,
+        current.oh)
 
-    repaired.ttwList, repaired.otList, repaired.btList, repaired.dtList, repaired.objectiveValues = repairOperator(
-        repaired.ttwList, 
-        repaired.otList,
-        repaired.gstwList,
-        repaired.tabooBank, 
-        RepairType.SMALL_TW, 
-        repaired.schedulingParameters,
-        repaired.transmissionParameters,
-        repaired.oh)
+    repaired = ProblemState(otList, btList, dtList, ttwList, current.gstwList, current.oh,
+                 current.destructionNumber, current.schedulingParameters,
+                 current.transmissionParameters, current.maxSizeTabooBank, current.isTabooBankFIFO)
 
+    repaired.tabooBank = current.tabooBank.copy()
+    repaired.objectiveValues = objectiveValues
     return repaired
+
+
 def repairCongestion(current: ProblemState, rng: rnd.Generator) -> ProblemState:
-    repaired = copy.deepcopy(current)
+    ttwList, otList, btList, dtList, objectiveValues = repairOperator(
+        current.ttwList,
+        current.otList,
+        current.gstwList,
+        current.tabooBank,
+        RepairType.CONGESTION,
+        current.schedulingParameters,
+        current.transmissionParameters,
+        current.oh)
 
-    repaired.ttwList, repaired.otList, repaired.btList, repaired.dtList, repaired.objectiveValues = repairOperator(
-        repaired.ttwList, 
-        repaired.otList,
-        repaired.gstwList,
-        repaired.tabooBank, 
-        RepairType.CONGESTION, 
-        repaired.schedulingParameters,
-        repaired.transmissionParameters,
-        repaired.oh)
+    repaired = ProblemState(otList, btList, dtList, ttwList, current.gstwList, current.oh,
+                            current.destructionNumber, current.schedulingParameters,
+                            current.transmissionParameters, current.maxSizeTabooBank, current.isTabooBankFIFO)
 
+    repaired.tabooBank = current.tabooBank.copy()
+    repaired.objectiveValues = objectiveValues
     return repaired
+
 
 ### Function to run ALNS algorithm
 
