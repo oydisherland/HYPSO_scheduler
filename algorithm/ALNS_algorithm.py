@@ -133,7 +133,7 @@ def destroyRandom(current: ProblemState, rng: rnd.Generator) -> ProblemState:
                  current.destructionNumber, current.schedulingParameters,
                  current.transmissionParameters, current.maxSizeTabooBank, current.isTabooBankFIFO)
 
-    destroyed.objectiveValues = current.objectiveValues
+    destroyed.objectiveValues = current.objectiveValues.copy()
     destroyed.tabooBank = newTabooBank
     destroyed.tabooBank.extend(removedTargetsIdList)
     return destroyed
@@ -161,7 +161,7 @@ def destroyGreedyPriority(current: ProblemState, rng: rnd.Generator) -> ProblemS
                              current.destructionNumber, current.schedulingParameters,
                              current.transmissionParameters, current.maxSizeTabooBank, current.isTabooBankFIFO)
 
-    destroyed.objectiveValues = current.objectiveValues
+    destroyed.objectiveValues = current.objectiveValues.copy()
     destroyed.tabooBank = newTabooBank
     destroyed.tabooBank.extend(removedTargetsIdList)
     return destroyed
@@ -189,7 +189,7 @@ def destroyGreedyImageQuality(current: ProblemState, rng: rnd.Generator) -> Prob
                              current.destructionNumber, current.schedulingParameters,
                              current.transmissionParameters, current.maxSizeTabooBank, current.isTabooBankFIFO)
 
-    destroyed.objectiveValues = current.objectiveValues
+    destroyed.objectiveValues = current.objectiveValues.copy()
     destroyed.tabooBank = newTabooBank
     destroyed.tabooBank.extend(removedTargetsIdList)
     return destroyed
@@ -217,7 +217,7 @@ def destroyCongestion(current: ProblemState, rng: rnd.Generator) -> ProblemState
                              current.destructionNumber, current.schedulingParameters,
                              current.transmissionParameters, current.maxSizeTabooBank, current.isTabooBankFIFO)
 
-    destroyed.objectiveValues = current.objectiveValues
+    destroyed.objectiveValues = current.objectiveValues.copy()
     destroyed.tabooBank = newTabooBank
     destroyed.tabooBank.extend(removedTargetsIdList)
     return destroyed

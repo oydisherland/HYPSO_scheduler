@@ -12,7 +12,6 @@ from transmission_scheduling.two_stage_transmission_insert import twoStageTransm
 from transmission_scheduling.util import latencyCounter
 from util import plotSchedule
 
-# TODO re-insertion iterations take a long time, find a way to cancel insertions earlier
 # TODO figure what to do with captures that can only be planned during a ground station pass
 # TODO experiment with having more than 7 buffers between buffer clearings, this does require adjustments in the priority cleanup/reassignment of the downlink tasks
 # TODO prioritize scheduling in less busy parts of the schedule first
