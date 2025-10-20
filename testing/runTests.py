@@ -7,7 +7,7 @@ import datetime
 from test_scenario import TestScenario
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from campaignPlanner_interaction.intergrate_campaign_planner import recreateOTListFromCmdFile, getTargetIdPriorityDictFromJson
+from campaignPlanner_interaction.intergrate_campaign_planner import recreateOTListFromCmdFile
 from scheduling_model import OH
 
 
@@ -32,7 +32,7 @@ print(f"Running a total of {len(scenarios)} test scenarios...")
 #Analyse tests
 
 #Recreate oh from json file
-pathOHFile = os.path.join(os.path.dirname(__file__), f"OHH2Mission_17-10/oh.json")
+pathOHFile = os.path.join(os.path.dirname(__file__), f"testing_results/OHH2Mission_17-10/oh.json")
 with open(pathOHFile, "r") as f:
     ohData = json.load(f)
 
@@ -42,16 +42,14 @@ oh = OH(
 )
 
 schedules = []
-targetPriorityDict = getTargetIdPriorityDictFromJson(os.path.join(os.path.dirname(__file__), "../data_input/HYPSO_data/targets.json"))
 for runNr in range(algorithmRuns):
-    pathScript = os.path.join(os.path.dirname(__file__), f"OHH2Mission_17-10/output/{runNr}_cmdLines.txt")
-    otList = recreateOTListFromCmdFile(pathScript, oh)
-
-    for ot in otList:
-        ot.GT.priority = targetPriorityDict.get(ot.GT.id, 0)
-
+    pathScript = os.path.join(os.path.dirname(__file__), f"testing_results/OHH2Mission_17-10/output/{runNr}_cmdLines.txt")
+    pathTargetFile = os.path.join(os.path.dirname(__file__), "../data_input/HYPSO_data/targets.json")
+    otList = recreateOTListFromCmdFile(pathTargetFile, pathScript, oh)
     schedules.append(otList)
 
 # Find sum of priorities for each schedule
+schedulePriorities = [sum(ot.GT.priority for ot in schedule) for schedule in schedules]
 
-
+bestRunNr = schedulePriorities.index(max(schedulePriorities))
+print(f"Best run is run number {bestRunNr} with total priority {schedulePriorities[bestRunNr]}")    

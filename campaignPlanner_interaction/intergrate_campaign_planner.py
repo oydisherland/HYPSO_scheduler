@@ -7,6 +7,7 @@ import pandas as pd
 import skyfield.api as skf
 from datetime import timedelta
 from data_postprocessing.quaternions import generate_quaternions
+from data_preprocessing.parseTargetsFile import getTargetIdPriorityDictFromJson
 from data_input.satellite_positioning_calculations import createSatelliteObject, findSatelliteTargetElevation
 from data_input.utility_functions import InputParameters
 from scheduling_model import OH, OT, GT, BT, OH
@@ -31,14 +32,14 @@ def calculateQuaternions(hypsoNr: int, groundTarget: GT, timestamp: datetime.dat
 
     return quaternions
 # Function that creates a map between id of a target and its corresponding priority
-def getTargetIdPriorityDict(targetsFilePath: str) -> dict:
+def getTargetIdPriorityDictFromCsv(targetsCsvFilePath: str) -> dict:
     """ Get the priority of a list of target IDs from the targets.csv file 
     Output:
     - priorityIdDict: dictionary with target ID as key and priority as value
     """
 
     priorityIdDict = {}
-    targets_df = pd.read_csv(targetsFilePath)
+    targets_df = pd.read_csv(targetsCsvFilePath)
     targets = targets_df.values.tolist()
 
     for index, target in enumerate(targets):
@@ -49,7 +50,6 @@ def getTargetIdPriorityDict(targetsFilePath: str) -> dict:
         priorityIdDict[targetId] = targetPriority
 
     return priorityIdDict
-
 def getTargetIdPriorityDictFromJson(targetsJsonFilePath: str) -> dict:
     """ Get the priority of a list of target IDs from a targets.json file 
     Output:
@@ -68,6 +68,7 @@ def getTargetIdPriorityDictFromJson(targetsJsonFilePath: str) -> dict:
         priorityIdDict[targetId] = targetPriority
     
     return priorityIdDict
+
 # Functions to reformat the schedule data
 def convertToUnixTime(dateTime: datetime.datetime) -> int:
     """Convert a timestamp string to Unix time"""
@@ -267,7 +268,7 @@ def createCmdFile(txtFilepath, cmdLines):
         for line in cmdLines:
             f.write(line.rstrip() + "\n")
 # Function that reformats the campaign planner commands into schedule objects 
-def getScheduleFromCmdLine(cmdLine: str, oh: OH, captureDurationSec: int = 60):
+def getScheduleFromCmdLine(targetFilePath: str,cmdLine: str, oh: OH, captureDurationSec: int = 60):
     """ Takes in a command line string and returns an OT object representing the same cmd and the type of command
     Output:
     - observationTask: OT object created from the command line
@@ -299,13 +300,15 @@ def getScheduleFromCmdLine(cmdLine: str, oh: OH, captureDurationSec: int = 60):
     relativeStart = int((startDateTime - oh.utcStart).total_seconds())
     relativeEnd = int((endDateTime - oh.utcStart).total_seconds())
 
+    # Recreate target data object to find objectiveValue
+    targetIdPriorityDict = getTargetIdPriorityDictFromJson(targetFilePath)
 
     observationTask = OT(
         GT=GT(
             id=cmdDict['-n'],
             lat=cmdDict['-lat'],
             long=cmdDict['-lon'],
-            priority=None,
+            priority=targetIdPriorityDict.get(cmdDict['-n'], 0),
             cloudCoverage=0,
             exposureTime=cmdDict['-e'],
             captureMode=cmdDict['-p']
@@ -326,7 +329,7 @@ def getScheduleFromCmdLine(cmdLine: str, oh: OH, captureDurationSec: int = 60):
     
     return observationTask, 'Unknown'
 
-def recreateOTListFromCmdFile(cmdFilePath: str, oh: OH,captureDurationSec: int = 60):
+def recreateOTListFromCmdFile(targetFilePath: str, cmdFilePath: str, oh: OH, captureDurationSec: int = 60):
     """ Reads a command file and recreates the list of OT objects from the command lines
     Output:
     - otList: list of OT objects
@@ -335,7 +338,7 @@ def recreateOTListFromCmdFile(cmdFilePath: str, oh: OH,captureDurationSec: int =
     with open(cmdFilePath, 'r') as f:
         cmdLines = f.readlines()
         for cmdLine in cmdLines:
-            ot, commandType = getScheduleFromCmdLine(cmdLine, oh, captureDurationSec)
+            ot, commandType = getScheduleFromCmdLine(targetFilePath, cmdLine, oh, captureDurationSec)
             if commandType == 'Capture':
                 otList.append(ot)
     return otList

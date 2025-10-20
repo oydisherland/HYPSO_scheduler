@@ -60,7 +60,7 @@ class TestScenario:
         """ Run the algorithm and create output file for each run of the algorithm """
         
         # Create folder to save algorithm output data
-        folderPathOutput = os.path.join(os.path.dirname(__file__), f"OH{self.SenarioID}/output")
+        folderPathOutput = os.path.join(os.path.dirname(__file__), f"testing_results/OH{self.SenarioID}/output")
         os.makedirs(folderPathOutput, exist_ok=True)
 
         # Create model parameters
