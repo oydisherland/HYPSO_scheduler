@@ -116,6 +116,27 @@ def getMiddleTime(startTime: datetime.datetime, endTime: datetime.datetime) -> d
     middleTime = startTime + timedelta(seconds=(endTime - startTime).seconds / 2)
     return middleTime
 
+def CombineCaptureAndBufferSchedules(captureSchedule: list, bufferSchedule: list) -> list:
+    """ Combine the capture schedule and buffer schedule into one schedule, in order of start time """
+    # Sort the two list after start time
+    captureScheduleSorted = sorted(captureSchedule, key=lambda ot: getMiddleTime(ot.start, ot.end))
+    bufferScheduleSorted = sorted(bufferSchedule, key=lambda bt: getMiddleTime(bt.start, bt.end))
+
+    # Combine the two schedules into one list
+    combinedSchedule = []
+    i, j = 0, 0
+    while i < len(captureScheduleSorted) and j < len(bufferScheduleSorted):
+        if captureScheduleSorted[i].start < bufferScheduleSorted[j].start:
+            combinedSchedule.append([captureScheduleSorted[i], "Capture"])
+            i += 1
+        else:
+            combinedSchedule.append([bufferScheduleSorted[j], "Buffer"])
+            j += 1
+    # Append any remaining tasks from either schedule
+    combinedSchedule.extend([[task, "Capture"] for task in captureScheduleSorted[i:]])
+    combinedSchedule.extend([[task, "Buffer"] for task in bufferScheduleSorted[j:]])
+    return combinedSchedule
+
 # Function that format schedule data into campaign planner commands
 
 def createCaptureCmdLine(observationTask: OT, hypsoNr: int, quaternions: dict): 
@@ -184,10 +205,10 @@ def createBufferCmdLine( bufferTask: BT, hypsoNr: int, quaternions: dict, observ
     if hypsoNr not in [1, 2]:
         print("Invalid hypsoNr")
         return None
-    observationMiddleTime = getMiddleTime(observationTask.start, observationTask.end)
+    bufferTaskMiddleTime = getMiddleTime(bufferTask.start, bufferTask.end)
     row = {}
     # Unix time
-    row['-u'] = convertToUnixTime(observationMiddleTime)
+    row['-u'] = convertToUnixTime(bufferTaskMiddleTime)
     # DontKnow
     row['-s'] = None
     # DontKnow - Duration of buffering could be calculated based on image size
@@ -220,19 +241,19 @@ def createBufferCmdLine( bufferTask: BT, hypsoNr: int, quaternions: dict, observ
     row['-j'] = quaternions['j']
     # Quaternion k
     row['-k'] = quaternions['k']
-    row['-t'] = getMiddleTime(bufferTask.start, bufferTask.end).strftime("%Y-%m-%dT%H:%M:%SZ")
+    row['-t'] = bufferTaskMiddleTime.strftime("%Y-%m-%dT%H:%M:%SZ")
     # Capture mode
     row['--capture'] = None
     # Comment
-    row['%'] = observationMiddleTime
-    # Cloud cover 
+    row['%'] = bufferTaskMiddleTime
+    # Cloud cover
     row['Predicted Cloud cover:'] = 0
 
     cmd_string = f'-u {row['-u']} -s -d {row['-d']:4d} -o {row['-o']:5} -hypso {row['-hypso']} -b {row['-b']} -a -p {row['-p']:11}{"":2}'\
                  f' -n {row['-n']:20} -lat {round(row['-lat'], 4):8.4f} -lon {round(row['-lon'], 4):9.4f} --sunZenith {round((row['--sunZenith']),2):8.4f} {"           "}'\
                  f' -e {row['-e']:6.2f} -r {row['-r']:20.17f}  -l {row['-l']:20.17f}  -j {row['-j']:20.17f}  -k {row['-k']:20.17f}'\
                  f' {" -t " + row['-t']:24} {"":9} {"--buffer":9}'\
-                 f' % {observationMiddleTime} - Predicted Cloud cover: {row['Predicted Cloud cover:']:5.1f} % Estimated downlink complete: {observationMiddleTime.strftime("%Y-%m-%d %H:%M:%S")} \n'
+                 f' % {bufferTaskMiddleTime} - Predicted Cloud cover: {row['Predicted Cloud cover:']:5.1f} % Estimated downlink complete: {bufferTaskMiddleTime.strftime("%Y-%m-%d %H:%M:%S")} \n'
 
     return cmd_string 
 def createCmdLinesForCaptureAndBuffering(observationSchedule: list, bufferSchedule: list, inputParameters: InputParameters, oh: OH) -> list:
@@ -242,18 +263,20 @@ def createCmdLinesForCaptureAndBuffering(observationSchedule: list, bufferSchedu
     """
     schedule_dt = convertScheduleToDateTime(observationSchedule, oh)
     bufferschedule_dt = convertBufferScheduleToDateTime(bufferSchedule, oh)
+    combinedSchedule = CombineCaptureAndBufferSchedules(schedule_dt, bufferschedule_dt)
+
     cmdLines = []
-    for ot in schedule_dt:
-        groundTarget = ot.GT
-        quaternions = calculateQuaternions(int(inputParameters.hypsoNr), groundTarget, ot.start)
-        newCaptureCommandLine = createCaptureCmdLine(ot, int(inputParameters.hypsoNr), quaternions)
-        cmdLines.append(newCaptureCommandLine)
-
-
-        for bt in bufferschedule_dt:
-            if bt.GT.id != groundTarget.id:
-                continue
-            newBufferCommandLine = createBufferCmdLine(bt, int(inputParameters.hypsoNr), quaternions, ot)
+    scheduledOTs = {} # future: find a more elegant way of doing this
+    for task, taskType in combinedSchedule:
+        if taskType == "Capture":
+            groundTarget = task.GT
+            quaternions = calculateQuaternions(int(inputParameters.hypsoNr), groundTarget, task.start)
+            newCaptureCommandLine = createCaptureCmdLine(task, int(inputParameters.hypsoNr), quaternions)
+            cmdLines.append(newCaptureCommandLine)
+            scheduledOTs[task.GT.id] = [quaternions, task]  # Store quaternions and task for buffer use
+        elif taskType == "Buffer":
+            quaternions, ot = scheduledOTs.get(task.GT.id)
+            newBufferCommandLine = createBufferCmdLine(task, int(inputParameters.hypsoNr), quaternions, ot)
             cmdLines.append(newBufferCommandLine)
     return cmdLines
 def createCmdFile(txtFilepath, cmdLines):
@@ -328,7 +351,6 @@ def getScheduleFromCmdLine(targetFilePath: str,cmdLine: str, oh: OH, captureDura
         return observationTask, 'Capture'
     
     return observationTask, 'Unknown'
-
 def recreateOTListFromCmdFile(targetFilePath: str, cmdFilePath: str, oh: OH, captureDurationSec: int = 60):
     """ Reads a command file and recreates the list of OT objects from the command lines
     Output:
@@ -342,3 +364,28 @@ def recreateOTListFromCmdFile(targetFilePath: str, cmdFilePath: str, oh: OH, cap
             if commandType == 'Capture':
                 otList.append(ot)
     return otList
+
+def sortCmdFileByCaptureTime(inputCmdFilePath: str, outputCmdFilePath: str):
+    """ Sorts the command lines in a command file by capture time and writes to a new file """
+
+    with open(inputCmdFilePath, 'r') as f:
+        cmdLines = f.readlines()
+    
+    # Extract capture times and pair with command lines
+    cmdTimePairs = []
+    for cmdLine in cmdLines:
+        cmds = cmdLine.split(" ")
+        cmds = [cmd for cmd in cmds if cmd != '']
+        for i, cmd in enumerate(cmds[:-1]):
+            if cmd == '-u':
+                captureTimeUnix = int(cmds[i+1])
+                cmdTimePairs.append((captureTimeUnix, cmdLine))
+                break
+    
+    # Sort by capture time
+    cmdTimePairs.sort(key=lambda x: x[0])
+
+    # Write sorted command lines to output file
+    with open(outputCmdFilePath, 'w') as f:
+        for _, cmdLine in cmdTimePairs:
+            f.write(cmdLine)
