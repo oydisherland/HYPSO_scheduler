@@ -84,7 +84,7 @@ def convertToUnixTime(dateTime: datetime.datetime) -> int:
 def convertFromUnixTime(unixTime: int) -> datetime.datetime:
     """Convert Unix time to a timezone-aware datetime object (UTC)"""
     return datetime.datetime.fromtimestamp(unixTime, tz=datetime.timezone.utc)
-def convertBufferScheduleToDateTime(bufferScheduleWithRelativeTime: list, oh: OH) -> list:
+def convertBTListToDateTime(bufferScheduleWithRelativeTime: list, oh: OH) -> list:
     """ Convert the time representation in the buffer schedule to the absolute datetime representation, 
     instead of relative to the start of optimization horizon"""
 
@@ -102,7 +102,7 @@ def convertBufferScheduleToDateTime(bufferScheduleWithRelativeTime: list, oh: OH
         )
         bufferScheduleWithDatetimeObj.append(btWithDatetime)
     return bufferScheduleWithDatetimeObj
-def convertScheduleToDateTime(scheduleWithRelativeTime: list, oh: OH) -> list:
+def convertOTListToDateTime(scheduleWithRelativeTime: list, oh: OH) -> list:
     """ Convert the time representation in the schedule to the absolute datetime representation, 
     instead of relative to the start of optimization horizon"""
 
@@ -119,7 +119,7 @@ def convertScheduleToDateTime(scheduleWithRelativeTime: list, oh: OH) -> list:
         )
         scheduleWithDatetimeObj.append(otWithDatetime)
     return scheduleWithDatetimeObj
-def convertDownlinkScheduleToDateTime(downlinkScheduleWithRelativeTime: list, oh: OH) -> list:
+def convertDTListToDateTime(downlinkScheduleWithRelativeTime: list, oh: OH) -> list:
     """ Convert the time representation in the downlink schedule to the absolute datetime representation, 
     instead of relative to the start of optimization horizon"""
 
@@ -289,9 +289,9 @@ def createCmdLinesForCaptureAndBuffering(observationSchedule: list, bufferSchedu
     Output:
     - cmdLines: list of command lines that Hypso can parse
     """
-    schedule_dt = convertScheduleToDateTime(observationSchedule, oh)
-    bufferschedule_dt = convertBufferScheduleToDateTime(bufferSchedule, oh)
-    downlinkschedule_dt = convertScheduleToDateTime(downlinkSchedule, oh)
+    schedule_dt = convertOTListToDateTime(observationSchedule, oh)
+    bufferschedule_dt = convertBTListToDateTime(bufferSchedule, oh)
+    downlinkschedule_dt = convertDTListToDateTime(downlinkSchedule, oh)
     combinedSchedule = CombineCaptureAndBufferSchedules(schedule_dt, bufferschedule_dt)
 
     cmdLines = []
@@ -417,6 +417,30 @@ def recreateBTListFromCmdFile(targetFilePath: str, cmdFilePath: str, oh: OH, buf
             if commandType == 'Buffer':
                 btList.append(bt)
     return btList
+def recreateDTListFromCmdFile(targetFilePath: str, cmdFilePath: str, oh: OH, bufferDurationSec: int, captureDurationSec: int = 60):
+    """ Reads a command file and recreates the list of DT objects from the command lines
+    Output:
+    - dtList: list of DT objects
+    """
+    dtList = []
+    with open(cmdFilePath, 'r') as f:
+        cmdLines = f.readlines()
+        for cmdLine in cmdLines:
+            bt, commandType = getScheduleFromCmdLine(targetFilePath, cmdLine, oh, bufferDurationSec, captureDurationSec)
+            if commandType == 'Buffer':
+                # Create corresponding DT object
+                estimatedEndTime = cmdLine.split("Estimated downlink complete:")[1].strip()
+                estimatedEndTime = datetime.datetime.strptime(estimatedEndTime, "%Y-%m-%d %H:%M:%S").replace(tzinfo=datetime.timezone.utc)
+
+                dt = DT(
+                    GT = bt.GT,
+                    GS = None,  # Ground station info not available in cmd line
+                    start = estimatedEndTime - timedelta(seconds=bufferDurationSec),
+                    end = estimatedEndTime
+                )
+                dtList.append(dt)
+    return dtList
+
 # Sorts the cmd file by capture time, not needed anymore, can remove..
 def sortCmdFileByCaptureTime(inputCmdFilePath: str, outputCmdFilePath: str):
     """ Sorts the command lines in a command file by capture time and writes to a new file """

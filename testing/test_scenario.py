@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 from scheduling_model import SP, list_toDict, TTW_toDict, GSTW_toDict, OH_toDict, dict_toTTW, dict_toBT, dict_toOT, dict_toGT, dict_toGS, dict_toGSTW
 from algorithm.NSGA2 import runNSGA
 from data_preprocessing.create_data_objects import createTTWList, createOH, createGSTWList
-from campaignPlanner_interaction.intergrate_campaign_planner import createCmdFile, createCmdLinesForCaptureAndBuffering, recreateOTListFromCmdFile, recreateBTListFromCmdFile
+from campaignPlanner_interaction.intergrate_campaign_planner import createCmdFile, createCmdLinesForCaptureAndBuffering, recreateOTListFromCmdFile, recreateBTListFromCmdFile, convertOTListToDateTime, convertBTListToDateTime, convertDTListToDateTime
 from data_preprocessing.objective_functions import objectiveFunctionImageQuality, objectiveFunctionPriority
 from transmission_scheduling.clean_schedule import cleanUpSchedule, OrderType
 from transmission_scheduling.input_parameters import getTransmissionInputParams, getTransmissionInputParamsFromJsonFile
@@ -39,7 +39,19 @@ class TestScenario:
     _downlinkSchedules = None
     _objectiveValues = None
 
-    def createInputFiles(self, inputParameterFilePath: str, groundStationFilePath: str):
+
+    def getOtLists(self) -> list:
+        """ Get the observation schedules for each run of the algorithm """
+        return self._observationSchedules
+    def getBtLists(self) -> list:
+        """ Get the buffer schedules for each run of the algorithm """
+        return self._bufferSchedules
+    def getAllObjectiveValues(self) -> list:
+        """ Get the objective values for each run of the algorithm """
+        return self._objectiveValues
+
+    # Set input attributes needed to run test scenario, either create new data or read existing data from files
+    def createInputAttributes(self, inputParameterFilePath: str, groundStationFilePath: str):
         """ Create input files for testing """
 
         # Read initial input parameters from cvs file
@@ -63,7 +75,44 @@ class TestScenario:
             json.dump(list_toDict(self._gstwList, GSTW_toDict), f, indent=4)
         with open(os.path.join(folderPathTestScenario, "oh.json"), "w") as f:
             json.dump(OH_toDict(self._oh), f, indent=4)
+    def recreateInputAttributes(self):
+        """ Recreate input attributes from existing input files """
+        folderPathOutput = os.path.join(os.path.dirname(__file__), f"testing_results/OH{self.SenarioID}")
+        if not os.path.exists(folderPathOutput):
+            raise FileNotFoundError(f"Folder {folderPathOutput} does not exist. Cannot read existing input files.")
 
+        # Recreate OH from json file
+        pathOHFile = os.path.join(folderPathOutput,"oh.json")
+        with open(pathOHFile, "r") as f:
+            ohData = json.load(f)
+        self._oh = OH(
+            utcStart = datetime.datetime.fromisoformat(ohData["utcStart"].replace('Z', '+00:00')),
+            utcEnd = datetime.datetime.fromisoformat(ohData["utcEnd"].replace('Z', '+00:00'))
+        )
+        # Recreate inputParameters from json file
+        pathInputParamsFile = os.path.join(folderPathOutput,"input_parameters.json")
+        self._inputParameters = InputParameters.from_json(pathInputParamsFile)
+
+        # Recreate transmissionParameters from input parameters
+        self._transmissionParameters = getTransmissionInputParamsFromJsonFile(pathInputParamsFile)
+
+        # Recreate ttwList from json file
+        pathTTWListFile = os.path.join(folderPathOutput,"ttw_list.json")
+        with open(pathTTWListFile, "r") as f:
+            ttwData = json.load(f)
+        self._ttwList = []
+        for ttwElement in ttwData:
+            self._ttwList.append(dict_toTTW(ttwElement))
+
+        # Recreate gstwList from json file
+        pathGSTWListFile = os.path.join(folderPathOutput,"gstw_list.json")
+        with open(pathGSTWListFile, "r") as f:
+            gstwData = json.load(f)
+        self._gstwList = []
+        for gstwElement in gstwData:
+            self._gstwList.append(dict_toGSTW(gstwElement))
+
+    # Run test: create output attributes and cmd-files for each run of the algorithm
     def runTestScenario(self):
         """ Run the algorithm and create output file for each run of the algorithm """
         # Initialize result attributes
@@ -72,7 +121,7 @@ class TestScenario:
         self._downlinkSchedules = []
         self._objectiveValues = []
 
-        # Create folder to save algorithm output data
+        # Create folder to save cmd files
         folderPathOutput = os.path.join(os.path.dirname(__file__), f"testing_results/OH{self.SenarioID}/output")
         os.makedirs(folderPathOutput, exist_ok=True)
 
@@ -115,54 +164,22 @@ class TestScenario:
             totalImageQuality = objectiveFunctionImageQuality(observationSchedule, self._oh, int(self._inputParameters.hypsoNr))
 
             # Save result in attributes
-            self._observationSchedules.append(observationSchedule)
-            self._bufferSchedules.append(bufferSchedule)
-            self._downlinkSchedules.append(downlinkSchedule)
+            self._observationSchedules.append(convertOTListToDateTime(observationSchedule, self._oh))
+            self._bufferSchedules.append(convertBTListToDateTime(bufferSchedule, self._oh))
+            self._downlinkSchedules.append(convertDTListToDateTime(downlinkSchedule, self._oh))
             self._objectiveValues.append((totalPriority, totalImageQuality))
-
-    def getAllObjectiveValues(self) -> list:
-        """ Get the objective values for each run of the algorithm """
-        return self._objectiveValues
     
-
-    def recreateTestScenarioFromFiles(self):
+    # If output from running test already exsists, recreate all alltributes of TestScenario object
+    def recreateTestScenario(self):
         """ Recreate observation schedules from the output cmd files, and set attributes """
         folderPathOutput = os.path.join(os.path.dirname(__file__), f"testing_results/OH{self.SenarioID}")
 
-        # Recreate OH from json file
-        pathOHFile = os.path.join(folderPathOutput,"oh.json")
-        with open(pathOHFile, "r") as f:
-            ohData = json.load(f)
-        self._oh = OH(
-            utcStart = datetime.datetime.fromisoformat(ohData["utcStart"].replace('Z', '+00:00')),
-            utcEnd = datetime.datetime.fromisoformat(ohData["utcEnd"].replace('Z', '+00:00'))
-        )
-        # Recreate inputParameters from json file
-        pathInputParamsFile = os.path.join(folderPathOutput,"input_parameters.json")
-        self._inputParameters = InputParameters.from_json(pathInputParamsFile)
-
-        # Recreate transmissionParameters from input parameters
-        self._transmissionParameters = getTransmissionInputParamsFromJsonFile(pathInputParamsFile)
-
-        # Recreate ttwList from json file
-        pathTTWListFile = os.path.join(folderPathOutput,"ttw_list.json")
-        with open(pathTTWListFile, "r") as f:
-            ttwData = json.load(f)
-        self._ttwList = []
-        for ttwElement in ttwData:
-            self._ttwList.append(dict_toTTW(ttwElement))
-
-        # Recreate gstwList from json file
-        pathGSTWListFile = os.path.join(folderPathOutput,"gstw_list.json")
-        with open(pathGSTWListFile, "r") as f:
-            gstwData = json.load(f)
-        self._gstwList = []
-        for gstwElement in gstwData:
-            self._gstwList.append(dict_toGSTW(gstwElement))
+        self.recreateInputAttributes()
 
         # Recreate observation and buffer schedules
         obsSchedules= []
         bufSchedules = []
+        downLinkSchedules = []
         for runNr in range(self.algorithmRuns):
             pathScript = os.path.join(folderPathOutput, f"output/{runNr}_cmdLines.txt")
             otList = recreateOTListFromCmdFile(
@@ -177,11 +194,19 @@ class TestScenario:
                 self._oh,
                 bufferDurationSec=int(self._inputParameters.bufferingTime)
             )
+            dtList = recreateOTListFromCmdFile(
+                os.path.join(os.path.dirname(__file__), f"../data_input/HYPSO_data/targets.json"),
+                pathScript,
+                self._oh,
+                bufferDurationSec=0
+            )
             obsSchedules.append(otList)
             bufSchedules.append(btList)
+            downLinkSchedules.append(dtList)
 
         self._observationSchedules = obsSchedules
         self._bufferSchedules = bufSchedules
+        self._downlinkSchedules = downLinkSchedules
 
         #Recreate objective values
         objVals = []
@@ -191,10 +216,3 @@ class TestScenario:
             objVals.append((totalPriority, totalImageQuality))
         self._objectiveValues = objVals
 
-    def getOtLists(self) -> list:
-        """ Get the observation schedules for each run of the algorithm """
-        return self._observationSchedules
-
-    def getBtLists(self) -> list:
-        """ Get the buffer schedules for each run of the algorithm """
-        return self._bufferSchedules
