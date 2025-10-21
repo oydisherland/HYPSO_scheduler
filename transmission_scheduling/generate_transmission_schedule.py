@@ -42,8 +42,7 @@ def generate_schedule():
     startTimeOH = startTimeOH.replace(tzinfo=datetime.timezone.utc)
     endTimeOH = startTimeOH + datetime.timedelta(seconds=p.ohDuration)
 
-    groundStationFilePath = "data_input/HYPSO_data/ground_stations.csv"
-    gstwList = createGSTWList(startTimeOH, endTimeOH, p.minGSWindowTime, groundStationFilePath, p.hypsoNr)
+    gstwList = createGSTWList(startTimeOH, endTimeOH, p.minGSWindowTime, p.hypsoNr)
 
     start_time = time.perf_counter()
     btList, dtList, otListModified = twoStageTransmissionScheduling(otListPrioSorted, ttwList, gstwList, p)
