@@ -5,7 +5,7 @@ from data_preprocessing.objective_functions import objectiveFunctionPriority, ob
 from scheduling_model import SP
 from algorithm.NSGA2 import runNSGA
 from data_preprocessing.create_data_objects import createTTWList, createOH, createGSTWList
-from campaignPlanner_interaction.intergrate_campaign_planner import createCmdFile, createCmdLinesForCaptureAndBuffering, recreateOTListFromCmdFile
+from data_postprocessing.generate_cmdLine import createCmdFile, createCmdLinesForCaptureAndBuffering, recreateOTListFromCmdFile
 
 from transmission_scheduling.clean_schedule import cleanUpSchedule, OrderType
 from transmission_scheduling.input_parameters import getTransmissionInputParams
@@ -82,7 +82,7 @@ print(f"Image quality objective value: {objectiveFunctionImageQuality(observatio
 
 ### CREATE COMMAND LINES FOR SATELLITE CAPTURE AND BUFFERING ###
 
-cmdLines = createCmdLinesForCaptureAndBuffering(observationSchedule, bufferSchedule, inputParameters, oh)
+cmdLines = createCmdLinesForCaptureAndBuffering(observationSchedule, bufferSchedule, downlinkSchedule, inputParameters, oh)
 outputFolderPath = os.path.join(os.path.dirname(__file__), f"output/")
 createCmdFile(f"{outputFolderPath}{inputParameters.testName}_cmdLines.txt", cmdLines)
 
@@ -90,8 +90,8 @@ createCmdFile(f"{outputFolderPath}{inputParameters.testName}_cmdLines.txt", cmdL
 
 ### COMPARE SCRIPTS ###
 pathScript = os.path.join(os.path.dirname(__file__), "output/cp_test.txt")
-
-otList = recreateOTListFromCmdFile(pathScript, oh)
+pathTargetFile = os.path.join(os.path.dirname(__file__),"data_input/HYPSO_data/targets.json")
+otList = recreateOTListFromCmdFile(pathTargetFile, pathScript, oh, inputParameters.bufferingTime, inputParameters.captureDuration)
 for ot in otList:
     print(f"Target ID: {ot.GT.id:10}, Start: {ot.start}")
 print(f"Total number of observation tasks: {len(otList)}")  

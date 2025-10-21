@@ -1,170 +1,20 @@
 import datetime
-import json
-import os
+import data_postprocessing.algorithmData_api as algDataApi
+
 from pathlib import Path
 
-import pandas as pd
-import skyfield.api as skf
 from datetime import timedelta
-from data_postprocessing.quaternions import generate_quaternions
 from data_preprocessing.parseTargetsFile import getTargetIdPriorityDictFromJson
-from data_input.satellite_positioning_calculations import createSatelliteObject, findSatelliteTargetElevation
 from data_input.utility_functions import InputParameters
+
+
 from scheduling_model import OH, OT, GT, BT, OH, DT
 
 
-#### UTILITY FUNCTIONS ####
-# function to calcuate quaternions for a given target at a given time
-def calculateQuaternions(hypsoNr: int, groundTarget: GT, timestamp: datetime.datetime):
-    """ Calculate the quaternions for a given target at a given time
-    Output:
-    - quaternions: dictionary with keys 'r', 'l', 'j', 'k'
-    """
-    quaternions = {}
-
-    satellite_skf = createSatelliteObject(hypsoNr)
-    elevation = findSatelliteTargetElevation(float(groundTarget.lat), float(groundTarget.long), timestamp, hypsoNr)
-    q = generate_quaternions(satellite_skf, timestamp, float(groundTarget.lat), float(groundTarget.long), elevation)
-
-    quaternions['r'] = q[0]
-    quaternions['l'] = q[1]
-    quaternions['j'] = q[2]
-    quaternions['k'] = q[3]
-
-    return quaternions
-# Function that creates a map between id of a target and its corresponding priority
-def getTargetIdPriorityDictFromCsv(targetsCsvFilePath: str) -> dict:
-    """ Get the priority of a list of target IDs from the targets.csv file 
-    Output:
-    - priorityIdDict: dictionary with target ID as key and priority as value
-    """
-
-    priorityIdDict = {}
-    targets_df = pd.read_csv(targetsCsvFilePath)
-    targets = targets_df.values.tolist()
-
-    for index, target in enumerate(targets):
-        target = target[0].split(';')
-        targetId = target[0]
-        targetPriority = len(targets) - index
-
-        priorityIdDict[targetId] = targetPriority
-
-    return priorityIdDict
-def getTargetIdPriorityDictFromJson(targetsJsonFilePath: str) -> dict:
-    """ Get the priority of a list of target IDs from a targets.json file 
-    Output:
-    - priorityIdDict: dictionary with target ID as key and priority as value
-    """
-    
-    priorityIdDict = {}
-    
-    with open(targetsJsonFilePath, 'r') as f:
-        targets = json.load(f)
-    
-    for index, target in enumerate(targets):
-        targetId = target['name'].strip()  # Remove any whitespace
-        targetPriority = len(targets) - index
-        
-        priorityIdDict[targetId] = targetPriority
-    
-    return priorityIdDict
-# Function to convert relative time to datetime objects
-def relativeTimeToDateTime(relativeTime: float, oh: OH) -> datetime.datetime:
-    """ Convert relative time (in seconds) to datetime object based on the start of the optimization horizon
-    Output:
-    - datetime object
-    """
-    dateTimeObj = oh.utcStart + timedelta(seconds=relativeTime)
-    return dateTimeObj
-# Functions to reformat the schedule data
-def convertToUnixTime(dateTime: datetime.datetime) -> int:
-    """Convert a timestamp string to Unix time"""
-    return int(dateTime.timestamp())
-def convertFromUnixTime(unixTime: int) -> datetime.datetime:
-    """Convert Unix time to a timezone-aware datetime object (UTC)"""
-    return datetime.datetime.fromtimestamp(unixTime, tz=datetime.timezone.utc)
-def convertBTListToDateTime(bufferScheduleWithRelativeTime: list, oh: OH) -> list:
-    """ Convert the time representation in the buffer schedule to the absolute datetime representation, 
-    instead of relative to the start of optimization horizon"""
-
-    bufferScheduleWithDatetimeObj = []
-    for bt in bufferScheduleWithRelativeTime:
-        # Convert the start and end times of each BT to datetime objects
-        bufferStart = oh.utcStart + timedelta(seconds=bt.start)
-        bufferEnd = oh.utcStart + timedelta(seconds=bt.end)
-
-        btWithDatetime = BT(
-            GT=bt.GT,
-            fileID=bt.fileID,
-            start=bufferStart,
-            end=bufferEnd
-        )
-        bufferScheduleWithDatetimeObj.append(btWithDatetime)
-    return bufferScheduleWithDatetimeObj
-def convertOTListToDateTime(scheduleWithRelativeTime: list, oh: OH) -> list:
-    """ Convert the time representation in the schedule to the absolute datetime representation, 
-    instead of relative to the start of optimization horizon"""
-
-    scheduleWithDatetimeObj = []
-    for ot in scheduleWithRelativeTime:
-        # Convert the start and end times of each OT to datetime objects
-        captureStart = relativeTimeToDateTime(ot.start, oh)
-        captureEnd = relativeTimeToDateTime(ot.end, oh)
-
-        otWithDatetime = OT(
-            GT=ot.GT,
-            start=captureStart,
-            end=captureEnd
-        )
-        scheduleWithDatetimeObj.append(otWithDatetime)
-    return scheduleWithDatetimeObj
-def convertDTListToDateTime(downlinkScheduleWithRelativeTime: list, oh: OH) -> list:
-    """ Convert the time representation in the downlink schedule to the absolute datetime representation, 
-    instead of relative to the start of optimization horizon"""
-
-    downlinkScheduleWithDatetimeObj = []
-    for dt in downlinkScheduleWithRelativeTime:
-        # Convert the start and end times of each DT to datetime objects
-        downlinkStart = relativeTimeToDateTime(dt.start, oh)
-        downlinkEnd = relativeTimeToDateTime(dt.end, oh)
-
-        dtWithDatetime = DT(
-            GT=dt.GT,
-            GS=dt.GS,
-            start=downlinkStart,
-            end=downlinkEnd
-        )
-        downlinkScheduleWithDatetimeObj.append(dtWithDatetime)
-    return downlinkScheduleWithDatetimeObj
-def getMiddleTime(startTime: datetime.datetime, endTime: datetime.datetime) -> datetime.datetime:
-    """ Get the middle time of the capture window for a given observation target """
-    middleTime = startTime + timedelta(seconds=(endTime - startTime).seconds / 2)
-    return middleTime
-
-def CombineCaptureAndBufferSchedules(captureSchedule: list, bufferSchedule: list) -> list:
-    """ Combine the capture schedule and buffer schedule into one schedule, in order of start time """
-    # Sort the two list after start time
-    captureScheduleSorted = sorted(captureSchedule, key=lambda ot: getMiddleTime(ot.start, ot.end))
-    bufferScheduleSorted = sorted(bufferSchedule, key=lambda bt: getMiddleTime(bt.start, bt.end))
-
-    # Combine the two schedules into one list
-    combinedSchedule = []
-    i, j = 0, 0
-    while i < len(captureScheduleSorted) and j < len(bufferScheduleSorted):
-        if captureScheduleSorted[i].start < bufferScheduleSorted[j].start:
-            combinedSchedule.append([captureScheduleSorted[i], "Capture"])
-            i += 1
-        else:
-            combinedSchedule.append([bufferScheduleSorted[j], "Buffer"])
-            j += 1
-    # Append any remaining tasks from either schedule
-    combinedSchedule.extend([[task, "Capture"] for task in captureScheduleSorted[i:]])
-    combinedSchedule.extend([[task, "Buffer"] for task in bufferScheduleSorted[j:]])
-    return combinedSchedule
 
 
 #### FUNCTIONS TO CREATE CAMPAIGN PLANNER COMMAND LINES ####
+
 # Function that format schedule data into campaign planner commands
 def createCaptureCmdLine(observationTask_dt: OT, hypsoNr: int, quaternions: dict): 
     """ Create the command line for capturing an observation task
@@ -174,10 +24,10 @@ def createCaptureCmdLine(observationTask_dt: OT, hypsoNr: int, quaternions: dict
     if hypsoNr not in [1, 2]:
         print("Invalid hypsoNr")
         return None
-    observationMiddleTime = getMiddleTime(observationTask_dt.start, observationTask_dt.end)
+    observationMiddleTime = algDataApi.getMiddleTime(observationTask_dt.start, observationTask_dt.end)
     row = {}
     # Unix time
-    row['-u'] = convertToUnixTime(observationMiddleTime)
+    row['-u'] = algDataApi.convertToUnixTime(observationMiddleTime)
     # DontKnow
     row['-s'] = None
     # DontKnow - Duration of buffering could be calculated based on image size
@@ -232,11 +82,11 @@ def createBufferCmdLine(bufferTask_dt: BT, downlinkTask_dt: DT, hypsoNr: int, qu
     if hypsoNr not in [1, 2]:
         print("Invalid hypsoNr")
         return None
-    bufferTaskMiddleTime = getMiddleTime(bufferTask_dt.start, bufferTask_dt.end)
+    bufferTaskMiddleTime = algDataApi.getMiddleTime(bufferTask_dt.start, bufferTask_dt.end)
 
     row = {}
     # Unix time
-    row['-u'] = convertToUnixTime(bufferTaskMiddleTime)
+    row['-u'] = algDataApi.convertToUnixTime(bufferTaskMiddleTime)
     # DontKnow
     row['-s'] = None
     # DontKnow - Duration of buffering could be calculated based on image size
@@ -289,17 +139,17 @@ def createCmdLinesForCaptureAndBuffering(observationSchedule: list, bufferSchedu
     Output:
     - cmdLines: list of command lines that Hypso can parse
     """
-    schedule_dt = convertOTListToDateTime(observationSchedule, oh)
-    bufferschedule_dt = convertBTListToDateTime(bufferSchedule, oh)
-    downlinkschedule_dt = convertDTListToDateTime(downlinkSchedule, oh)
-    combinedSchedule = CombineCaptureAndBufferSchedules(schedule_dt, bufferschedule_dt)
+    schedule_dt = algDataApi.convertOTListToDateTime(observationSchedule, oh)
+    bufferschedule_dt = algDataApi.convertBTListToDateTime(bufferSchedule, oh)
+    downlinkschedule_dt = algDataApi.convertDTListToDateTime(downlinkSchedule, oh)
+    combinedSchedule = algDataApi.CombineCaptureAndBufferSchedules(schedule_dt, bufferschedule_dt)
 
     cmdLines = []
     scheduledOTs = {} 
     for task, taskType in combinedSchedule:
         if taskType == "Capture":
             groundTarget = task.GT
-            quaternions = calculateQuaternions(int(inputParameters.hypsoNr), groundTarget, task.start)
+            quaternions = algDataApi.calculateQuaternions(int(inputParameters.hypsoNr), groundTarget, task.start)
             newCaptureCommandLine = createCaptureCmdLine(task, int(inputParameters.hypsoNr), quaternions)
             cmdLines.append(newCaptureCommandLine)
             scheduledOTs[task.GT.id] = [quaternions, task]  # Store quaternions and task for buffer use
@@ -364,8 +214,8 @@ def getScheduleFromCmdLine(targetFilePath: str,cmdLine: str, oh: OH, bufferDurat
 
     if '--capture' in cmdDict:
         # convert start and end time to relative time
-        startDateTime = convertFromUnixTime(int(cmdDict['-u'])) - timedelta(seconds=captureDurationSec//2)
-        endDateTime = convertFromUnixTime(int(cmdDict['-u'])) + timedelta(seconds=captureDurationSec//2)
+        startDateTime = algDataApi.convertFromUnixTime(int(cmdDict['-u'])) - timedelta(seconds=captureDurationSec//2)
+        endDateTime = algDataApi.convertFromUnixTime(int(cmdDict['-u'])) + timedelta(seconds=captureDurationSec//2)
         relativeStart = int((startDateTime - oh.utcStart).total_seconds())
         relativeEnd = int((endDateTime - oh.utcStart).total_seconds())
 
@@ -377,8 +227,8 @@ def getScheduleFromCmdLine(targetFilePath: str,cmdLine: str, oh: OH, bufferDurat
         )
         return observationTask, 'Capture'
     elif '--buffer' in cmdDict:
-        startDateTime = convertFromUnixTime(int(cmdDict['-u'])) - timedelta(seconds=bufferDurationSec//2)
-        endDateTime = convertFromUnixTime(int(cmdDict['-u'])) + timedelta(seconds=bufferDurationSec//2)
+        startDateTime = algDataApi.convertFromUnixTime(int(cmdDict['-u'])) - timedelta(seconds=bufferDurationSec//2)
+        endDateTime = algDataApi.convertFromUnixTime(int(cmdDict['-u'])) + timedelta(seconds=bufferDurationSec//2)
         relativeStart = int((startDateTime - oh.utcStart).total_seconds())
         relativeEnd = int((endDateTime - oh.utcStart).total_seconds())
         bufferTask = BT(

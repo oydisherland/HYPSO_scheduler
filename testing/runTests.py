@@ -27,8 +27,6 @@ for scenario in scenarios:
 
 
 #Analyse tests
-
-
 for scenario in scenarios:
     scenario.recreateTestScenario()
 

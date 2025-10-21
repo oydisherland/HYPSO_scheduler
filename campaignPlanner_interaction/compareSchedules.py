@@ -2,7 +2,7 @@ import os
 
 
 
-from campaignPlanner_interaction.intergrate_campaign_planner import getScheduleFromCmdLine, getTargetIdPriorityDict, recreateOTListFromCmdFile
+from data_postprocessing.generate_cmdLine import getScheduleFromCmdLine, getTargetIdPriorityDict, recreateOTListFromCmdFile
 
 def getListOfTargetIdsFromScript(pathScript: str) -> list:
     """ Get a list of target IDs from a command line script """

@@ -7,10 +7,11 @@ from dataclasses import dataclass
 # Add the parent directory to Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from scheduling_model import SP, list_toDict, TTW_toDict, GSTW_toDict, OH_toDict, dict_toTTW, dict_toBT, dict_toOT, dict_toGT, dict_toGS, dict_toGSTW
+from scheduling_model import SP, list_toDict, TTW_toDict, GSTW_toDict, OH_toDict, dict_toTTW, dict_toGSTW
 from algorithm.NSGA2 import runNSGA
 from data_preprocessing.create_data_objects import createTTWList, createOH, createGSTWList
-from campaignPlanner_interaction.intergrate_campaign_planner import createCmdFile, createCmdLinesForCaptureAndBuffering, recreateOTListFromCmdFile, recreateBTListFromCmdFile, convertOTListToDateTime, convertBTListToDateTime, convertDTListToDateTime
+from data_postprocessing.generate_cmdLine import createCmdFile, createCmdLinesForCaptureAndBuffering, recreateOTListFromCmdFile, recreateBTListFromCmdFile
+from data_postprocessing.algorithmData_api import convertOTListToDateTime, convertBTListToDateTime, convertDTListToDateTime
 from data_preprocessing.objective_functions import objectiveFunctionImageQuality, objectiveFunctionPriority
 from transmission_scheduling.clean_schedule import cleanUpSchedule, OrderType
 from transmission_scheduling.input_parameters import getTransmissionInputParams, getTransmissionInputParamsFromJsonFile
@@ -183,19 +184,19 @@ class TestScenario:
         for runNr in range(self.algorithmRuns):
             pathScript = os.path.join(folderPathOutput, f"output/{runNr}_cmdLines.txt")
             otList = recreateOTListFromCmdFile(
-                os.path.join(os.path.dirname(__file__), f"../data_input/HYPSO_data/targets.json"),
+                os.path.join(os.path.dirname(os.path.dirname(__file__)), f"data_input/HYPSO_data/targets.json"),
                 pathScript,
                 self._oh,
                 bufferDurationSec=int(self._inputParameters.bufferingTime)
             )
             btList = recreateBTListFromCmdFile(
-                os.path.join(os.path.dirname(__file__), f"../data_input/HYPSO_data/targets.json"),
+                os.path.join(os.path.dirname(os.path.dirname(__file__)), f"data_input/HYPSO_data/targets.json"),
                 pathScript,
                 self._oh,
                 bufferDurationSec=int(self._inputParameters.bufferingTime)
             )
             dtList = recreateOTListFromCmdFile(
-                os.path.join(os.path.dirname(__file__), f"../data_input/HYPSO_data/targets.json"),
+                os.path.join(os.path.dirname(os.path.dirname(__file__)), f"data_input/HYPSO_data/targets.json"),
                 pathScript,
                 self._oh,
                 bufferDurationSec=0

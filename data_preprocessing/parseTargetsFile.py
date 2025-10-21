@@ -1,4 +1,5 @@
 import json
+import os
 from dataclasses import dataclass
 
 @dataclass
@@ -44,15 +45,16 @@ def getTargetIdPriorityDictFromJson(targetsJsonFile: str) -> dict:
     Input: path to the JSON file
     Output: Dictionary with target ID as key and priority as value
     """
-
+    if not os.path.exists(targetsJsonFile):
+        raise FileNotFoundError(f"File not found: {targetsJsonFile}")
+    
     with open(targetsJsonFile, 'r') as f:
         targets_json = json.load(f)
     
     targetIdPriorityDict = {}
+    priority = len(targets_json) 
     for target in targets_json:
-        targetId = target.get("id")
-        priority = target.get("priority", 0)
-        if targetId is not None:
-            targetIdPriorityDict[targetId] = priority
-
+        targetName = target.get("name").strip()
+        targetIdPriorityDict[targetName] = priority
+        priority -= 1
     return targetIdPriorityDict
