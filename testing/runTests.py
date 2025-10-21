@@ -18,15 +18,15 @@ scenarios = [
     TestScenario(SenarioID="H2Mission_17-10", startOH="2025-10-17T13:05:00Z", algorithmRuns=algorithmRuns),
 ]
 
-## Run test scenarios
-# print(f"Running a total of {len(scenarios)} test scenarios...")
-# for scenario in scenarios:
-#     print(f"Scenario OH{scenario.SenarioID} starting at {scenario.startOH} with {scenario.algorithmRuns} algorithm runs")
-#     scenario.createInputFiles(
-#         os.path.join(os.path.dirname(__file__),"../data_input/input_parameters.csv"), 
-#         os.path.join(os.path.dirname(__file__), "../data_input/HYPSO_data/ground_stations.csv")
-#     )
-#     scenario.runTestScenario()
+# Run test scenarios
+print(f"Running a total of {len(scenarios)} test scenarios...")
+for scenario in scenarios:
+    print(f"Scenario OH{scenario.SenarioID} starting at {scenario.startOH} with {scenario.algorithmRuns} algorithm runs")
+    scenario.createInputFiles(
+        os.path.join(os.path.dirname(__file__),"../data_input/input_parameters.csv"), 
+        os.path.join(os.path.dirname(__file__), "../data_input/HYPSO_data/ground_stations.csv")
+    )
+    scenario.runTestScenario()
 
 
 #Analyse tests

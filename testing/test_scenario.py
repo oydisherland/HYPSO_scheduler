@@ -107,7 +107,7 @@ class TestScenario:
                 OrderType.FIFO
             )
             # Save output data in files
-            cmdLines = createCmdLinesForCaptureAndBuffering(observationSchedule, bufferSchedule, self._inputParameters, self._oh)
+            cmdLines = createCmdLinesForCaptureAndBuffering(observationSchedule, bufferSchedule, downlinkSchedule, self._inputParameters, self._oh)
             createCmdFile(f"{folderPathOutput}/{runNr}_cmdLines.txt", cmdLines)
 
             # Calculate objective values
