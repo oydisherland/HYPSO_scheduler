@@ -266,7 +266,7 @@ def createCmdLinesForCaptureAndBuffering(observationSchedule: list, bufferSchedu
     combinedSchedule = CombineCaptureAndBufferSchedules(schedule_dt, bufferschedule_dt)
 
     cmdLines = []
-    scheduledOTs = {} # future: find a more elegant way of doing this
+    scheduledOTs = {} 
     for task, taskType in combinedSchedule:
         if taskType == "Capture":
             groundTarget = task.GT
@@ -291,7 +291,7 @@ def createCmdFile(txtFilepath, cmdLines):
         for line in cmdLines:
             f.write(line.rstrip() + "\n")
 # Function that reformats the campaign planner commands into schedule objects 
-def getScheduleFromCmdLine(targetFilePath: str,cmdLine: str, oh: OH, captureDurationSec: int = 60):
+def getScheduleFromCmdLine(targetFilePath: str,cmdLine: str, oh: OH, bufferDurationSec: int, captureDurationSec: int = 60):
     """ Takes in a command line string and returns an OT object representing the same cmd and the type of command
     Output:
     - observationTask: OT object created from the command line
@@ -317,17 +317,9 @@ def getScheduleFromCmdLine(targetFilePath: str,cmdLine: str, oh: OH, captureDura
 
             cmdDict[cmd] = cmdNext
     
-    # convert start and end time to relative time
-    startDateTime = convertFromUnixTime(int(cmdDict['-u'])) - timedelta(seconds=captureDurationSec//2)
-    endDateTime = convertFromUnixTime(int(cmdDict['-u'])) + timedelta(seconds=captureDurationSec//2)
-    relativeStart = int((startDateTime - oh.utcStart).total_seconds())
-    relativeEnd = int((endDateTime - oh.utcStart).total_seconds())
-
     # Recreate target data object to find objectiveValue
     targetIdPriorityDict = getTargetIdPriorityDictFromJson(targetFilePath)
-
-    observationTask = OT(
-        GT=GT(
+    gt = GT(
             id=cmdDict['-n'],
             lat=cmdDict['-lat'],
             long=cmdDict['-lon'],
@@ -335,23 +327,39 @@ def getScheduleFromCmdLine(targetFilePath: str,cmdLine: str, oh: OH, captureDura
             cloudCoverage=0,
             exposureTime=cmdDict['-e'],
             captureMode=cmdDict['-p']
-        ),
-        start = relativeStart,
-        end = relativeEnd
-    )
+        )
 
-    try: 
-        cmdDict['--capture']
-    except KeyError:
-        return observationTask, 'Buffer'
-    
-    try:
-        cmdDict['--buffer']
-    except KeyError:
+    if '--capture' in cmdDict:
+        # convert start and end time to relative time
+        startDateTime = convertFromUnixTime(int(cmdDict['-u'])) - timedelta(seconds=captureDurationSec//2)
+        endDateTime = convertFromUnixTime(int(cmdDict['-u'])) + timedelta(seconds=captureDurationSec//2)
+        relativeStart = int((startDateTime - oh.utcStart).total_seconds())
+        relativeEnd = int((endDateTime - oh.utcStart).total_seconds())
+
+        
+        observationTask = OT(
+            GT = gt,
+            start = relativeStart,
+            end = relativeEnd
+        )
         return observationTask, 'Capture'
-    
-    return observationTask, 'Unknown'
-def recreateOTListFromCmdFile(targetFilePath: str, cmdFilePath: str, oh: OH, captureDurationSec: int = 60):
+    elif '--buffer' in cmdDict:
+        startDateTime = convertFromUnixTime(int(cmdDict['-u'])) - timedelta(seconds=bufferDurationSec//2)
+        endDateTime = convertFromUnixTime(int(cmdDict['-u'])) + timedelta(seconds=bufferDurationSec//2)
+        relativeStart = int((startDateTime - oh.utcStart).total_seconds())
+        relativeEnd = int((endDateTime - oh.utcStart).total_seconds())
+        bufferTask = BT(
+                    GT = gt,
+                    fileID = int(cmdLine.split(" -b ")[1].split(" ")[0]),
+                    start = relativeStart,
+                    end = relativeEnd
+                )
+        return bufferTask, 'Buffer'
+    else:
+        return observationTask, 'Unknown'
+
+
+def recreateOTListFromCmdFile(targetFilePath: str, cmdFilePath: str, oh: OH, bufferDurationSec: int, captureDurationSec: int = 60):
     """ Reads a command file and recreates the list of OT objects from the command lines
     Output:
     - otList: list of OT objects
@@ -360,10 +368,25 @@ def recreateOTListFromCmdFile(targetFilePath: str, cmdFilePath: str, oh: OH, cap
     with open(cmdFilePath, 'r') as f:
         cmdLines = f.readlines()
         for cmdLine in cmdLines:
-            ot, commandType = getScheduleFromCmdLine(targetFilePath, cmdLine, oh, captureDurationSec)
+            ot, commandType = getScheduleFromCmdLine(targetFilePath, cmdLine, oh, bufferDurationSec, captureDurationSec)
             if commandType == 'Capture':
                 otList.append(ot)
     return otList
+
+def recreateBTListFromCmdFile(targetFilePath: str, cmdFilePath: str, oh: OH, bufferDurationSec: int, captureDurationSec: int = 60):
+    """ Reads a command file and recreates the list of BT objects from the command lines
+    Output:
+    - btList: list of BT objects
+    """
+    btList = []
+    with open(cmdFilePath, 'r') as f:
+        cmdLines = f.readlines()
+        for cmdLine in cmdLines:
+            bt, commandType = getScheduleFromCmdLine(targetFilePath, cmdLine, oh, bufferDurationSec, captureDurationSec)
+            if commandType == 'Buffer':
+                btList.append(bt)
+    return btList
+
 
 def sortCmdFileByCaptureTime(inputCmdFilePath: str, outputCmdFilePath: str):
     """ Sorts the command lines in a command file by capture time and writes to a new file """

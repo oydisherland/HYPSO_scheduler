@@ -1,4 +1,5 @@
 import csv
+import json
 import os
 import warnings
 from dataclasses import dataclass, fields, MISSING
@@ -112,3 +113,45 @@ def csvToDict(filepath):
                 value = row[1].strip()
                 dic[key] = value
     return dic
+
+def getTransmissionInputParamsFromJsonFile(jsonFilePath: str) -> TransmissionParams:
+    """
+    Retrieve the input parameters for the transmission scheduling from a JSON file.
+
+    Args:
+        jsonFilePath (str): Path to the JSON file containing the parameters.
+
+    Returns:
+        TransmissionParams: An instance of the dataclass TransmissionParams populated with values from the JSON file.
+    """
+    with open(jsonFilePath, "r") as f:
+        paramsDict = json.load(f)
+
+    filtered = {}
+
+    for f in fields(TransmissionParams):
+        if f.name in paramsDict:
+            try:
+                filtered[f.name] = f.type(paramsDict[f.name])  # convert to field type
+            except (TypeError, ValueError):
+                filtered[f.name] = paramsDict[f.name]  # fallback if conversion fails
+        elif f.default is not MISSING:
+            filtered[f.name] = f.default
+        elif f.default_factory is not MISSING:
+            filtered[f.name] = f.default_factory()
+        else:
+            filtered[f.name] = None
+
+    p = TransmissionParams(**filtered)
+
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=UserWarning)
+        # Convert units
+        p.ohDuration = 24 * 3600 * float(paramsDict["durationInDaysOH"])
+        p.maxLatency = 3600 * float(paramsDict["maxLatencyHours"])
+        # Evaluate dependent parameters
+        p.minGSWindowTime = p.transmissionStartTime + p.minDownlinkFraction * p.downlinkDuration
+        p.maxBufferFiles = int(paramsDict["maxBufferFilesH2"]) if p.hypsoNr == 2 else int(paramsDict["maxBufferFilesH1"])
+        p.bufferStartID = int(paramsDict["bufferStartIDH2"]) if p.hypsoNr == 2 else int(paramsDict["bufferStartIDH1"])
+
+    return p

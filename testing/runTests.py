@@ -11,7 +11,7 @@ from campaignPlanner_interaction.intergrate_campaign_planner import recreateOTLi
 from scheduling_model import OH
 
 
-algorithmRuns = 20
+algorithmRuns = 4
 
 ## Define test scenarios
 scenarios = [
@@ -19,7 +19,7 @@ scenarios = [
 ]
 
 ## Run test scenarios
-print(f"Running a total of {len(scenarios)} test scenarios...")
+# print(f"Running a total of {len(scenarios)} test scenarios...")
 # for scenario in scenarios:
 #     print(f"Scenario OH{scenario.SenarioID} starting at {scenario.startOH} with {scenario.algorithmRuns} algorithm runs")
 #     scenario.createInputFiles(
@@ -32,24 +32,33 @@ print(f"Running a total of {len(scenarios)} test scenarios...")
 #Analyse tests
 
 #Recreate oh from json file
-pathOHFile = os.path.join(os.path.dirname(__file__), f"testing_results/OHH2Mission_17-10/oh.json")
-with open(pathOHFile, "r") as f:
-    ohData = json.load(f)
+# pathOHFile = os.path.join(os.path.dirname(__file__), f"testing_results/OHH2Mission_17-10/oh.json")
+# with open(pathOHFile, "r") as f:
+#     ohData = json.load(f)
 
-oh = OH(
-    utcStart = datetime.datetime.fromisoformat(ohData["utcStart"].replace('Z', '+00:00')),
-    utcEnd = datetime.datetime.fromisoformat(ohData["utcEnd"].replace('Z', '+00:00'))
-)
+# oh = OH(
+#     utcStart = datetime.datetime.fromisoformat(ohData["utcStart"].replace('Z', '+00:00')),
+#     utcEnd = datetime.datetime.fromisoformat(ohData["utcEnd"].replace('Z', '+00:00'))
+# )
 
-schedules = []
-for runNr in range(algorithmRuns):
-    pathScript = os.path.join(os.path.dirname(__file__), f"testing_results/OHH2Mission_17-10/output/{runNr}_cmdLines.txt")
-    pathTargetFile = os.path.join(os.path.dirname(__file__), "../data_input/HYPSO_data/targets.json")
-    otList = recreateOTListFromCmdFile(pathTargetFile, pathScript, oh)
-    schedules.append(otList)
+# schedules = []
+# for runNr in range(algorithmRuns):
+#     pathScript = os.path.join(os.path.dirname(__file__), f"testing_results/OHH2Mission_17-10/output/{runNr}_cmdLines.txt")
+#     pathTargetFile = os.path.join(os.path.dirname(__file__), "../data_input/HYPSO_data/targets.json")
+#     otList = recreateOTListFromCmdFile(pathTargetFile, pathScript, oh)
+#     schedules.append(otList)
 
-# Find sum of priorities for each schedule
-schedulePriorities = [sum(ot.GT.priority for ot in schedule) for schedule in schedules]
+# # Find sum of priorities for each schedule
+# schedulePriorities = [sum(ot.GT.priority for ot in schedule) for schedule in schedules]
 
-bestRunNr = schedulePriorities.index(max(schedulePriorities))
-print(f"Best run is run number {bestRunNr} with total priority {schedulePriorities[bestRunNr]}")    
+# bestRunNr = schedulePriorities.index(max(schedulePriorities))
+# print(f"Best run is run number {bestRunNr} with total priority {schedulePriorities[bestRunNr]}")    
+
+for scenario in scenarios:
+    scenario.recreateTestScenarioFromFiles()
+
+    otLists = scenario.getOtLists()
+    schedulePriorities = [sum(ot.GT.priority for ot in otList) for otList in otLists]
+    obVals = scenario.getAllObjectiveValues()
+    print(f"Scenario OH{scenario.SenarioID}: Best run is run number {schedulePriorities.index(max(schedulePriorities))} with total priority {max(schedulePriorities)}")
+    print(f"Compared to the stores objective values: {obVals[schedulePriorities.index(max(schedulePriorities))]}")
