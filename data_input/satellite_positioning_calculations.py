@@ -2,8 +2,34 @@ import skyfield.api as skf
 from skyfield import almanac
 import datetime 
 import os
+import requests
 
 ts = skf.load.timescale()
+
+def updateTLE (HYPSOnr: int):
+    url = f'https://celestrak.com/NORAD/elements/gp.php?NAME=HYPSO-{HYPSOnr}&FORMAT=TLE'
+    filename = os.path.join(os.path.dirname(__file__), f"HYPSO_data/HYPSO-{HYPSOnr}_TLE.txt")
+
+    skf_hypso = skf.load.tle_file(url, filename=filename, reload=False)[0]
+    ts = skf.load.timescale()
+    TLE_age = ts.now().utc_datetime() - skf_hypso.epoch.utc_datetime()
+
+    TLE_age_hours = TLE_age.days*24 + TLE_age.seconds/3600.0
+
+    if TLE_age_hours > 34:
+        print(f'current TLE is {TLE_age_hours:7.4f} hours old')
+        try:
+            tle = requests.get(url)
+            with open(filename, 'w') as file:
+                for line in tle.text.splitlines():
+                    file.write(line+'\n')
+                file.close()
+                print('TLE update successful\n')
+        except:
+            print('Error. TLE Update not successful')
+    else:
+        # print(f'Skipping TLE update, current TLE is only {TLE_age_hours:7.4f} hours old')
+        return
 
 def createSatelliteObject(HYPSOnr: int) -> skf.EarthSatellite:
     """ Create a satellite object for a given HYPSO satellite number
@@ -11,6 +37,7 @@ def createSatelliteObject(HYPSOnr: int) -> skf.EarthSatellite:
     - 1 for HYPSO 1
     - 2 for HYPSO 2
     """
+
     # HYPSO 1 data
     hypsoTleUrl = f'https://celestrak.com/NORAD/elements/gp.php?NAME=HYPSO-{HYPSOnr}&FORMAT=TLE'
     hypsoTlePath = os.path.join(os.path.dirname(__file__), f"HYPSO_data/HYPSO-{HYPSOnr}_TLE.txt")

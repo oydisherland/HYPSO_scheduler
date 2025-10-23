@@ -48,8 +48,9 @@ def saveTTWListInJsonFile(filepath: str, ttwList: list):
 
     with open(filepath, mode='w') as file:
         json.dump(serializable_ttwList, file, indent=4)
-def saveIterationDataInJsonFile(filepath: str, iterationData: list):
+def saveAlgorithmDataInJsonFile(filepath: str, algorithmData: list):
     """ Save the algorithm data to a JSON file """
+    iterationData, bestIndex = algorithmData
     serializable_iterationData = []
     for i in range(len(iterationData)):
         fronts, objectiveSpace, selectedObjectiveVals = iterationData[i]
@@ -58,9 +59,12 @@ def saveIterationDataInJsonFile(filepath: str, iterationData: list):
             "objectiveSpace": [obj.tolist() for obj in objectiveSpace],  # Convert NumPy arrays to lists
             "selectedObjectiveVals": [val.tolist() for val in selectedObjectiveVals],  # Convert NumPy arrays to lists
         })
-
+    serializable_algorithmData = {
+        "iterationData": serializable_iterationData, 
+        "bestIndex": int(bestIndex) if bestIndex is not None else None
+    }
     with open(filepath, mode='w') as file:
-        json.dump(serializable_iterationData, file, indent=4)
+        json.dump(serializable_algorithmData, file, indent=4)
 
 
 # Functions that read data from json files and recreate the original data structure
@@ -128,17 +132,19 @@ def getOHFromFile(filepath: str):
         print(f"An error occurred: {e}")
     
     return oh
-def getIterationData(filepath: str):
-    """ Extract the algorithm data from the file and recreate iterationData list returned by the algorithm """
-   
+def getAlgorithmDatafromJsonFile(filepath: str):
+    """ Extract the algorithm data from the file and recreate algorithmData list returned by the algorithm """
+
     try:
         # Load the algorithm data from the JSON file
         with open(filepath, mode='r') as file:
-            serialized_data = json.load(file)
+            serializedAlgData = json.load(file)
 
+        bestIndex = serializedAlgData.get("bestIndex", None)
+        serialized_Iterationdata = serializedAlgData.get("iterationData", [])
         # Reconstruct iterationData from the serialized data
         iterationData = []
-        for entry in serialized_data:
+        for entry in serialized_Iterationdata:
             fronts = [np.array(front) for front in entry["fronts"]]  # Convert lists back to NumPy arrays
             objectiveSpace = [np.array(obj) for obj in entry["objectiveSpace"]]  # Convert lists back to NumPy arrays
             selectedObjectiveVals = [np.array(val) for val in entry["selectedObjectiveVals"]]  # Convert lists back to NumPy arrays
@@ -152,7 +158,7 @@ def getIterationData(filepath: str):
     except Exception as e:
         print(f"An error occurred: {e}")
 
-    return iterationData
+    return (iterationData, bestIndex)
 def getFinalPopulation(filepath: str):
     """ Extract from file the schedule corresponding to the final population and recreate the finalPop array,
     that was returned by the algorithm """

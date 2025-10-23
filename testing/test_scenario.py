@@ -1,6 +1,7 @@
 import sys
 import os
 import json
+import glob
 import datetime
 from dataclasses import dataclass
 
@@ -11,7 +12,7 @@ from scheduling_model import SP, list_toDict, TTW_toDict, GSTW_toDict, OH_toDict
 from algorithm.NSGA2 import runNSGA
 from data_preprocessing.create_data_objects import createTTWList, createOH, createGSTWList
 from data_postprocessing.generate_cmdLine import createCmdFile, createCmdLinesForCaptureAndBuffering, recreateOTListFromCmdFile, recreateBTListFromCmdFile
-from data_postprocessing.algorithmData_api import convertOTListToDateTime, convertBTListToDateTime, convertDTListToDateTime
+from data_postprocessing.algorithmData_api import convertOTListToDateTime, convertBTListToDateTime, convertDTListToDateTime, getAlgorithmDatafromJsonFile, saveAlgorithmDataInJsonFile
 from data_preprocessing.objective_functions import objectiveFunctionImageQuality, objectiveFunctionPriority
 from transmission_scheduling.clean_schedule import cleanUpSchedule, OrderType
 from transmission_scheduling.input_parameters import getTransmissionInputParams, getTransmissionInputParamsFromJsonFile
@@ -23,9 +24,9 @@ from scheduling_model import OH
 class TestScenario:
     
     # public attributes
-    SenarioID: str
-    startOH: str
-    algorithmRuns: int
+    senarioID: str
+    startOH: str = None
+    algorithmRuns: int = None
 
     # private attributes used as input to the algorithm
     _inputParameters = None
@@ -39,17 +40,59 @@ class TestScenario:
     _bufferSchedules = None
     _downlinkSchedules = None
     _objectiveValues = None
+    _algorithmDataAllRuns = None
 
+    def __init__(self, senarioID: str, startOH: str = None, algorithmRuns: int = None):
+        
+        self.senarioID = senarioID
+        if startOH is not None and algorithmRuns is not None:
+            # Both OH start time and algorithm runs given
+            self.startOH = startOH
+            self.algorithmRuns = algorithmRuns
+            
+        elif startOH is None and algorithmRuns is None:
+            # Algorithm runs and OH start Time not given, read from existing test folder
+            testfolderPath = os.path.join(os.path.dirname(__file__), f"testing_results/OH{senarioID}")
+            if not os.path.exists(testfolderPath):
+                raise FileNotFoundError(f"Invalid scenarioId, no corresponding output exists.")
+            
+            # Find start time OH
+            pathInputParamsFile = os.path.join(testfolderPath,"input_parameters.json")
+            inputParameters = InputParameters.from_json(pathInputParamsFile)
+            self.startOH = inputParameters.startTimeOH
 
-    def getOtLists(self) -> list:
+            # Find number of algorithm runs
+            outputfolderPath = os.path.join(testfolderPath, "cmdLines")
+            self.algorithmRuns = len([name for name in os.listdir(outputfolderPath) if os.path.isfile(os.path.join(outputfolderPath, name)) and name.endswith("_cmdLines.txt")])
+        
+        else:
+            raise ValueError("Either both startOH and algorithmRuns must be provided, or neither.")
+
+    def setInputParameters(self, inputParameters: InputParameters):
+        """ Set the input parameters for the test scenario """
+        self._inputParameters = inputParameters
+
+    def getObservationSchedules(self) -> list:
         """ Get the observation schedules for each run of the algorithm """
         return self._observationSchedules
-    def getBtLists(self) -> list:
+    def getBufferSchedules(self) -> list:
         """ Get the buffer schedules for each run of the algorithm """
         return self._bufferSchedules
     def getAllObjectiveValues(self) -> list:
         """ Get the objective values for each run of the algorithm """
         return self._objectiveValues
+    def getOh(self) -> OH:
+        """ Get the observation horizon object """
+        return self._oh
+    def getInputParameters(self) -> InputParameters:
+        """ Get the input parameters object """
+        return self._inputParameters
+    def getAlgorithmDataAllRuns(self) -> list:
+        """ Get the algorithm data for each run of the algorithm """
+        return self._algorithmDataAllRuns
+    def getTTWList(self) -> list:
+        """ Get the time to wait list """
+        return self._ttwList
 
     # Set input attributes needed to run test scenario, either create new data or read existing data from files
     def createInputAttributes(self, inputParameterFilePath: str, groundStationFilePath: str):
@@ -65,7 +108,7 @@ class TestScenario:
         self._gstwList = createGSTWList(self._oh.utcStart, self._oh.utcEnd, self._transmissionParameters.minGSWindowTime, groundStationFilePath, int(self._inputParameters.hypsoNr))
 
         # Save input data in files
-        folderPathTestScenario = os.path.join(os.path.dirname(__file__), f"testing_results/OH{self.SenarioID}")
+        folderPathTestScenario = os.path.join(os.path.dirname(__file__), f"testing_results/OH{self.senarioID}")
         os.makedirs(folderPathTestScenario, exist_ok=True)
 
         with open(os.path.join(folderPathTestScenario, "input_parameters.json"), "w") as f:
@@ -78,7 +121,7 @@ class TestScenario:
             json.dump(OH_toDict(self._oh), f, indent=4)
     def recreateInputAttributes(self):
         """ Recreate input attributes from existing input files """
-        folderPathOutput = os.path.join(os.path.dirname(__file__), f"testing_results/OH{self.SenarioID}")
+        folderPathOutput = os.path.join(os.path.dirname(__file__), f"testing_results/OH{self.senarioID}")
         if not os.path.exists(folderPathOutput):
             raise FileNotFoundError(f"Folder {folderPathOutput} does not exist. Cannot read existing input files.")
 
@@ -112,6 +155,7 @@ class TestScenario:
         self._gstwList = []
         for gstwElement in gstwData:
             self._gstwList.append(dict_toGSTW(gstwElement))
+    
 
     # Run test: create output attributes and cmd-files for each run of the algorithm
     def runTestScenario(self):
@@ -121,17 +165,34 @@ class TestScenario:
         self._bufferSchedules = []
         self._downlinkSchedules = []
         self._objectiveValues = []
+        self._algorithmDataAllRuns = []
 
-        # Create folder to save cmd files
-        folderPathOutput = os.path.join(os.path.dirname(__file__), f"testing_results/OH{self.SenarioID}/output")
-        os.makedirs(folderPathOutput, exist_ok=True)
+        # Create folder to save cmd files and algorithm iteration data. 
+        folderPathCmdLines = os.path.join(os.path.dirname(__file__), f"testing_results/OH{self.senarioID}/cmdLines")
+        folderPathAlgorithmData = os.path.join(os.path.dirname(__file__), f"testing_results/OH{self.senarioID}/algorithmData")
+        
+        # If folders already exsists, remove all previous files
+        if os.path.exists(folderPathCmdLines):
+            files = glob.glob(os.path.join(folderPathCmdLines, "*"))
+            for file in files:
+                if os.path.isfile(file):
+                    os.remove(file)
+        else:
+            os.makedirs(folderPathCmdLines, exist_ok=True)
+        if os.path.exists(folderPathAlgorithmData):
+            files = glob.glob(os.path.join(folderPathAlgorithmData, "*"))
+            for file in files:
+                if os.path.isfile(file):
+                    os.remove(file)
+        else:
+            os.makedirs(folderPathAlgorithmData, exist_ok=True)
 
         # Create model parameters
         schedulingParameters = SP(int(self._inputParameters.maxCaptures), int(self._inputParameters.captureDuration), int(self._inputParameters.transitionTime), int(self._inputParameters.hypsoNr))
 
         # Run algorithm
         for runNr in range(self.algorithmRuns):
-            # Create observation schedule. bestSchedule, bestBufferSchedule, bestDownlinkSchedule, iterationData, bestSolution, bestIndex, oldPopulation
+            # Create observation schedule. bestSchedule, bestBufferSchedule, bestDownlinkSchedule, algorithmData, bestSolution, bestIndex, oldPopulation
             observationSchedule, bufferSchedule, downlinkSchedule, iterationData, bestSolution, bestIndex, _ = runNSGA(
                 int(self._inputParameters.populationSize),
                 int(self._inputParameters.nsga2Runs),
@@ -156,9 +217,11 @@ class TestScenario:
                 OrderType.FIFO,
                 OrderType.FIFO
             )
+            algorithmData = (iterationData, bestIndex)
             # Save output data in files
             cmdLines = createCmdLinesForCaptureAndBuffering(observationSchedule, bufferSchedule, downlinkSchedule, self._inputParameters, self._oh)
-            createCmdFile(f"{folderPathOutput}/{runNr}_cmdLines.txt", cmdLines)
+            createCmdFile(f"{folderPathCmdLines}/{runNr}_cmdLines.txt", cmdLines)
+            saveAlgorithmDataInJsonFile(f"{folderPathAlgorithmData}/{runNr}_algorithmData.json", algorithmData)
 
             # Calculate objective values
             totalPriority = objectiveFunctionPriority(observationSchedule)
@@ -169,11 +232,12 @@ class TestScenario:
             self._bufferSchedules.append(convertBTListToDateTime(bufferSchedule, self._oh))
             self._downlinkSchedules.append(convertDTListToDateTime(downlinkSchedule, self._oh))
             self._objectiveValues.append((totalPriority, totalImageQuality))
+            self._algorithmDataAllRuns.append(algorithmData)
     
     # If output from running test already exsists, recreate all alltributes of TestScenario object
     def recreateTestScenario(self):
         """ Recreate observation schedules from the output cmd files, and set attributes """
-        folderPathOutput = os.path.join(os.path.dirname(__file__), f"testing_results/OH{self.SenarioID}")
+        folderPathOutput = os.path.join(os.path.dirname(__file__), f"testing_results/OH{self.senarioID}")
 
         self.recreateInputAttributes()
 
@@ -182,7 +246,7 @@ class TestScenario:
         bufSchedules = []
         downLinkSchedules = []
         for runNr in range(self.algorithmRuns):
-            pathScript = os.path.join(folderPathOutput, f"output/{runNr}_cmdLines.txt")
+            pathScript = os.path.join(folderPathOutput, f"cmdLines/{runNr}_cmdLines.txt")
             otList = recreateOTListFromCmdFile(
                 os.path.join(os.path.dirname(os.path.dirname(__file__)), f"data_input/HYPSO_data/targets.json"),
                 pathScript,
@@ -216,4 +280,11 @@ class TestScenario:
             totalImageQuality = objectiveFunctionImageQuality(self._observationSchedules[runNr], self._oh, int(self._inputParameters.hypsoNr))
             objVals.append((totalPriority, totalImageQuality))
         self._objectiveValues = objVals
+
+        # Recreate iteration data
+        self._algorithmDataAllRuns = []
+        for runNr in range(self.algorithmRuns):
+            pathAlgorithmDataFile = os.path.join(folderPathOutput, f"algorithmData/{runNr}_algorithmData.json")
+            algorithmData = getAlgorithmDatafromJsonFile(pathAlgorithmDataFile)
+            self._algorithmDataAllRuns.append(algorithmData)
 

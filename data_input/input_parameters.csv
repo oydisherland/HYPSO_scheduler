@@ -1,19 +1,19 @@
-testName, H2Mission_run3
+testName, testPlot
 
 # Scheduling specific parameters
-maxCaptures, 60
+maxCaptures, 25
 captureDuration, 60
 transitionTime, 660
 startTimeOH, 2025-10-17 14:40:00.000000+00:00
-durationInDaysOH, 3
+durationInDaysOH, 2
 delayInHoursOH, 0
 hypsoNr, 2
 
 # Algorithm specific parameters
-populationSize, 100
+populationSize, 60
 isTabooBankFIFO, True
 iqNonLinear, False
-NSGA2Runs, 5
+NSGA2Runs, 15
 ALNSRuns, 50
 maxTabBank, 2
 desNumber, 1

@@ -49,12 +49,13 @@ def getTargetIdPriorityDictFromJson(targetsJsonFile: str) -> dict:
         raise FileNotFoundError(f"File not found: {targetsJsonFile}")
     
     with open(targetsJsonFile, 'r') as f:
-        targets_json = json.load(f)
+        targets = json.load(f)
     
-    targetIdPriorityDict = {}
-    priority = len(targets_json) 
-    for target in targets_json:
-        targetName = target.get("name").strip()
-        targetIdPriorityDict[targetName] = priority
-        priority -= 1
-    return targetIdPriorityDict
+    priorityIdDict = {}
+    for index, target in enumerate(targets):
+        targetId = target['name'].strip()  # Remove any whitespace
+        targetPriority = len(targets) - index
+        
+        priorityIdDict[targetId] = targetPriority
+    return priorityIdDict
+

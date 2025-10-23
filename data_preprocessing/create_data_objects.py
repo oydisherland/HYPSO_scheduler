@@ -3,7 +3,7 @@ import datetime
 import os
 
 from data_input.extract_cloud_data import getCloudData
-from data_input.satellite_positioning_calculations import findSatelliteTargetPasses, findIllumminationPeriods
+from data_input.satellite_positioning_calculations import findSatelliteTargetPasses, findIllumminationPeriods, updateTLE
 from data_postprocessing.algorithmData_api import getTTWListFromFile, saveTTWListInJsonFile
 from scheduling_model import OH, GT, TW, TTW, GSTW, GS
 from data_preprocessing.parseTargetsFile import getTargetDataFromJsonFile
@@ -282,6 +282,9 @@ def createTTWList(captureDuration: int, oh: OH, hypsoNr: int, ttwFilePathRead: s
         else:
             print("Error reading TTW data from file, calculating TTW data instead")
 
+    # Update TLE
+    updateTLE(hypsoNr)
+
     # Path to the file containing the ground targets data
     targetsFilePath = os.path.join(os.path.dirname(__file__),"../data_input/HYPSO_data/targets.json")
 
@@ -294,7 +297,8 @@ def createTTWList(captureDuration: int, oh: OH, hypsoNr: int, ttwFilePathRead: s
     print(f"After filtering out non-illuminated passes, targets: {len(illuminatedPasses)}, captures: {howManyPasses(illuminatedPasses)}")
     
     # Fileter out targets that are obscured by clouds
-    cloudlessTargetpasses = removeCloudObscuredPasses(illuminatedPasses, oh.utcStart, oh.utcEnd)
+    #cloudlessTargetpasses = removeCloudObscuredPasses(illuminatedPasses, oh.utcStart, oh.utcEnd)
+    cloudlessTargetpasses = illuminatedPasses
     print(f"After filtering out cloud-obscured passes, targets: {len(cloudlessTargetpasses)}, captures: {howManyPasses(cloudlessTargetpasses)}")
 
     # Create objects from the ground targets data
