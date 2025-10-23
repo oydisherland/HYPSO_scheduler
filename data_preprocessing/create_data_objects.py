@@ -1,6 +1,11 @@
 import csv
-import datetime
+from datetime import datetime, timezone, timedelta
 import os
+
+from dotenv import load_dotenv
+
+import requests
+from requests.auth import HTTPBasicAuth
 
 from data_input.extract_cloud_data import getCloudData
 from data_input.satellite_positioning_calculations import findSatelliteTargetPasses, findIllumminationPeriods, updateTLE
@@ -9,7 +14,8 @@ from scheduling_model import OH, GT, TW, TTW, GSTW, GS
 from data_preprocessing.parseTargetsFile import getTargetDataFromJsonFile
    
 
-def getAllTargetPasses(captureTimeSeconds: int, startTimeOH: datetime.datetime, endTimeOH: datetime.datetime, targetsFilePath: str, hypsoNr: int) -> list:# captureTimeSeconds: int, timewindow: int, startTimeDelay: int, targetsFilePath: str, hypsoNr: int) -> list:
+def getAllTargetPasses(captureTimeSeconds: int, startTimeOH: datetime, endTimeOH: datetime, targetsFilePath: str,
+                       hypsoNr: int) -> list:
     """ Get the TTW for each time the satellite passes the every requested target
     Output:
     - allTargetPasses: list of TTWs for each target in the target request file
@@ -27,7 +33,7 @@ def getAllTargetPasses(captureTimeSeconds: int, startTimeOH: datetime.datetime, 
         longitude = target.lon
         elevation = target.elev
 
-        # Verify that the target is is not already in list of targets
+        # Verify that the target is not already in list of targets
         if targetId in [t['groundTarget'].id for t in allTargetPasses]:
             print(f"Target id {targetId} is duplicated in target request list, only first entry is used")
             continue
@@ -97,7 +103,7 @@ def getAllTargetPasses(captureTimeSeconds: int, startTimeOH: datetime.datetime, 
 
     return allTargetPasses
 
-def removeNonIlluminatedPasses(allTargetPasses: list, startTimeOH: datetime.datetime, endTimeOH: datetime.datetime)-> list:
+def removeNonIlluminatedPasses(allTargetPasses: list, startTimeOH: datetime, endTimeOH: datetime)-> list:
     """ Remove time windows where the target is not illuminated by the sun
     Output:
     - targetPassesWithIllumination: list of TTWs that have sufficient illumination
@@ -134,8 +140,8 @@ def removeNonIlluminatedPasses(allTargetPasses: list, startTimeOH: datetime.date
 
     return targetPassesWithIllumination
   
-def createGSTWList(startTimeOH: datetime.datetime, endTimeOH: datetime.datetime, minWindowLength: float,
-                                hypsoNr: int, groundStationsFilePath: str = None):
+def createGSTWList(startTimeOH: datetime, endTimeOH: datetime, minWindowLength: float,
+                                hypsoNr: int, groundStationsFilePath: str = None, commInterface: str = "xband") -> list[GSTW]:
     """
     Get the time windows when the satellite passes over one of the ground stations.
 
@@ -145,9 +151,61 @@ def createGSTWList(startTimeOH: datetime.datetime, endTimeOH: datetime.datetime,
         minWindowLength (float): Minimum length of a time window in seconds.
         groundStationsFilePath (str): Path to the ground stations file.
         hypsoNr (int): HYPSO satellite number.
+        commInterface (str): Type of communication that is used with ground station.
 
     Returns:
         list[GSTW]: List of ground stations and their time windows.
+    """
+
+    # Bookings at KSAT Svalbard ground station are only made 3 days in advance
+    now = datetime.now(timezone.utc)
+    if (endTimeOH - now).total_seconds() < 3 * 24 * 3600:
+        return getBookedGSTWList(startTimeOH, endTimeOH, hypsoNr, commInterface)
+
+    return createGSTWListFromFile(startTimeOH, endTimeOH, minWindowLength, hypsoNr, groundStationsFilePath)
+
+
+def getBookedGSTWList(startTimeOH: datetime, endTimeOH: datetime, hypsoNr: int, commInterface: str = "xband") -> list[GSTW]:
+    """
+    Get the timeslots for the passes over KSAT Svalbard ground station that are booked for the HYPSO satellites.
+    Timeslots are only booked when it is possible for the satellite to have a stable connection.
+    """
+
+    gs = GS("ksatsvalbard", "78.2208", "15.4260", "5")  # KSAT Svalbard ground station
+
+    # Retrieve booked timeslots
+    url = f"https://ops.monitoring.hypso.space/api/v1/contacts/sat/HYPSO{hypsoNr}"
+    load_dotenv()
+    password = os.getenv("KSAT_PASSES_DASHBOARD_AUTH_TOKEN")
+    response = requests.get(url, auth=HTTPBasicAuth("ntnu", password))
+    response.raise_for_status()
+    gstwJson = response.json()
+
+    # Extract timestamp data
+    timestamps = []
+    for timestamp_struct in gstwJson:
+        start = timestamp_struct['Start']
+        end = timestamp_struct['End']
+        interface = timestamp_struct['Interface']
+        start = datetime.strptime(start, '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=timezone.utc)
+        end = datetime.strptime(end, '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=timezone.utc)
+
+        if interface == commInterface and start >= startTimeOH and end <= endTimeOH:
+            timestamps.append([start, end])
+    # Create GSTW object
+    twList: list[TW] = []
+    for ts in timestamps:
+        startTime = (ts[0] - startTimeOH).total_seconds()
+        endTime = (ts[1] - startTimeOH).total_seconds()
+        twList.append(TW(startTime, endTime))
+    gstwList = [GSTW(gs, twList)]
+    return gstwList
+
+def createGSTWListFromFile(startTimeOH: datetime, endTimeOH: datetime, minWindowLength: float,
+                                hypsoNr: int, groundStationsFilePath: str = None) -> list[GSTW]:
+    """
+    Get the passes over the ground stations defined in the ground station file.
+    Determine the time windows of the passes using orbital information.
     """
 
     # If no file path is provided, use default path
@@ -206,7 +264,7 @@ def createGSTWList(startTimeOH: datetime.datetime, endTimeOH: datetime.datetime,
 
     return gstwList
 
-def removeCloudObscuredPasses(allTargetPasses: list, startTimeOH: datetime.datetime, endTimeOH: datetime.datetime)-> list:
+def removeCloudObscuredPasses(allTargetPasses: list, startTimeOH: datetime, endTimeOH: datetime)-> list:
     """ Remove time windows where the target is obscured by clouds, based on weather forecast data
     Output:
     - targetPassesWithoutClouds: list of TTWs that are not obscured by clouds
@@ -225,7 +283,7 @@ def removeCloudObscuredPasses(allTargetPasses: list, startTimeOH: datetime.datet
 
         # Get the cloud data for the target in the given OH
         cloudData = getCloudData(latitude, longitude, startTimeOH, endTimeOH)
-        assert cloudData != None
+        assert cloudData is not None
 
         # Remove observation windows when the cloud coverage is too high
         for key in cloudData:  #key is a datetime object
@@ -244,13 +302,13 @@ def removeCloudObscuredPasses(allTargetPasses: list, startTimeOH: datetime.datet
 
     return targetPassesWithoutClouds
 
-def createOH(startTimeOH: datetime.datetime, ohDurationInDays: int) -> OH:
-    """ Create optimalization horizon object form input parameters, and print the time interval. 
+def createOH(startTimeOH: datetime, ohDurationInDays: int) -> OH:
+    """ Create optimization horizon object form input parameters, and print the time interval.
     Output:
      - oh: OH object
     """
 
-    endTimeOH = startTimeOH + datetime.timedelta(days=ohDurationInDays)
+    endTimeOH = startTimeOH + timedelta(days=ohDurationInDays)
     print("Start time OH:", startTimeOH.strftime('%Y-%m-%dT%H:%M:%SZ'), "End time OH:", endTimeOH.strftime('%Y-%m-%dT%H:%M:%SZ'))
 
     oh = OH(
@@ -268,7 +326,6 @@ def createTTWList(captureDuration: int, oh: OH, hypsoNr: int, ttwFilePathRead: s
         captureDuration (int): Duration of each image capture in seconds.
         oh (OH): Observation Horizon object containing start and end times.
         hypsoNr (int): HYPSO satellite number.
-        minGSWindowLength (float): Minimum length of a ground station time window in seconds.
         ttwFilePathRead (str, optional): File path to read pre-calculated TTW data. If provided, TTW data will be read from this file instead of being calculated. Defaults to None.
         ttwFilePathWrite (str, optional): File path to write calculated TTW data. If provided, calculated TTW data will be saved to this file. Defaults to None.
 
@@ -300,9 +357,8 @@ def createTTWList(captureDuration: int, oh: OH, hypsoNr: int, ttwFilePathRead: s
     illuminatedPasses = removeNonIlluminatedPasses(allTargetPasses, oh.utcStart, oh.utcEnd)
     print(f"After filtering out non-illuminated passes, targets: {len(illuminatedPasses)}, captures: {howManyPasses(illuminatedPasses)}")
     
-    # Fileter out targets that are obscured by clouds
-    #cloudlessTargetpasses = removeCloudObscuredPasses(illuminatedPasses, oh.utcStart, oh.utcEnd)
-    cloudlessTargetpasses = illuminatedPasses
+    # Filter out targets that are obscured by clouds
+    cloudlessTargetpasses = removeCloudObscuredPasses(illuminatedPasses, oh.utcStart, oh.utcEnd)
     print(f"After filtering out cloud-obscured passes, targets: {len(cloudlessTargetpasses)}, captures: {howManyPasses(cloudlessTargetpasses)}")
 
     # Create objects from the ground targets data

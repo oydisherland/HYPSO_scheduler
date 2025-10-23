@@ -21,7 +21,6 @@ for scenario, maxC in zip(scenarios, capturesMax):
     print(f"Scenario OH{scenario.senarioID} starting at {scenario.startOH} with {scenario.algorithmRuns} algorithm runs")
     scenario.createInputAttributes(
         os.path.join(os.path.dirname(__file__),"../data_input/input_parameters.csv"), 
-        os.path.join(os.path.dirname(__file__), "../data_input/HYPSO_data/ground_stations.csv")
     )
     #scenario.recreateInputAttributes()
     # ip = scenario.getInputParameters()
