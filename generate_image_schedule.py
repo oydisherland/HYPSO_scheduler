@@ -17,7 +17,6 @@ from data_input.utility_functions import InputParameters
 
 ### Create the image schedule ####
 
-groundStationFilePath = os.path.join(os.path.dirname(__file__), "data_input/HYPSO_data/ground_stations.csv")
 inputParametersFilePath = os.path.join(os.path.dirname(__file__),"data_input/input_parameters.csv")
 ttwListFilePath = os.path.join(os.path.dirname(__file__),"data_input/HYPSO_data/ttw_list_2025_10_09_1600.json")
 
@@ -37,8 +36,8 @@ oh = createOH(datetime.datetime.fromisoformat(inputParameters.startTimeOH), int(
 transmissionParameters = getTransmissionInputParams(inputParametersFilePath)
 
 # Create data Objects
-ttwList = createTTWList( int(inputParameters.captureDuration), oh, int(inputParameters.hypsoNr))
-gstwList = createGSTWList(oh.utcStart, oh.utcEnd, transmissionParameters.minGSWindowTime, groundStationFilePath, int(inputParameters.hypsoNr))
+ttwList = createTTWList( int(inputParameters.captureDuration), oh, int(inputParameters.hypsoNr), ttwListFilePath, ttwListFilePath)
+gstwList = createGSTWList(oh.utcStart, oh.utcEnd, transmissionParameters.minGSWindowTime, int(inputParameters.hypsoNr))
 
 # Create observation schedule
 observationSchedule, bufferSchedule, downlinkSchedule, _, _, _, _ = runNSGA(

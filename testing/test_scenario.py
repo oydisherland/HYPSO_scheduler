@@ -4,6 +4,7 @@ import json
 import glob
 import datetime
 from dataclasses import dataclass
+from math import ceil
 
 # Add the parent directory to Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -101,11 +102,12 @@ class TestScenario:
         # Read initial input parameters from cvs file
         self._inputParameters = InputParameters.from_csv(inputParameterFilePath)
         self._transmissionParameters = getTransmissionInputParams(inputParameterFilePath)
-        
+
+
         # Create input data Objects
         self._oh = createOH(datetime.datetime.fromisoformat(self.startOH), int(self._inputParameters.durationInDaysOH))
         self._ttwList = createTTWList(int(self._inputParameters.captureDuration), self._oh, int(self._inputParameters.hypsoNr))
-        self._gstwList = createGSTWList(self._oh.utcStart, self._oh.utcEnd, self._transmissionParameters.minGSWindowTime, groundStationFilePath, int(self._inputParameters.hypsoNr))
+        self._gstwList = createGSTWList(self._oh.utcStart, self._oh.utcEnd, self._transmissionParameters.minGSWindowTime, int(self._inputParameters.hypsoNr))
 
         # Save input data in files
         folderPathTestScenario = os.path.join(os.path.dirname(__file__), f"testing_results/OH{self.senarioID}")

@@ -21,12 +21,7 @@ def findPossibleTTW(ttwListToUpdate: list[TTW], otListLastInsertionAttempt: list
     """
     # Find the observation tasks that could not be scheduled
     otListUnscheduled = otListLastInsertionAttempt.copy()
-    ttwListUnscheduled = copy.deepcopy(ttwListToUpdate)
     for otScheduled in scheduledOTList:
-        for ttw in ttwListToUpdate:
-            if ttw.GT == otScheduled.GT:
-                ttwListUnscheduled.remove(ttw)
-                break
         for ot in otListLastInsertionAttempt:
             if ot.GT == otScheduled.GT:
                 otListUnscheduled.remove(ot)
@@ -36,7 +31,14 @@ def findPossibleTTW(ttwListToUpdate: list[TTW], otListLastInsertionAttempt: list
         # We only want to find TTWs for targets that failed to be scheduled by the transmission scheduler
         # However, the ttwList might contain time windows for targets that were not in the imaging schedule
         # that was passed to the transmission scheduler in the first place.
-        ttwListUnscheduled = [ttw for ttw in ttwListUnscheduled if any(ot.GT == ttw.GT for ot in otListUnscheduled)]
+        ttwListUnscheduled = [TTW(ttw.GT, ttw.TWs.copy()) for ttw in ttwListToUpdate if any(ot.GT == ttw.GT for ot in otListUnscheduled)]
+    else:
+        ttwListUnscheduled = copy.deepcopy(ttwListToUpdate)
+        for otScheduled in scheduledOTList:
+            for ttw in ttwListToUpdate:
+                if ttw.GT == otScheduled.GT:
+                    ttwListUnscheduled.remove(ttw)
+                    break
 
     # Remove the time windows that we have already tried to schedule
     for ttw in ttwListUnscheduled:
@@ -132,36 +134,39 @@ def latencyCounter(otList: list[OT], dtList: list[DT]):
         print(f"Average latency: {sum(latencyList) / (len(latencyList) * 3600):.2f} hours")
 
 
-def getFreeGSGaps(btList: list[BT], gstwListSorted: list[tuple[GS, TW]]) -> list[TW]:
+def getFreeGSGaps(btList: list[BT], gstwListSorted: list[tuple[GS, TW]]) -> list[tuple[TW, TW]]:
     """
     Find the gaps between ground station passes where no buffering is scheduled.
 
     Args:
-        btList (list[BT]): List of all buffering tasks.
+        btList (list[BT]): List of all scheduled buffering tasks.
         gstwListSorted (list[tuple[GS, TW]): List of all ground station time windows.
 
     Returns:
-        list[TW]: List with the time windows of the gap (from start of first GS pass to end of next GS pass).
+        list[tuple[TW, TW]]: List with the time windows from the ground station pass before and after the gaps
     """
     freeGapList = []  # List with the end time of the free gaps
+    btListToCheck = btList.copy()
     for i in range(len(gstwListSorted) - 1):
         gstw = gstwListSorted[i]
         nextGstw = gstwListSorted[i + 1]
         gapStart = gstw[1].start
         gapEnd = nextGstw[1].end
         freeGapFound = True
-        for bt in btList:
+        for bt in btListToCheck:
             if not (bt.end <= gapStart or bt.start >= gapEnd):
                 # There is a buffering task in this gap
                 freeGapFound = False
+                # Remove the buffer task from the list to check, because it is not relevant for other gaps
+                btListToCheck.remove(bt)
                 break
         if freeGapFound:
-            freeGapList.append(TW(gapStart, gapEnd))
+            freeGapList.append((gstw[1], nextGstw[1]))
 
     return freeGapList
 
-def getBufferClearedTimestamps(btList: list[BT], dtList: list[DT], gstwSortedTupleList: list[tuple[GS,TW]]) \
-        -> list[float]:
+def getBufferClearedTimestamps(otList: list[OT], btList: list[BT], dtList: list[DT],
+                               gstwSortedTupleList: list[tuple[GS,TW]], p: TransmissionParams) -> list[float]:
     """
     Find the timestamps when the buffer is cleared.
     This happens when there are one or two buffer files left which get two full ground station passes to downlink.
@@ -180,18 +185,57 @@ def getBufferClearedTimestamps(btList: list[BT], dtList: list[DT], gstwSortedTup
     for freeGSGap in freeGSGapList:
         preGapFileCount = 0
         for dt in dtDictUnique.values():
-            if dt.end < freeGSGap.start:
+            if dt.end < freeGSGap[0].start:
                 preGapFileCount -= 1
         for bt in btList:
-            if bt.end < freeGSGap.start:
+            if bt.start < freeGSGap[0].start:
                 preGapFileCount += 1
 
+        if preGapFileCount == 0:
+            bufferClearedTimestamps.append(freeGSGap[0].start)
+            continue
+
         if preGapFileCount <= 2:
-            bufferClearedTimestamps.append(freeGSGap.end)
+            # Check if there is enough available time in the GS passes right before and after the gap to clear the buffer
+            availableTime = getAvailableDownlinkTime(freeGSGap[0], [], otList, p) + \
+                                getAvailableDownlinkTime(freeGSGap[1], [], otList, p)
+            if availableTime > preGapFileCount * 1.5 * p.downlinkDuration:
+                bufferClearedTimestamps.append(freeGSGap[1].end)
 
     bufferClearedTimestamps.insert(0, 0)
 
     return bufferClearedTimestamps
+
+def getAvailableDownlinkTime(tw: TW, dtList: list[DT], otList: list[OT], p: TransmissionParams) -> float:
+    """
+    Get the available time during the provided ground station pass (represented as a time window) for downlinking captures.
+    This takes into account that there is less time available then the full pass
+    due to downlinking telemetry and when observation tasks are scheduled during the pass.
+
+    Args:
+        tw (TW): Time window of the ground station pass to check.
+        dtList (list[DT]): List of all already scheduled downlink tasks.
+        otList (list[OT]): List of all scheduled observation tasks.
+        p (TransmissionParams): Input parameters containing timing configurations.
+
+    Returns:
+        float: The available time in seconds during the ground station pass for downlinking captures.
+            Can be negative if there is a scheduling conflict.
+    """
+
+    otDuringGS = [ot for ot in otList if not (ot.end <= tw.start or ot.start >= tw.end)]
+    dtDuringGS = [dt for dt in dtList if not (dt.end <= tw.start or dt.start >= tw.end)]
+    availableTime = tw.end - tw.start
+    # Subtract time for telemetry downlinking
+    availableTime -= p.transmissionStartTime
+    # Subtract time for observation tasks during the GS pass
+    availableTime -= p.overLappingWithCaptureSetback * len(otDuringGS)
+
+    # Subtract time for already scheduled downlink tasks
+    for dt in dtDuringGS:
+        availableTime -= dt.end - dt.start
+
+    return availableTime
 
 def plotSchedule(otListMod: list[OT], otList: list[OT], btList: list[BT], dtList: list[DT], gstwList: list[GSTW],
                  ttwList: list[TTW], p: TransmissionParams, savePlotPath=None):

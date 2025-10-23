@@ -135,7 +135,7 @@ def removeNonIlluminatedPasses(allTargetPasses: list, startTimeOH: datetime.date
     return targetPassesWithIllumination
   
 def createGSTWList(startTimeOH: datetime.datetime, endTimeOH: datetime.datetime, minWindowLength: float,
-                                groundStationsFilePath: str, hypsoNr: int):
+                                hypsoNr: int, groundStationsFilePath: str = None):
     """
     Get the time windows when the satellite passes over one of the ground stations.
 
@@ -149,6 +149,10 @@ def createGSTWList(startTimeOH: datetime.datetime, endTimeOH: datetime.datetime,
     Returns:
         list[GSTW]: List of ground stations and their time windows.
     """
+
+    # If no file path is provided, use default path
+    if groundStationsFilePath is None:
+        groundStationsFilePath = os.path.join(os.path.dirname(__file__), "../data_input/HYPSO_data/ground_stations.csv")
 
     # Read data from the provided csv
     try:

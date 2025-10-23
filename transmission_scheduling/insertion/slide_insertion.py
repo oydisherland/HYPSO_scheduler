@@ -225,7 +225,7 @@ class SlideInsertion(InsertionInterface):
                 conflictingBuffer = True
                 break
 
-        if not conflictingBuffer and not observationTaskConflicting(shiftedOTBeforeGap, btListCandidate,
+        if not conflictingBuffer and not observationTaskConflicting(shiftedOTBeforeGap, btListCandidate, dtList,
                                                                     otListCandidate, gstwList, p):
             # The backward shift did not result in conflicts, so we can save the results
             otListModified = otListCandidate.copy()
@@ -312,8 +312,8 @@ class SlideInsertion(InsertionInterface):
                 conflictingBuffer = True
                 break
 
-        if not conflictingBuffer and not observationTaskConflicting(shiftedOTAfterGap, btListCandidate, otListCandidate,
-                                                                    gstwList, p):
+        if not conflictingBuffer and not observationTaskConflicting(shiftedOTAfterGap, btListCandidate, dtList,
+                                                                    otListCandidate, gstwList, p):
             # Forward shift has been successful, so we can save the results
             return otListCandidate, btListCandidate, forwardShift
         else:

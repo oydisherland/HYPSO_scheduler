@@ -7,11 +7,11 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 
 
 
-algorithmRuns = 10
+algorithmRuns = 1
 
 ## Define test scenarios
 scenarios = [
-    TestScenario(senarioID="H2Mission22.10_v6", startOH="2025-10-22T13:00:00Z", algorithmRuns=algorithmRuns),
+    TestScenario(senarioID="test", startOH="2025-10-23T13:00:00Z", algorithmRuns=algorithmRuns),
 ]
 capturesMax = [26]
 

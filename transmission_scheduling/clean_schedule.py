@@ -37,9 +37,9 @@ def cleanUpSchedule(otList: list[OT], btList: list[BT], dtList: list[DT], gstwLi
     elif bufferOrder == OrderType.FIFO:
         btListCleaned = arrangeBufferScheduleFIFO(btList, otList)
 
-    btListCleaned = assignBufferIDs(btListCleaned, dtList, gstwList, p, downlinkOrder)
+    btListCleaned = assignBufferIDs(otList, btListCleaned, dtList, gstwList, p, downlinkOrder)
 
-    dtListCleaned = regenerateDownlinkSchedule(btListCleaned, gstwList, p)
+    dtListCleaned = regenerateDownlinkSchedule(otList, btListCleaned, gstwList, p)
 
 
     return btListCleaned, dtListCleaned
@@ -78,7 +78,7 @@ def arrangeBufferScheduleFIFO(btList: list[BT], otList: list[OT]):
 
     return btListCleaned
 
-def assignBufferIDs(btList: list[BT], dtList: list[DT], gstwList: list[GSTW], p: TransmissionParams,
+def assignBufferIDs(otList: list[OT], btList: list[BT], dtList: list[DT], gstwList: list[GSTW], p: TransmissionParams,
                     downlinkOrder: OrderType) -> list[BT]:
     """
     Assign file IDs to each buffer task.
@@ -90,7 +90,7 @@ def assignBufferIDs(btList: list[BT], dtList: list[DT], gstwList: list[GSTW], p:
         btListSorted = sorted(btList, key=lambda x: x.start)
 
     gstwSortedTupleList = gstwToSortedTupleList(gstwList)
-    bufferClearedTimestamps = getBufferClearedTimestamps(btList, dtList, gstwSortedTupleList)
+    bufferClearedTimestamps = getBufferClearedTimestamps(otList, btList, dtList, gstwSortedTupleList, p)
 
     btListIDAssigned: list[BT] = []
     for bt in btListSorted:
@@ -101,7 +101,8 @@ def assignBufferIDs(btList: list[BT], dtList: list[DT], gstwList: list[GSTW], p:
     return btListIDAssigned
 
 
-def regenerateDownlinkSchedule(btList: list[BT], gstwList: list[GSTW], p: TransmissionParams) -> list[DT]:
+def regenerateDownlinkSchedule(otList: list[OT], btList: list[BT], gstwList: list[GSTW], p: TransmissionParams)\
+        -> list[DT]:
     """
     Regenerate the downlink schedule based on the cleaned buffer schedule.
     HYPSO automatically downlinks the highest priority file form the buffer first, and this function simulates that.
@@ -118,7 +119,7 @@ def regenerateDownlinkSchedule(btList: list[BT], gstwList: list[GSTW], p: Transm
             # Find the list of future GSTW that could be used to downlink the remaining data if needed
             nextGSTWList: list[tuple[GS, TW]]  # Storing the GS passes in this form is more convenient
             nextGSTWList = closestGSTWSorted[i + 1:] if i + 1 < len(closestGSTWSorted) else []
-            newDT = generateDownlinkTask(gstw, nextGSTWList, dtListCleaned, bt.GT, p)
+            newDT = generateDownlinkTask(otList, gstw, nextGSTWList, dtListCleaned, bt.GT, p)
             if newDT is not None:
                 # Valid downlink task(s) were generated
                 dtListCleaned = dtListCleaned + newDT

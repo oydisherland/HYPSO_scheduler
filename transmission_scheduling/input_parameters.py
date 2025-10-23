@@ -14,7 +14,6 @@ class TransmissionParams:
         bufferingTime: Time required to buffer capture data before it can be transmitted in seconds.
         afterCaptureTime: Time required after a capture for processing in seconds.
         interTaskTime: Time after a general task in seconds.
-        interDownlinkTime: Time required between downlink tasks in seconds.
         downlinkDuration: Time needed for downlinking a capture in seconds.
         transmissionStartTime: How far into a ground station pass transmission can start in seconds.
         maxLatency: Maximum number of seconds between a capture and its downlink
@@ -27,11 +26,12 @@ class TransmissionParams:
         captureDuration: Duration of a capture in seconds
         maxBufferFiles: Maximum number of captures that can be stored in the buffer.
         bufferStartID: File ID of the highest priority buffer, all other files will have incremented IDs.
+        overLappingWithCaptureSetback: The number of seconds that should be taken off the available downlink time
+            during a ground station pass if an observation task is scheduled during that pass
     """
     bufferingTime: float = 0.0
     afterCaptureTime: float = 0.0
     interTaskTime: float = 0.0
-    interDownlinkTime: float = 0.0
     downlinkDuration: float = 0.0
     transmissionStartTime: float = 0.0
     maxLatency: float = 0.0
@@ -44,6 +44,7 @@ class TransmissionParams:
     captureDuration: float = 0.0
     maxBufferFiles: int = 1
     bufferStartID: int = 1
+    overLappingWithCaptureSetback: float = 0.0
 
     # Warning should be thrown because these parameters should not be changed after initialization
     def __setattr__(self, name, value):
