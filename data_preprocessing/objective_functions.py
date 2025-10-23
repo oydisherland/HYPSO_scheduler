@@ -1,3 +1,5 @@
+import calendar
+
 from scheduling_model import  OH
 import datetime 
 
@@ -29,12 +31,13 @@ def objectiveFunctionImageQuality(otList:list, oh: OH, hypsoNr: int) -> float:
         captureTimeMiddel = ot.start + (ot.end - ot.start) / 2
         utcTime = oh.utcStart + datetime.timedelta(seconds=captureTimeMiddel)
         # Round the utcTime down to 10 seconds to estimate the elevation more efficiently
-        utcTimeRounded = round((oh.utcStart - utcTime).total_seconds() / 10)
+        unixTime = calendar.timegm(utcTime.utctimetuple()) + utcTime.microsecond / 1e6
+        unixTimeRounded = int(unixTime // 10)
 
-        if (ot.GT.id, utcTimeRounded) not in imageQualityDict:
-            imageQualityDict[(ot.GT.id, utcTimeRounded)] = findSatelliteTargetElevation(float(ot.GT.lat), float(ot.GT.long), utcTime, hypsoNr)
+        if (ot.GT.id, unixTimeRounded) not in imageQualityDict:
+            imageQualityDict[(ot.GT.id, unixTimeRounded)] = findSatelliteTargetElevation(float(ot.GT.lat), float(ot.GT.long), utcTime, hypsoNr)
 
-        elevation = imageQualityDict[(ot.GT.id, utcTimeRounded)]
+        elevation = imageQualityDict[(ot.GT.id, unixTimeRounded)]
 
         if elevation < 0:
             # This should not happen
