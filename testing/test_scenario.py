@@ -3,6 +3,7 @@ import os
 import json
 import datetime
 from dataclasses import dataclass
+from math import ceil
 
 # Add the parent directory to Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -23,6 +24,8 @@ class TestScenario:
     SenarioID: str
     startOH: str
     algorithmRuns: int
+    ALNSRuns: int
+    populationSize: int
 
     # private attributes
     _inputParameters = None
@@ -31,17 +34,22 @@ class TestScenario:
     _gstwList = None
     _oh = None
 
-    def createInputFiles(self, inputParameterFilePath: str, groundStationFilePath: str):
+    def createInputFiles(self, inputParameterFilePath: str):
         """ Create input files for testing """
 
         # Read initial input parameters from cvs file
         self._inputParameters = InputParameters.from_csv(inputParameterFilePath)
         self._transmissionParameters = getTransmissionInputParams(inputParameterFilePath)
+
+        # Adjust input parameters based on test scenario settings
+        self._inputParameters.populationSize = self.populationSize
+        self._inputParameters.alnsRuns = self.ALNSRuns
+        self._inputParameters.nsga2Runs = ceil(5000 / (self.ALNSRuns * self.populationSize))
         
         # Create input data Objects
         self._oh = createOH(datetime.datetime.fromisoformat(self.startOH), int(self._inputParameters.durationInDaysOH))
         self._ttwList = createTTWList(int(self._inputParameters.captureDuration), self._oh, int(self._inputParameters.hypsoNr))
-        self._gstwList = createGSTWList(self._oh.utcStart, self._oh.utcEnd, self._transmissionParameters.minGSWindowTime, groundStationFilePath, int(self._inputParameters.hypsoNr))
+        self._gstwList = createGSTWList(self._oh.utcStart, self._oh.utcEnd, self._transmissionParameters.minGSWindowTime, int(self._inputParameters.hypsoNr))
 
         # Save input data in files
         folderPathTestScenario = os.path.join(os.path.dirname(__file__), f"OH{self.SenarioID}")

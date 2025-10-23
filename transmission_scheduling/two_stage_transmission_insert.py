@@ -1,5 +1,3 @@
-import copy
-
 from scheduling_model import OT, TTW, GSTW, BT, DT, GS, TW
 from transmission_scheduling import insertion
 from transmission_scheduling.conflict_checks import observationTaskConflicting
@@ -50,7 +48,7 @@ def twoStageTransmissionScheduling(otList: list[OT], ttwList: list[TTW], gstwLis
     Phase 2: Re-insertion phase for the observation tasks that could not be scheduled in the first phase
     """
     possibleTTW = findPossibleTTW(ttwList, otListCopy, otListScheduled, fullReinsert)
-    otListReInsert = generateNewOTList(possibleTTW, otListScheduled, btList, gstwList, p)
+    otListReInsert = generateNewOTList(possibleTTW, otListScheduled, btList, dtList, gstwList, p)
 
     for i in range(p.reInsertIterations):
 
@@ -62,7 +60,7 @@ def twoStageTransmissionScheduling(otList: list[OT], ttwList: list[TTW], gstwLis
 
         # Update the possible TTW list and the OT list to re-insert for the next cycle
         possibleTTW = findPossibleTTW(possibleTTW, otListReInsert, otListScheduled, fullReinsert)
-        otListReInsert = generateNewOTList(possibleTTW, otListScheduled, btList, gstwList, p)
+        otListReInsert = generateNewOTList(possibleTTW, otListScheduled, btList, dtList, gstwList, p)
 
     return btList, dtList, otListScheduled
 
@@ -136,7 +134,7 @@ def scheduleTransmissions(otList: list[OT], ttwList: list[TTW], gstwList: list[G
         # If we could not find the OT in the modified list, it has been deleted, and we can continue to the next OT
         if otToBuffer is None: continue
 
-        if observationTaskConflicting(otToBuffer, btList, otListMod, gstwList, p):
+        if observationTaskConflicting(otToBuffer, btList, dtList, otListMod, gstwList, p):
             # The observation task is conflicting with already scheduled tasks, so we cannot buffer it
             otListMod.remove(otToBuffer)
             continue
@@ -157,8 +155,9 @@ def scheduleTransmissions(otList: list[OT], ttwList: list[TTW], gstwList: list[G
                 # Find the list of future GSTW that could be used to downlink the remaining data if needed
                 nextGSTWList: list[tuple[GS, TW]]  # Storing the GS passes in this form is more convenient
                 nextGSTWList = closestGSTWSorted[i + 1:] if i + 1 < len(closestGSTWSorted) else []
-
-                candidateDTList = generateDownlinkTask(gstw, nextGSTWList, dtList, otToBuffer.GT, p)
+                candidateOTList = otListMod.copy()
+                candidateOTList.append(otToBuffer)
+                candidateDTList = generateDownlinkTask(candidateOTList, gstw, nextGSTWList, dtList, otToBuffer.GT, p)
                 if candidateDTList is None: continue  # No valid downlink task could be scheduled in this ground station time window
                 dtListPlusCandidates = dtList + candidateDTList
                 bt, otListMod, btList = insertMethod.generateBuffer(otToBuffer, gstw, otListMod, btList,
@@ -183,7 +182,7 @@ def scheduleTransmissions(otList: list[OT], ttwList: list[TTW], gstwList: list[G
 
 
 def generateNewOTList(possibleTTW: list[TTW], otListScheduled: list[OT], btListScheduled: list[BT],
-                      gstwList: list[GSTW], p: TransmissionParams) -> list[OT]:
+                      dtListScheduled: list[DT], gstwList: list[GSTW], p: TransmissionParams) -> list[OT]:
     """
     Based on a list of possible target time windows, generate a list of observation tasks that could be scheduled.
 
@@ -191,6 +190,7 @@ def generateNewOTList(possibleTTW: list[TTW], otListScheduled: list[OT], btListS
         possibleTTW (list[TTW]): List of target time windows that could still be used to schedule the unscheduled observation tasks.
         otListScheduled (list[OT]): List of observation tasks that have been successfully scheduled.
         btListScheduled (list[BT]): List of buffering tasks that have been successfully scheduled.
+        dtListScheduled (list[DT]): List of downlinking tasks that have been successfully scheduled.
         gstwList (list[GSTW]): List of ground station time windows.
         p (TransmissionParams): Parameters for the transmission scheduling.
 
@@ -203,9 +203,9 @@ def generateNewOTList(possibleTTW: list[TTW], otListScheduled: list[OT], btListS
             halfTime = (tw.start + tw.end) / 2
             # The new observation task will be centered, the insertion algorithms could always shift it if needed
             otCandidate = OT(ttw.GT, halfTime - p.captureDuration / 2, halfTime + p.captureDuration / 2)
-            # Check for a conflic of this OT with the already scheduled tasks and the new ones
+            # Check for a conflict of this OT with the already scheduled tasks and the new ones
             fullOTList = otListScheduled + newOTList
-            if not observationTaskConflicting(otCandidate, btListScheduled, fullOTList, gstwList, p):
+            if not observationTaskConflicting(otCandidate, btListScheduled, dtListScheduled, fullOTList, gstwList, p):
                 newOTList.append(otCandidate)
                 break
 
