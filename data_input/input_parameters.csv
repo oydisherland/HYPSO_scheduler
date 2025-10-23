@@ -1,7 +1,7 @@
 testName, H2Mission_run3
 
 # Scheduling specific parameters
-maxCaptures, 60
+maxCaptures, 23
 captureDuration, 60
 transitionTime, 660
 startTimeOH, 2025-10-17 14:40:00.000000+00:00
@@ -22,9 +22,9 @@ desNumber, 1
 bufferingTime, 1500
 afterCaptureTime, 600
 interTaskTime, 100
-interDownlinkTime, 5
 downlinkDuration, 217
 transmissionStartTime, 260
+overLappingWithCaptureSetback, 120
 
 # Transmission scheduling parameters
 minDownlinkFraction, 0.4

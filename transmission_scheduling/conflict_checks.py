@@ -1,6 +1,6 @@
 from scheduling_model import OT, BT, GSTW, TW, DT
 from transmission_scheduling.input_parameters import TransmissionParams
-from transmission_scheduling.util import getBufferClearedTimestamps, gstwToSortedTupleList
+from transmission_scheduling.util import getBufferClearedTimestamps, gstwToSortedTupleList, getAvailableDownlinkTime
 
 
 def getConflictingTasks(tw: TW, btList: list[BT], otList: list[OT], gstwList: list[GSTW], p: TransmissionParams, cancelEarly: bool = False):
@@ -82,15 +82,20 @@ def bufferTaskConflicting(bt: BT, btList: list[BT], otList: list[OT], dtList: li
     # Also check for the buffer file limit
     newBTList = btList.copy()
     newBTList.append(bt)
-    return hypso2BufferLimitConflicting(newBTList, dtList, gstwList, p)
+    return hypso2BufferLimitConflicting(otList, newBTList, dtList, gstwList, p)
 
-def observationTaskConflicting(ot: OT, btList: list[BT], otList: list[OT], gstwList: list[GSTW], p: TransmissionParams):
+
+def observationTaskConflicting(ot: OT, btList: list[BT], dtList: list[DT], otList: list[OT], gstwList: list[GSTW],
+                               p: TransmissionParams) -> bool:
     """
     Check if the observation task overlaps with any other scheduled tasks.
+    It is possible for observation tasks to be during ground station passes, but no transmission is possible during capturing.
+    That is why conflicts with ground station time windows are not checked but conflicts with downlink tasks are.
 
     Args:
         ot (OT): The observation task to validate.
         btList (list[BT]): List of all already scheduled buffering tasks.
+        dtList (list[DT]): List of all already scheduled downlink tasks plus the candidate downlink tasks.
         otList (list[OT]): List of all observation tasks.
         gstwList (list[GSTW]): List of all ground station time windows.
         p (TransmissionParams): Input parameters containing timing configurations.
@@ -102,22 +107,33 @@ def observationTaskConflicting(ot: OT, btList: list[BT], otList: list[OT], gstwL
     observationTimeWindow = TW(ot.start, ot.end + p.afterCaptureTime)
     # Remove instances of the observation task itself from the list
     otListOther = [otherOT for otherOT in otList if otherOT != ot]
-    conflictOTs, conflictBTs, conflictGSTWs = getConflictingTasks(observationTimeWindow, btList, otListOther, gstwList,
+    conflictOTs, conflictBTs, conflictGSTWs = getConflictingTasks(observationTimeWindow, btList, otListOther, [],
                                                                   p, True)
-    return bool(conflictOTs or conflictBTs or conflictGSTWs)
+    if bool(conflictOTs or conflictBTs or conflictGSTWs):
+        return True
 
+    # Check if there is still enough time in the ground station passes for all downlink tasks
+    candidateOtList = otListOther.copy()
+    candidateOtList.append(ot)
+    for gstw in gstwList:
+        for tw in gstw.TWs:
+            availableDownlinkTime = getAvailableDownlinkTime(tw, dtList, candidateOtList, p)
+            if availableDownlinkTime < 0.0:
+                return True
 
-def downlinkTaskConflicting(dt: DT, dtList: list[DT], p: TransmissionParams) -> bool:
+    return False
+
+def downlinkTaskConflicting(dt: DT, dtList: list[DT]) \
+        -> bool:
     """
     Check if the downlink task overlaps with any other scheduled downlink tasks.
 
     Args:
         dt (DT): The downlink task to validate.
         dtList (list[DT]): List of all already scheduled downlink tasks.
-        p (TransmissionParams): Input parameters containing timing configurations.
     """
     for otherDT in dtList:
-        if otherDT.end + p.interDownlinkTime <= dt.start or otherDT.start >= dt.end + p.interDownlinkTime:
+        if otherDT.end <= dt.start or otherDT.start >= dt.end:
             continue
         else:
             return True
@@ -125,8 +141,8 @@ def downlinkTaskConflicting(dt: DT, dtList: list[DT], p: TransmissionParams) -> 
     return False
 
 
-def hypso2BufferLimitConflicting(btList: list[BT], dtList: list[DT], gstwList: list[GSTW], p: TransmissionParams) \
-        -> bool:
+def hypso2BufferLimitConflicting(otList: list[OT], btList: list[BT], dtList: list[DT], gstwList: list[GSTW],
+                                 p: TransmissionParams) -> bool:
     """
     Check whether the buffer tasks scheduled would result in a conflict with the buffer size limit.
 
@@ -142,7 +158,7 @@ def hypso2BufferLimitConflicting(btList: list[BT], dtList: list[DT], gstwList: l
     """
 
     gstwSortedTupleList = gstwToSortedTupleList(gstwList)
-    bufferClearedTimestamps = getBufferClearedTimestamps(btList, dtList, gstwSortedTupleList)
+    bufferClearedTimestamps = getBufferClearedTimestamps(otList, btList, dtList, gstwSortedTupleList, p)
 
     # The buffer should be cleared at the end of the schedule
     lastGSTW = gstwSortedTupleList[-1]
