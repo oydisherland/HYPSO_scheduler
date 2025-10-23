@@ -74,7 +74,7 @@ def createCaptureCmdLine(observationTask_dt: OT, hypsoNr: int, quaternions: dict
                  f' % {observationMiddleTime} - Predicted Cloud cover: {row['Predicted Cloud cover:']:5.1f} % Estimated downlink complete: \n'
 
     return cmd_string
-def createBufferCmdLine(bufferTask_dt: BT, downlinkTask_dt: DT, hypsoNr: int, quaternions: dict): 
+def createBufferCmdLine(bufferTask_dt: BT, downlinkTask_dt: DT, captureTask_dt: OT, hypsoNr: int, quaternions: dict): 
     """ Create the command line for buffering an observation task
     Output:
     - cmd_string: one command line string that Hypso can parse
@@ -83,10 +83,11 @@ def createBufferCmdLine(bufferTask_dt: BT, downlinkTask_dt: DT, hypsoNr: int, qu
         print("Invalid hypsoNr")
         return None
     bufferTaskMiddleTime = algDataApi.getMiddleTime(bufferTask_dt.start, bufferTask_dt.end)
+    captureTaskMiddleTime = algDataApi.getMiddleTime(captureTask_dt.start, captureTask_dt.end)
 
     row = {}
     # Unix time
-    row['-u'] = algDataApi.convertToUnixTime(bufferTaskMiddleTime)
+    row['-u'] = algDataApi.convertToUnixTime(captureTaskMiddleTime)
     # DontKnow
     row['-s'] = None
     # DontKnow - Duration of buffering could be calculated based on image size
@@ -156,7 +157,7 @@ def createCmdLinesForCaptureAndBuffering(observationSchedule: list, bufferSchedu
         elif taskType == "Buffer":
             quaternions, ot = scheduledOTs.get(task.GT.id)
             downlinkTask = next((dt for dt in downlinkschedule_dt if dt.GT.id == task.GT.id), None)
-            newBufferCommandLine = createBufferCmdLine(task, downlinkTask, int(inputParameters.hypsoNr), quaternions)
+            newBufferCommandLine = createBufferCmdLine(task, downlinkTask, ot, int(inputParameters.hypsoNr), quaternions)
             cmdLines.append(newBufferCommandLine)
     return cmdLines
 def createCmdFile(txtFilepath, cmdLines):
@@ -227,8 +228,8 @@ def getScheduleFromCmdLine(targetFilePath: str,cmdLine: str, oh: OH, bufferDurat
         )
         return observationTask, 'Capture'
     elif '--buffer' in cmdDict:
-        startDateTime = algDataApi.convertFromUnixTime(int(cmdDict['-u'])) - timedelta(seconds=bufferDurationSec//2)
-        endDateTime = algDataApi.convertFromUnixTime(int(cmdDict['-u'])) + timedelta(seconds=bufferDurationSec//2)
+        startDateTime = datetime.datetime.fromisoformat(cmdDict['-t'].replace('Z', '+00:00')) - timedelta(seconds=bufferDurationSec//2)
+        endDateTime = datetime.datetime.fromisoformat(cmdDict['-t'].replace('Z', '+00:00')) + timedelta(seconds=bufferDurationSec//2)
         relativeStart = int((startDateTime - oh.utcStart).total_seconds())
         relativeEnd = int((endDateTime - oh.utcStart).total_seconds())
         bufferTask = BT(
