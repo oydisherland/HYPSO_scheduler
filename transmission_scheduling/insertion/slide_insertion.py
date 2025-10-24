@@ -216,7 +216,7 @@ class SlideInsertion(InsertionInterface):
         btListCandidate = btList.copy()
         for i, bt in enumerate(btList):
             if otToShift.start <= bt.start <= gapTW.start:
-                btListCandidate[i] = BT(bt.GT, -1, bt.start - backwardShift, bt.end - backwardShift)
+                btListCandidate[i] = BT(bt.OTTaskID, -1, bt.start - backwardShift, bt.end - backwardShift)
 
         # Check all buffers for conflict
         conflictingBuffer = False
@@ -230,7 +230,7 @@ class SlideInsertion(InsertionInterface):
             # The backward shift did not result in conflicts, so we can save the results
             otListModified = otListCandidate.copy()
             btListModified = btListCandidate.copy()
-            otToBufferShifted = shiftedOTBeforeGap if shiftedOTBeforeGap.GT == otToBuffer.GT else otToBuffer
+            otToBufferShifted = shiftedOTBeforeGap if shiftedOTBeforeGap.taskID == otToBuffer.taskID else otToBuffer
 
             return otToBufferShifted, otListModified, btListModified, backwardShift
         else:
@@ -294,11 +294,11 @@ class SlideInsertion(InsertionInterface):
                 if bt.start - otToShift.end == p.afterCaptureTime:
                     # This is the first buffer after the gap window
                     btListIndex = btListCandidate.index(bt)
-                    btListCandidate[btListIndex] = BT(bt.GT, -1, bt.start + forwardShift, bt.end + forwardShift)
+                    btListCandidate[btListIndex] = BT(bt.OTTaskID, -1, bt.start + forwardShift, bt.end + forwardShift)
                 elif bt.start - previousBT.end == p.interTaskTime:
                     # This is one of the buffers in the stack of buffers after the gap
                     btListIndex = btListCandidate.index(bt)
-                    btListCandidate[btListIndex] = BT(bt.GT, -1, bt.start + forwardShift, bt.end + forwardShift)
+                    btListCandidate[btListIndex] = BT(bt.OTTaskID, -1, bt.start + forwardShift, bt.end + forwardShift)
                 else:
                     # This is the first buffer after the gap that is not part of the chain of buffers after the capture, so we stop here
                     break
@@ -422,11 +422,11 @@ def shiftOT(ot: OT, ttwList: list[TTW], shiftForward: bool = True, shiftAmount: 
     if shiftForward:
         maxShift = otTW.end - ot.end
         actualShift = min(abs(shiftAmount), maxShift)
-        newOT = OT(ot.GT, ot.start + actualShift, ot.end + actualShift)
+        newOT = OT(ot.taskID, ot.GT, ot.start + actualShift, ot.end + actualShift)
     else:
         maxShift = ot.start - otTW.start
         actualShift = min(abs(shiftAmount), maxShift)
-        newOT = OT(ot.GT, ot.start - actualShift, ot.end - actualShift)
+        newOT = OT(ot.taskID, ot.GT, ot.start - actualShift, ot.end - actualShift)
 
     return newOT, actualShift
 

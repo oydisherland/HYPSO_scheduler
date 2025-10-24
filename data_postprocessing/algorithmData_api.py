@@ -11,9 +11,7 @@ import pandas as pd
 from datetime import timedelta
 from data_postprocessing.quaternions import generate_quaternions
 from data_input.satellite_positioning_calculations import createSatelliteObject, findSatelliteTargetElevation
-from scheduling_model import OH, OT, GT, BT, OH, DT, TW, TTW
-
-
+from scheduling_model import OT, GT, BT, OH, DT, TW, TTW, generateTaskID
 
 """ 
 - Create a function that takes in the test number as input, 
@@ -71,17 +69,17 @@ def saveAlgorithmDataInJsonFile(filepath: str, algorithmData: list):
 
 def getScheduleFromFile(filepath: str):
     """ Extract the list of scheduled targets from the JSON file, and recreate the GT and OT objects """
-
+    schedule = None
     try: 
         # Load the schedual data from the JSON file
         with open(filepath, mode='r') as file:
-            serialized_schedual = json.load(file)
+            serialized_schedule = json.load(file)
 
         # Reconstruct schedual from the serialized data
-        schedualData = [(entry["Ground Target"], entry["Start Time"], entry["End Time"]) for entry in serialized_schedual]
-        schedual = []
-        for i in range(len(schedualData)):
-            groundTarget = schedualData[i][0]
+        scheduleData = [(entry["Ground Target"], entry["Start Time"], entry["End Time"]) for entry in serialized_schedule]
+        schedule = []
+        for i in range(len(scheduleData)):
+            groundTarget = scheduleData[i][0]
             gt = GT(
                 id = groundTarget[0],
                 lat = float(groundTarget[1]),
@@ -93,18 +91,19 @@ def getScheduleFromFile(filepath: str):
             )
 
             scheduledOT = OT(
+                taskID = generateTaskID(gt.id, float(scheduleData[i][1])),
                 GT = gt,
-                start = float(schedualData[i][1]),
-                end = float(schedualData[i][2])
+                start = float(scheduleData[i][1]),
+                end = float(scheduleData[i][2])
             )
-            schedual.append(scheduledOT)
+            schedule.append(scheduledOT)
 
     except FileNotFoundError:
         print(f"File not found: {filepath}")
     except Exception as e:
         print(f"An error occurred: {e}")
 
-    return schedual
+    return schedule
 def getOHFromFile(filepath: str):
     """ Extract the utc start and end times, oh duration, oh delay and hypso number from file, and recreate the OH object"""
 
@@ -181,10 +180,13 @@ def getFinalPopulation(filepath: str):
                     lat = float(groundTarget[1]),
                     long = float(groundTarget[2]),
                     priority = int(groundTarget[3]),
-                    idealIllumination = int(groundTarget[4])
+                    cloudCoverage = groundTarget[4],
+                    exposureTime = groundTarget[5],
+                    captureMode = groundTarget[6]
                 )
 
                 scheduledOT = OT(
+                    taskID= generateTaskID(gt.id, float(schedualData[i][1])),
                     GT = gt,
                     start = float(schedualData[i][1]),
                     end = float(schedualData[i][2])
@@ -316,7 +318,7 @@ def convertBTListToDateTime(bufferScheduleWithRelativeTime: list, oh: OH) -> lis
         bufferEnd = oh.utcStart + timedelta(seconds=bt.end)
 
         btWithDatetime = BT(
-            GT=bt.GT,
+            OTTaskID=bt.OTTaskID,
             fileID=bt.fileID,
             start=bufferStart,
             end=bufferEnd
@@ -334,6 +336,7 @@ def convertOTListToDateTime(scheduleWithRelativeTime: list, oh: OH) -> list:
         captureEnd = relativeTimeToDateTime(ot.end, oh)
 
         otWithDatetime = OT(
+            taskID= ot.taskID,
             GT=ot.GT,
             start=captureStart,
             end=captureEnd
@@ -351,7 +354,7 @@ def convertDTListToDateTime(downlinkScheduleWithRelativeTime: list, oh: OH) -> l
         downlinkEnd = relativeTimeToDateTime(dt.end, oh)
 
         dtWithDatetime = DT(
-            GT=dt.GT,
+            OTTaskID=dt.OTTaskID,
             GS=dt.GS,
             start=downlinkStart,
             end=downlinkEnd

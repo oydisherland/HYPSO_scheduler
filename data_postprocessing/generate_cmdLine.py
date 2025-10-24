@@ -8,9 +8,7 @@ from data_preprocessing.parseTargetsFile import getTargetIdPriorityDictFromJson
 from data_input.utility_functions import InputParameters
 
 
-from scheduling_model import OH, OT, GT, BT, OH, DT
-
-
+from scheduling_model import OT, GT, BT, OH, DT, generateTaskID
 
 
 #### FUNCTIONS TO CREATE CAMPAIGN PLANNER COMMAND LINES ####
@@ -101,17 +99,17 @@ def createBufferCmdLine(bufferTask_dt: BT, downlinkTask_dt: DT, captureTask_dt: 
     # DontKnow
     row['-a'] = None
     # Geometry of capture
-    row['-p'] = bufferTask_dt.GT.captureMode
+    row['-p'] = captureTask_dt.GT.captureMode
     # Target name
-    row['-n'] = bufferTask_dt.GT.id
+    row['-n'] = captureTask_dt.GT.id
     # Latitude
-    row['-lat'] = float(bufferTask_dt.GT.lat)
+    row['-lat'] = float(captureTask_dt.GT.lat)
     # Longitude
-    row['-lon'] = float(bufferTask_dt.GT.long)
+    row['-lon'] = float(captureTask_dt.GT.long)
     # Elevation angle with sun
     row['--sunZenith'] = 45
     # Exposure time - get from targets.csv
-    row['-e'] = float(bufferTask_dt.GT.exposureTime)
+    row['-e'] = float(captureTask_dt.GT.exposureTime)
     # Quaternion r
     row['-r'] = quaternions['r']
     # Quaternion l
@@ -153,10 +151,10 @@ def createCmdLinesForCaptureAndBuffering(observationSchedule: list, bufferSchedu
             quaternions = algDataApi.calculateQuaternions(int(inputParameters.hypsoNr), groundTarget, task.start)
             newCaptureCommandLine = createCaptureCmdLine(task, int(inputParameters.hypsoNr), quaternions)
             cmdLines.append(newCaptureCommandLine)
-            scheduledOTs[task.GT.id] = [quaternions, task]  # Store quaternions and task for buffer use
+            scheduledOTs[task.taskID] = [quaternions, task]  # Store quaternions and task for buffer use
         elif taskType == "Buffer":
-            quaternions, ot = scheduledOTs.get(task.GT.id)
-            downlinkTask = next((dt for dt in downlinkschedule_dt if dt.GT.id == task.GT.id), None)
+            quaternions, ot = scheduledOTs.get(task.OTTaskID)
+            downlinkTask = next((dt for dt in downlinkschedule_dt if dt.OTTaskID == task.OTTaskID), None)
             newBufferCommandLine = createBufferCmdLine(task, downlinkTask, ot, int(inputParameters.hypsoNr), quaternions)
             cmdLines.append(newBufferCommandLine)
     return cmdLines
@@ -212,7 +210,6 @@ def getScheduleFromCmdLine(targetFilePath: str,cmdLine: str, oh: OH, bufferDurat
             exposureTime=cmdDict['-e'],
             captureMode=cmdDict['-p']
         )
-
     if '--capture' in cmdDict:
         # convert start and end time to relative time
         startDateTime = algDataApi.convertFromUnixTime(int(cmdDict['-u'])) - timedelta(seconds=captureDurationSec//2)
@@ -222,6 +219,7 @@ def getScheduleFromCmdLine(targetFilePath: str,cmdLine: str, oh: OH, bufferDurat
 
         
         observationTask = OT(
+            taskID = generateTaskID(gt.id, relativeStart),
             GT = gt,
             start = relativeStart,
             end = relativeEnd
@@ -230,17 +228,20 @@ def getScheduleFromCmdLine(targetFilePath: str,cmdLine: str, oh: OH, bufferDurat
     elif '--buffer' in cmdDict:
         startDateTime = datetime.datetime.fromisoformat(cmdDict['-t'].replace('Z', '+00:00')) - timedelta(seconds=bufferDurationSec//2)
         endDateTime = datetime.datetime.fromisoformat(cmdDict['-t'].replace('Z', '+00:00')) + timedelta(seconds=bufferDurationSec//2)
+        startDateTimeOT = algDataApi.convertFromUnixTime(int(cmdDict['-u'])) - timedelta(seconds=captureDurationSec//2)
+        relativeStartOT = int((startDateTimeOT - oh.utcStart).total_seconds())
+
         relativeStart = int((startDateTime - oh.utcStart).total_seconds())
         relativeEnd = int((endDateTime - oh.utcStart).total_seconds())
         bufferTask = BT(
-                    GT = gt,
+                    OTTaskID = generateTaskID(gt.id, relativeStartOT),
                     fileID = int(cmdLine.split(" -b ")[1].split(" ")[0]),
                     start = relativeStart,
                     end = relativeEnd
                 )
         return bufferTask, 'Buffer'
     else:
-        return observationTask, 'Unknown'
+        raise Exception("Unknown command type in command line")
 
 def recreateOTListFromCmdFile(targetFilePath: str, cmdFilePath: str, oh: OH, bufferDurationSec: int, captureDurationSec: int = 60):
     """ Reads a command file and recreates the list of OT objects from the command lines
@@ -284,7 +285,7 @@ def recreateDTListFromCmdFile(targetFilePath: str, cmdFilePath: str, oh: OH, buf
                 estimatedEndTime = datetime.datetime.strptime(estimatedEndTime, "%Y-%m-%d %H:%M:%S").replace(tzinfo=datetime.timezone.utc)
 
                 dt = DT(
-                    GT = bt.GT,
+                    OTTaskID = bt.OTTaskID,
                     GS = None,  # Ground station info not available in cmd line
                     start = estimatedEndTime - timedelta(seconds=bufferDurationSec),
                     end = estimatedEndTime

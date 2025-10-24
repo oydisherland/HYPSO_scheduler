@@ -157,9 +157,11 @@ def createGSTWList(startTimeOH: datetime, endTimeOH: datetime, minWindowLength: 
         list[GSTW]: List of ground stations and their time windows.
     """
 
-    # Bookings at KSAT Svalbard ground station are only made 3 days in advance
+    # Bookings at KSAT Svalbard ground station are only made 3 days in advance and past bookings are not available via the API
     now = datetime.now(timezone.utc)
-    if (endTimeOH - now).total_seconds() < 3 * 24 * 3600:
+    if (endTimeOH - now).total_seconds() < 3 * 24 * 3600 and  \
+        (startTimeOH - now).total_seconds() > 0:
+
         return getBookedGSTWList(startTimeOH, endTimeOH, hypsoNr, commInterface)
 
     return createGSTWListFromFile(startTimeOH, endTimeOH, minWindowLength, hypsoNr, groundStationsFilePath)

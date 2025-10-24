@@ -156,7 +156,6 @@ def destroyOperator(otList: list, ttwList: list, destroyNumber: int, destroyType
             for ot in otListCopy:
                 if ot.GT.id == ttw.GT.id:
                     otListSorted.append(ot)
-                    break
 
     else:
         print("Destroy type not found")

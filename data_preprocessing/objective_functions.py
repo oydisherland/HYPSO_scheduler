@@ -32,12 +32,16 @@ def objectiveFunctionImageQuality(otList:list, oh: OH, hypsoNr: int) -> float:
         utcTime = oh.utcStart + datetime.timedelta(seconds=captureTimeMiddel)
         # Round the utcTime down to 10 seconds to estimate the elevation more efficiently
         unixTime = calendar.timegm(utcTime.utctimetuple()) + utcTime.microsecond / 1e6
-        unixTimeRounded = int(unixTime // 10)
+        unixTimeRounded = round(unixTime, -1)
 
-        if (ot.GT.id, unixTimeRounded) not in imageQualityDict:
-            imageQualityDict[(ot.GT.id, unixTimeRounded)] = findSatelliteTargetElevation(float(ot.GT.lat), float(ot.GT.long), utcTime, hypsoNr)
+        # Round position down to 1 decimal, which gives around 10km resolution
+        latRounded = round(float(ot.GT.lat), 1)
+        longRounded = round(float(ot.GT.long), 1)
 
-        elevation = imageQualityDict[(ot.GT.id, unixTimeRounded)]
+        if (latRounded, longRounded, unixTimeRounded) not in imageQualityDict:
+            imageQualityDict[(latRounded, longRounded, unixTimeRounded)] = findSatelliteTargetElevation(float(ot.GT.lat), float(ot.GT.long), utcTime, hypsoNr)
+
+        elevation = imageQualityDict[(latRounded, longRounded, unixTimeRounded)]
 
         if elevation < 0:
             # This should not happen
