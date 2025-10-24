@@ -53,7 +53,7 @@ def arrangeBufferSchedulePriority(btList: list[BT], otList: list[OT]):
         # Find the first bt after the ot and assign the ground target to the buffer task
         for i, bt in enumerate(btListTimeSorted):
             if bt.start >= ot.start:
-                newBT = BT(ot.GT, -1, bt.start, bt.end)
+                newBT = BT(ot.taskID, -1, bt.start, bt.end)
                 btListPrioSorted.append(newBT)
                 btListTimeSorted.pop(i)
                 break
@@ -73,7 +73,7 @@ def arrangeBufferScheduleFIFO(btList: list[BT], otList: list[OT]):
         return btList
 
     for i, bt in enumerate(btListTimeSorted):
-        newBT = BT(otListTimeSorted[i].GT, -1, bt.start, bt.end)
+        newBT = BT(otListTimeSorted[i].taskID, -1, bt.start, bt.end)
         btListCleaned.append(newBT)
 
     return btListCleaned
@@ -95,7 +95,7 @@ def assignBufferIDs(otList: list[OT], btList: list[BT], dtList: list[DT], gstwLi
     btListIDAssigned: list[BT] = []
     for bt in btListSorted:
         highestIDFree = getHighestFreeBufferID(bt, btListIDAssigned, bufferClearedTimestamps, p)
-        newBT = BT(bt.GT, highestIDFree, bt.start, bt.end)
+        newBT = BT(bt.OTTaskID, highestIDFree, bt.start, bt.end)
         btListIDAssigned.append(newBT)
 
     return btListIDAssigned
@@ -119,7 +119,7 @@ def regenerateDownlinkSchedule(otList: list[OT], btList: list[BT], gstwList: lis
             # Find the list of future GSTW that could be used to downlink the remaining data if needed
             nextGSTWList: list[tuple[GS, TW]]  # Storing the GS passes in this form is more convenient
             nextGSTWList = closestGSTWSorted[i + 1:] if i + 1 < len(closestGSTWSorted) else []
-            newDT = generateDownlinkTask(otList, gstw, nextGSTWList, dtListCleaned, bt.GT, p)
+            newDT = generateDownlinkTask(otList, gstw, nextGSTWList, dtListCleaned, bt.OTTaskID, p)
             if newDT is not None:
                 # Valid downlink task(s) were generated
                 dtListCleaned = dtListCleaned + newDT

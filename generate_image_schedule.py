@@ -99,7 +99,6 @@ print(f"Total number of observation tasks: {len(observationSchedule)}")
 saveplotPathCompare = os.path.join(os.path.dirname(__file__), f"output/{inputParameters.testName}_compare_schedule")
 
 plotCompareSchedule(
-    observationSchedule,
     otList,
     observationSchedule,
     bufferSchedule,

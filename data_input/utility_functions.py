@@ -33,7 +33,6 @@ class InputParameters:
     durationInDaysOH: int
     delayInHoursOH: int
     hypsoNr: int
-    commInterface: str
 
     # Algorithm specific parameters
     populationSize: int
@@ -61,6 +60,7 @@ class InputParameters:
     maxBufferFilesH1: int
     bufferStartIDH2: int
     bufferStartIDH1: int
+    commInterface: str
 
     @classmethod
     def from_csv(cls, filepath: str):
