@@ -231,12 +231,13 @@ class AnalyseTest:
         scenario = self.scenarios[scenarioIndex]
         algDataAllRuns = scenario.getAlgorithmDataAllRuns()
         algData = algDataAllRuns[runIndex]  
+        iterationData, bestIndex = algData
 
         # Create the plot
         fig, ax = plt.subplots(figsize=(12, 8))
         
         # Create a colormap for different iterations
-        num_iterations = len(algData)
+        num_iterations = len(iterationData)
         custom_colors = ['#03045E', '#023E8A', '#0077B6', '#00A8E0', '#48CAE4', '#90E0EF']
 
         # Create a custom colormap
@@ -244,7 +245,7 @@ class AnalyseTest:
         colors = custom_cmap(np.linspace(0, 1, num_iterations))
         
         for iteration in range(num_iterations):
-            fronts, objectiveSpace, _ = algData[iteration]
+            fronts, objectiveSpace, _ = iterationData[iteration]
             
             # Get the Pareto front (first front)
             if len(fronts) > 0 and len(fronts[0]) > 0:
@@ -255,14 +256,28 @@ class AnalyseTest:
                 priorities = [point[0] for point in pareto_front_points]
                 image_qualities = [point[1] for point in pareto_front_points]
                 
+                finalParetoFront = True if iteration == num_iterations - 1 else False
+                
                 # Plot the Pareto front for this iteration
                 ax.scatter(priorities, image_qualities, 
-                        c=[colors[iteration]], 
                         alpha=0.7, 
                         s=50, 
                         label=f'Iteration {iteration + 1}',
-                        marker='o')
-        
+                        marker='o',
+                        facecolors='none' if finalParetoFront else colors[iteration],
+                        edgecolors= colors[0] if finalParetoFront else 'none',)
+                
+                # print a cirkle around the kneepoint in the final pareto front
+                if finalParetoFront:
+                    kneePoint = objectiveSpace[bestIndex]
+                    # Plot a big circle around the knee point
+                    ax.scatter(kneePoint[0], kneePoint[1], 
+                            facecolors='none',
+                            edgecolors=colors[1],  # circle for visibility
+                            s=200,  # Large size
+                            linewidth=3,  # Thick edge
+                            marker='o',
+                            label='Knee Point')
         # Customize the plot
         ax.set_xlabel('Priority', fontsize=12)
         ax.set_ylabel('Image Quality', fontsize=12)
@@ -309,7 +324,7 @@ def descaleObjectiveValues(scenario: TestScenario, scaledObjectiveValues: tuple)
 
 scenarioIds = ["1", "2"]
 
-analyse = AnalyseTest('H2Mission22.10_v4')
+analyse = AnalyseTest('H2Mission22.10_v6')
 analyse.plotParetoFrontEvolution(scenarioIndex=0, runIndex=0)
 ## Calculate objective values for cmd files
 

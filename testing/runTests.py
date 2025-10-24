@@ -7,11 +7,13 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 
 
 
-algorithmRuns = 1
+algorithmRuns = 20
 
 ## Define test scenarios
 scenarios = [
-    TestScenario(senarioID="test", startOH="2025-10-23T13:00:00Z", algorithmRuns=algorithmRuns),
+    TestScenario(senarioID="_H2Miss24-10", startOH="2025-10-24T14:30:00Z", algorithmRuns=algorithmRuns),
+    TestScenario(senarioID="_H2Miss25-10", startOH="2025-10-25T14:30:00Z", algorithmRuns=algorithmRuns),
+    TestScenario(senarioID="_H2Miss26-10", startOH="2025-10-26T14:30:00Z", algorithmRuns=algorithmRuns),
 ]
 capturesMax = [26]
 
