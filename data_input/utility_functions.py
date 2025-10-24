@@ -33,6 +33,7 @@ class InputParameters:
     durationInDaysOH: int
     delayInHoursOH: int
     hypsoNr: int
+    commInterface: str
 
     # Algorithm specific parameters
     populationSize: int
@@ -74,6 +75,7 @@ class InputParameters:
             durationInDaysOH=int(params_dict['durationInDaysOH']),
             delayInHoursOH=int(params_dict['delayInHoursOH']),
             hypsoNr=int(params_dict['hypsoNr']),
+            commInterface=params_dict['commInterface'],
             populationSize=int(params_dict['populationSize']),
             isTabooBankFIFO=params_dict['isTabooBankFIFO'].lower() == 'true',
             iqNonLinear=params_dict['iqNonLinear'].lower() == 'true',
