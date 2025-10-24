@@ -53,7 +53,7 @@ class AnalyseTest:
 
             # Recreate observation schedules from cp_planner
             cp_cmdFilePath = os.path.join(os.path.dirname(__file__), f"../testing/testing_results/OH{scenarioId}/{scenarioId}_cp_cmdLines.txt")
-            targetFilePath = os.path.join(os.path.dirname(__file__), f"../data_input/HYPSO_data/targets.json")
+            targetFilePath = os.path.join(os.path.dirname(__file__), f"../data_input/HYPSO_data/targets.json") 
             oh = scenario.getOh()
             inputParameters = scenario.getInputParameters()
             cp_otList = recreateOTListFromCmdFile(targetFilePath, cp_cmdFilePath, oh, inputParameters.bufferingTime, inputParameters.captureDuration)
@@ -324,7 +324,7 @@ def descaleObjectiveValues(scenario: TestScenario, scaledObjectiveValues: tuple)
 
 scenarioIds = ["1", "2"]
 
-analyse = AnalyseTest('H2Mission22.10_v6')
+analyse = AnalyseTest('_H2Miss24-10')
 analyse.plotParetoFrontEvolution(scenarioIndex=0, runIndex=0)
 ## Calculate objective values for cmd files
 

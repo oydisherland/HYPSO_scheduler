@@ -7,7 +7,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 
 
 
-algorithmRuns = 20
+algorithmRuns = 1
 
 ## Define test scenarios
 scenarios = [
@@ -19,16 +19,12 @@ capturesMax = [26]
 
 # Run test scenarios
 print(f"Running a total of {len(scenarios)} test scenarios...")
-for scenario, maxC in zip(scenarios, capturesMax):
+for scenario in scenarios:
     print(f"Scenario OH{scenario.senarioID} starting at {scenario.startOH} with {scenario.algorithmRuns} algorithm runs")
     scenario.createInputAttributes(
         os.path.join(os.path.dirname(__file__),"../data_input/input_parameters.csv"), 
     )
     #scenario.recreateInputAttributes()
-    # ip = scenario.getInputParameters()
-    # ip.maxCaptures = maxC
-    # scenario.setInputParameters(ip)
-    #
     scenario.runTestScenario()
 
 
