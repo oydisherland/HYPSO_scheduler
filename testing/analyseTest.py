@@ -131,6 +131,7 @@ class AnalyseTest:
             for obsSched in obsSchedsAllRuns:
                 for ot in obsSched:
                     targetCount_NA[ot.GT.id] += 1
+            targetCount_NA = {k: v / len(obsSchedsAllRuns) for k, v in targetCount_NA.items()}  # Average over all runs
             for ot in cp_otList:
                 targetCount_CP[ot.GT.id] += 1
             
@@ -156,8 +157,8 @@ class AnalyseTest:
                         label='NSGA-II Algorithm', color='#03045E', alpha=0.8)
             
             # Top bars (CP counts) - stacked on top of NA counts
-            bars2 = ax.bar(x_positions, cp_counts, bar_width, 
-                        bottom=na_counts, label='CP Planner', color='#00A8E0', alpha=0.8)
+            bars2 = ax.bar(x_positions, [-count for count in cp_counts], bar_width, 
+                        label='CP Planner', color='#00A8E0', alpha=0.8)
             
             # Customize the plot 
             ax.set_xlabel('Target ID', fontsize=12)
@@ -169,14 +170,28 @@ class AnalyseTest:
             ax.legend()
             ax.grid(True, alpha=0.3, axis='y')
             
+            # Add horizontal line at y=0 (x-axis in the middle)
+            ax.axhline(y=0, color='black', linewidth=0.8)
+            
             # Add value labels on bars
-            for j, (na_count, cp_count) in enumerate(zip(na_counts, cp_counts)):
-                total = na_count + cp_count
-                if total > 0:
-                    ax.text(j, total + 0.1, str(total), ha='center', va='bottom', fontweight='bold')
+            # for j, (na_count, cp_count) in enumerate(zip(na_counts, cp_counts)):
+            #     if na_count > 0:
+            #         ax.text(j, na_count + 0.1, f'{na_count:.1f}' if na_count % 1 != 0 else f'{int(na_count)}', 
+            #             ha='center', va='bottom', fontweight='bold')
+            #     if cp_count > 0:
+            #         ax.text(j, -cp_count - 0.1, str(int(cp_count)), 
+            #             ha='center', va='top', fontweight='bold')
+            
+            # Set y-axis to show positive values on both sides of zero
+            max_count = max(max(na_counts), max(cp_counts))
+            ax.set_ylim(-max_count - 1, max_count + 1)
+            
+            # Customize y-axis labels to show absolute values
+            y_ticks = ax.get_yticks()
+            ax.set_yticklabels([abs(int(tick)) for tick in y_ticks])
             
             plt.tight_layout()
-            plt.show()           
+            plt.show()    
     def plotNumberOfCapturedTargets(self):
         """ Plot the number of unique targets captured in each scenario """
         # Calculate averages for NSGA-II algorithm
@@ -297,35 +312,13 @@ class AnalyseTest:
         plt.tight_layout()
         plt.show()
 
+scenarioIds = ["_H2Miss24-10", "_H2Miss25-10", "_H2Miss26-10"]
 
-def scaleObjectiveValues(scenario: TestScenario, objectiveValues: tuple) -> tuple:
-    """ Scale the objective values to [0, 1] range for better visualization """
-    # Assume the max priority score is if the max amount of captures is scheduled with the highest priority found
-    maxCapturePriority = max([ttw.GT.priority for ttw in scenario.getTTWList()])
-    maxPrioritySchedule = scenario.getSchedulingParameters().maxCaptures * maxCapturePriority
-    # Max image quality score is an average of 90 degrees elevation
-    imageQualityMax = 90
-    priority = objectiveValues[0] / maxPrioritySchedule
-    # TODO make the scaling of image quality clearer and easier to adjust
-    imageQuality = objectiveValues[1] / imageQualityMax * 0.25
-    return (priority, imageQuality)
-
-def descaleObjectiveValues(scenario: TestScenario, scaledObjectiveValues: tuple) -> tuple:
-    """ Descale the objective values from [0, 1] range back to original values """
-    # Assume the max priority score is if the max amount of captures is scheduled with the highest priority found
-    maxCapturePriority = max([ttw.GT.priority for ttw in scenario.getTTWList()])
-    maxPrioritySchedule = scenario.getInputParameters().maxCaptures * maxCapturePriority
-    # Max image quality score is an average of 90 degrees elevation
-    imageQualityMax = 90
-    priority = scaledObjectiveValues[0] * maxPrioritySchedule
-    # TODO make the scaling of image quality clearer and easier to adjust
-    imageQuality = scaledObjectiveValues[1] / 0.25 * imageQualityMax
-    return (priority, imageQuality)
-
-scenarioIds = ["1", "2"]
-
-analyse = AnalyseTest('_H2Miss24-10')
-analyse.plotParetoFrontEvolution(scenarioIndex=0, runIndex=0)
+analyse = AnalyseTest(scenarioIds)
+# analyse.plotParetoFrontEvolution(scenarioIndex=0, runIndex=0)
+# analyse.plotObjectiveValues()
+#analyse.plotNumberOfCapturedTargets()
+analyse.plotTargetsChosen()
 ## Calculate objective values for cmd files
 
 # pathToCp_cmd = os.path.join(os.path.dirname(__file__), "../testing/testing_results/OHH2Mission22.10_v4/H2Mission22.10_cp_cmdLine.txt")

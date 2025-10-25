@@ -1,21 +1,39 @@
 
 import os
 import sys
-
+import time
+from contextlib import contextmanager
 from test_scenario import TestScenario
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
+@contextmanager
+def timer(description="Operation"):
+    start_time = time.time()
+    print(f"{description} started...")
+    try:
+        yield
+    finally:
+        end_time = time.time()
+        execution_time = end_time - start_time
+        print(f"{description} completed in {execution_time:.2f} seconds ({execution_time/60:.2f} minutes)")
 
 
-algorithmRuns = 1
+algorithmRuns = 10
+
+s = TestScenario(senarioID="_H2Miss24-10")
+ip = s.getInputParameters()
+ip.populationSize = 20
+ip.alnsRuns = 20
+
 
 ## Define test scenarios
 scenarios = [
-    TestScenario(senarioID="_H2Miss24-10", startOH="2025-10-24T14:30:00Z", algorithmRuns=algorithmRuns),
-    TestScenario(senarioID="_H2Miss25-10", startOH="2025-10-25T14:30:00Z", algorithmRuns=algorithmRuns),
     TestScenario(senarioID="_H2Miss26-10", startOH="2025-10-26T14:30:00Z", algorithmRuns=algorithmRuns),
 ]
-capturesMax = [26]
+
+    # TestScenario(senarioID="_H2Miss25-10", startOH="2025-10-25T14:30:00Z", algorithmRuns=algorithmRuns),
+    # TestScenario(senarioID="_H2Miss26-10", startOH="2025-10-26T14:30:00Z", algorithmRuns=algorithmRuns),
+
 
 # Run test scenarios
 print(f"Running a total of {len(scenarios)} test scenarios...")
@@ -24,8 +42,10 @@ for scenario in scenarios:
     scenario.createInputAttributes(
         os.path.join(os.path.dirname(__file__),"../data_input/input_parameters.csv"), 
     )
+    scenario.setInputParameters(ip)
     #scenario.recreateInputAttributes()
-    scenario.runTestScenario()
+    with timer(f"Scenario OH{scenario.senarioID}"):
+        scenario.runTestScenario()
 
 
 # #Analyse tests

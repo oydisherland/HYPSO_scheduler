@@ -56,10 +56,18 @@ class TestScenario:
             if not os.path.exists(testfolderPath):
                 raise FileNotFoundError(f"Invalid scenarioId, no corresponding output exists.")
             
-            # Find start time OH
+            # Find input parameters
             pathInputParamsFile = os.path.join(testfolderPath,"input_parameters.json")
-            inputParameters = InputParameters.from_json(pathInputParamsFile)
-            self.startOH = inputParameters.startTimeOH
+            self._inputParameters = InputParameters.from_json(pathInputParamsFile)
+            
+            # Find start OH time
+            pathOHFile = os.path.join(testfolderPath,"oh.json")
+            with open(pathOHFile, "r") as f:
+                ohData = json.load(f)
+            self._oh = OH(
+                utcStart = datetime.datetime.fromisoformat(ohData["utcStart"].replace('Z', '+00:00')),
+                utcEnd = datetime.datetime.fromisoformat(ohData["utcEnd"].replace('Z', '+00:00'))
+            )
 
             # Find number of algorithm runs
             outputfolderPath = os.path.join(testfolderPath, "cmdLines")
@@ -210,6 +218,8 @@ class TestScenario:
                 int(self._inputParameters.desNumber),
                 int(self._inputParameters.maxTabBank)
             )
+            if bufferSchedule is None or downlinkSchedule is None:
+                raise ValueError("Error in transmission scheduling, no buffer or downlink schedule created.")
             # Clean up schedule for transmission
             bufferSchedule, downlinkSchedule = cleanUpSchedule(
                 observationSchedule,
