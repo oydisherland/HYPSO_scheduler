@@ -36,7 +36,7 @@ oh = createOH(datetime.datetime.fromisoformat(inputParameters.startTimeOH), int(
 transmissionParameters = getTransmissionInputParams(inputParametersFilePath)
 
 # Create data Objects
-ttwList = createTTWList( int(inputParameters.captureDuration), oh, int(inputParameters.hypsoNr), ttwListFilePath, ttwListFilePath)
+ttwList = createTTWList( int(inputParameters.captureDuration), oh, int(inputParameters.hypsoNr))
 gstwList = createGSTWList(oh.utcStart, oh.utcEnd, transmissionParameters.minGSWindowTime, int(inputParameters.hypsoNr))
 
 # Create observation schedule
@@ -66,7 +66,6 @@ bufferSchedule, downlinkSchedule = cleanUpSchedule(
 )
 saveplotPathCompare = os.path.join(os.path.dirname(__file__), f"output/{inputParameters.testName}_schedule")
 plotSchedule(
-    observationSchedule,
     observationSchedule,
     bufferSchedule,
     downlinkSchedule,
@@ -100,7 +99,6 @@ print(f"Total number of observation tasks: {len(observationSchedule)}")
 saveplotPathCompare = os.path.join(os.path.dirname(__file__), f"output/{inputParameters.testName}_compare_schedule")
 
 plotCompareSchedule(
-    observationSchedule,
     otList,
     observationSchedule,
     bufferSchedule,

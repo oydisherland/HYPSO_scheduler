@@ -19,13 +19,8 @@ def findPossibleTTW(ttwListToUpdate: list[TTW], otListLastInsertionAttempt: list
     Returns:
         list[TTW]: List of target time windows that could still be used to schedule the unscheduled observation tasks.
     """
-    # Find the observation tasks that could not be scheduled
-    otListUnscheduled = otListLastInsertionAttempt.copy()
-    for otScheduled in scheduledOTList:
-        for ot in otListLastInsertionAttempt:
-            if ot.GT == otScheduled.GT:
-                otListUnscheduled.remove(ot)
-                break
+    # Find the observation tasks of the ground targets that could not be scheduled
+    otListUnscheduled = [ot for ot in otListLastInsertionAttempt if not any(ot.GT == otScheduled.GT for otScheduled in scheduledOTList)]
 
     if not fullReinsert:
         # We only want to find TTWs for targets that failed to be scheduled by the transmission scheduler
@@ -48,7 +43,6 @@ def findPossibleTTW(ttwListToUpdate: list[TTW], otListLastInsertionAttempt: list
                     if otUnscheduled.start >= tw.start and otUnscheduled.end <= tw.end:
                         ttw.TWs.remove(tw)
                         break
-                break
 
     return ttwListUnscheduled
 
@@ -116,16 +110,16 @@ def latencyCounter(otList: list[OT], dtList: list[DT]):
     """
     dtListSorted = sorted(dtList, key=lambda x: x.start, reverse=True)
     dtListUnique: list[DT] = []
-    seenGTs = set()
+    seenTaskIDs = set()
     for dt in dtListSorted:
-        if dt.GT not in seenGTs:
+        if dt.OTTaskID not in seenTaskIDs:
             dtListUnique.append(dt)
-            seenGTs.add(dt.GT)
+            seenTaskIDs.add(dt.OTTaskID)
 
     latencyList = []
     for ot in otList:
         for dt in dtListUnique:
-            if ot.GT == dt.GT:
+            if ot.taskID == dt.OTTaskID:
                 latency = dt.start - ot.end
                 latencyList.append(latency)
                 break
@@ -175,9 +169,9 @@ def getBufferClearedTimestamps(otList: list[OT], btList: list[BT], dtList: list[
     # Store the last part of all the downlink tasks
     dtDictUnique: dict = {}
     for dt in dtList:
-        existing = dtDictUnique.get(dt.GT)
+        existing = dtDictUnique.get(dt.OTTaskID)
         if existing is None or dt.start > existing.start:
-            dtDictUnique[dt.GT] = dt
+            dtDictUnique[dt.OTTaskID] = dt
 
     # Now that we have found the GS passes with no buffering tasks in between them,
     # verify that the buffer is empty enough before the first of these two passes
@@ -237,22 +231,21 @@ def getAvailableDownlinkTime(tw: TW, dtList: list[DT], otList: list[OT], p: Tran
 
     return availableTime
 
-def plotSchedule(otListMod: list[OT], otList: list[OT], btList: list[BT], dtList: list[DT], gstwList: list[GSTW],
+def plotSchedule(otList: list[OT], btList: list[BT], dtList: list[DT], gstwList: list[GSTW],
                  ttwList: list[TTW], p: TransmissionParams, savePlotPath=None):
     otListPrio = sorted(otList, key=lambda x: x.GT.priority, reverse=True)
-    otListModPrio = sorted(otListMod, key=lambda x: x.GT.priority, reverse=True)
-    btListPrio = sorted(btList, key=lambda x: x.GT.priority, reverse=True)
-    dtListPrio = sorted(dtList, key=lambda x: x.GT.priority, reverse=True)
+    taskIDPrio = [ot.taskID for ot in otListPrio]
+    taskIDPrio.insert(0, -1)  # So that taskID 0 is at index 1
 
     # Also some printing of metrics
     print(" ")
-    print(f"Number of scheduled observation tasks: {len(otListModPrio)}")
-    latencyCounter(otListModPrio, dtListPrio)
+    print(f"Number of scheduled observation tasks: {len(otListPrio)}")
+    latencyCounter(otListPrio, dtList)
 
     fig, ax = plt.subplots(figsize=(30, 5))
 
     # Observation Tasks (blue)
-    for i, ot in enumerate(otListModPrio, start=1):
+    for i, ot in enumerate(otListPrio, start=1):
         ax.barh(
             y=0,
             width=ot.end - ot.start,
@@ -266,28 +259,7 @@ def plotSchedule(otListMod: list[OT], otList: list[OT], btList: list[BT], dtList
         ax.text(
             x=ot.start + (ot.end - ot.start) / 2,
             y=0 - (i % 3) * 0.04,  # below y=0 row
-            s=str(i),
-            ha="center",
-            va="top",
-            fontsize=10,
-            color="black"
-        )
-
-    for i, ot in enumerate(otListPrio, start=1):
-        ax.barh(
-            y=-0.5,
-            width=ot.end - ot.start,
-            left=ot.start,
-            height=0.3,
-            color="darkgrey",
-            alpha=1,
-            label="OT original" if i == 1 else ""
-        )
-        # Label under the box
-        ax.text(
-            x=ot.start + (ot.end - ot.start) / 2,
-            y=-0.5 - (i % 3) * 0.04,  # below y=0 row
-            s=str(i),
+            s= str(taskIDPrio.index(ot.taskID)),
             ha="center",
             va="top",
             fontsize=10,
@@ -295,7 +267,7 @@ def plotSchedule(otListMod: list[OT], otList: list[OT], btList: list[BT], dtList
         )
 
     # Buffering Tasks (orange)
-    for i, bt in enumerate(btListPrio, start=1):
+    for i, bt in enumerate(btList, start=1):
         ax.barh(
             y=0.5,
             width=bt.end - bt.start,
@@ -308,7 +280,7 @@ def plotSchedule(otListMod: list[OT], otList: list[OT], btList: list[BT], dtList
         ax.text(
             x=bt.start + (bt.end - bt.start) / 2,
             y= 0.62 - (i % 5) * 0.02,  # below y=0.5 row
-            s=str(i),
+            s=str(taskIDPrio.index(bt.OTTaskID)),
             ha="center",
             va="top",
             fontsize=10,
@@ -360,12 +332,7 @@ def plotSchedule(otListMod: list[OT], otList: list[OT], btList: list[BT], dtList
             )
 
     # Add DTlist plotting
-    previousGT = None
-    gtId = 0
-    for i, dt in enumerate(dtListPrio, start=1):
-        if dt.GT != previousGT:
-            previousGT = dt.GT
-            gtId += 1
+    for i, dt in enumerate(dtList, start=1):
         ax.barh(
             y=1.5,
             width=dt.end - dt.start,
@@ -378,7 +345,7 @@ def plotSchedule(otListMod: list[OT], otList: list[OT], btList: list[BT], dtList
         ax.text(
             x=dt.start + (dt.end - dt.start) / 2,
             y=1.75 - (i % 11) * 0.05,  # below y=1.5 row
-            s=str(gtId),
+            s=str(taskIDPrio.index(dt.OTTaskID)),
             ha="center",
             va="top",
             fontsize=10,
@@ -396,23 +363,23 @@ def plotSchedule(otListMod: list[OT], otList: list[OT], btList: list[BT], dtList
         plt.show()
 
 
-def plotCompareSchedule(otListMod: list[OT], otListCp: list[OT], otList: list[OT], btList: list[BT], dtList: list[DT], gstwList: list[GSTW],
+def plotCompareSchedule(otListCp: list[OT], otList: list[OT], btList: list[BT], dtList: list[DT], gstwList: list[GSTW],
                  ttwList: list[TTW], p: TransmissionParams, savePlotPath=None):
-    
+
     otListPrio = sorted(otList, key=lambda x: x.GT.priority, reverse=True)
-    otListModPrio = sorted(otListMod, key=lambda x: x.GT.priority, reverse=True)
-    btListPrio = sorted(btList, key=lambda x: x.GT.priority, reverse=True)
-    dtListPrio = sorted(dtList, key=lambda x: x.GT.priority, reverse=True)
+    otListCPPrio = sorted(otListCp, key=lambda x: x.GT.priority, reverse=True)
+    taskIDPrio = [ot.taskID for ot in otListPrio]
+    taskIDPrio.insert(0, -1)  # So that taskID 0 is at index 1
 
     # Also some printing of metrics
     print(" ")
-    print(f"Number of scheduled observation tasks: {len(otListModPrio)}")
-    latencyCounter(otListModPrio, dtListPrio)
+    print(f"Number of scheduled observation tasks: {len(otListPrio)}")
+    latencyCounter(otListPrio, dtList)
 
     fig, ax = plt.subplots(figsize=(30, 5))
 
     # Observation Tasks (blue)
-    for i, ot in enumerate(otListModPrio, start=1):
+    for i, ot in enumerate(otListPrio, start=1):
         ax.barh(
             y=0,
             width=ot.end - ot.start,
@@ -426,28 +393,7 @@ def plotCompareSchedule(otListMod: list[OT], otListCp: list[OT], otList: list[OT
         ax.text(
             x=ot.start + (ot.end - ot.start) / 2,
             y=0 - (i % 3) * 0.04,  # below y=0 row
-            s=str(i),
-            ha="center",
-            va="top",
-            fontsize=10,
-            color="black"
-        )
-
-    for i, ot in enumerate(otListPrio, start=1):
-        ax.barh(
-            y=-0.5,
-            width=ot.end - ot.start,
-            left=ot.start,
-            height=0.3,
-            color="darkgrey",
-            alpha=1,
-            label="OT original" if i == 1 else ""
-        )
-        # Label under the box
-        ax.text(
-            x=ot.start + (ot.end - ot.start) / 2,
-            y=-0.5 - (i % 3) * 0.04,  # below y=0 row
-            s=str(i),
+            s=str(taskIDPrio.index(ot.taskID)),
             ha="center",
             va="top",
             fontsize=10,
@@ -455,7 +401,7 @@ def plotCompareSchedule(otListMod: list[OT], otListCp: list[OT], otList: list[OT
         )
 
     # Observation Tasks Campaign Planner (orange)
-    for i, ot in enumerate(otListCp, start=1):
+    for i, ot in enumerate(otListCPPrio, start=1):
         ax.barh(
             y=-0.8,
             width=ot.end - ot.start,
@@ -477,7 +423,7 @@ def plotCompareSchedule(otListMod: list[OT], otListCp: list[OT], otList: list[OT
         )
 
     # Buffering Tasks (orange)
-    for i, bt in enumerate(btListPrio, start=1):
+    for i, bt in enumerate(btList, start=1):
         ax.barh(
             y=0.5,
             width=bt.end - bt.start,
@@ -490,7 +436,7 @@ def plotCompareSchedule(otListMod: list[OT], otListCp: list[OT], otList: list[OT
         ax.text(
             x=bt.start + (bt.end - bt.start) / 2,
             y= 0.62 - (i % 5) * 0.02,  # below y=0.5 row
-            s=str(i),
+            s=str(taskIDPrio.index(bt.OTTaskID)),
             ha="center",
             va="top",
             fontsize=10,
@@ -542,12 +488,7 @@ def plotCompareSchedule(otListMod: list[OT], otListCp: list[OT], otList: list[OT
             )
 
     # Add DTlist plotting
-    previousGT = None
-    gtId = 0
-    for i, dt in enumerate(dtListPrio, start=1):
-        if dt.GT != previousGT:
-            previousGT = dt.GT
-            gtId += 1
+    for i, dt in enumerate(dtList, start=1):
         ax.barh(
             y=1.5,
             width=dt.end - dt.start,
@@ -560,7 +501,7 @@ def plotCompareSchedule(otListMod: list[OT], otListCp: list[OT], otList: list[OT
         ax.text(
             x=dt.start + (dt.end - dt.start) / 2,
             y=1.75 - (i % 11) * 0.05,  # below y=1.5 row
-            s=str(gtId),
+            s=str(taskIDPrio.index(dt.OTTaskID)),
             ha="center",
             va="top",
             fontsize=10,

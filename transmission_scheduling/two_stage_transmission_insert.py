@@ -1,4 +1,4 @@
-from scheduling_model import OT, TTW, GSTW, BT, DT, GS, TW
+from scheduling_model import OT, TTW, GSTW, BT, DT, GS, TW, generateTaskID
 from transmission_scheduling import insertion
 from transmission_scheduling.conflict_checks import observationTaskConflicting
 from transmission_scheduling.generate_downlink import generateDownlinkTask
@@ -107,7 +107,7 @@ def scheduleTransmissions(otList: list[OT], ttwList: list[TTW], gstwList: list[G
         # Check if there are any tasks in the existing OT list that are also in the list to be scheduled
         for existingOT in existingOTList:
             for ot in otListMod:
-                if ot.GT == existingOT.GT:
+                if ot.taskID == existingOT.taskID:
                     raise ValueError("The existing OT list contains a task that is also in the list to be scheduled.")
 
         # We will add the existing OT list as highest priority to the list,
@@ -118,7 +118,7 @@ def scheduleTransmissions(otList: list[OT], ttwList: list[TTW], gstwList: list[G
         # First check if the observation task already has a corresponding buffering task
         alreadyBuffered = False
         for bt in btList:
-            if bt.GT == otOriginal.GT:
+            if bt.OTTaskID == otOriginal.taskID:
                 alreadyBuffered = True
                 break
 
@@ -127,7 +127,7 @@ def scheduleTransmissions(otList: list[OT], ttwList: list[TTW], gstwList: list[G
         # Match the original OT to the most recently updated version that has been possibly shifted or deleted
         otToBuffer = None
         for ot in otListMod:
-            if ot.GT == otOriginal.GT:
+            if ot.taskID == otOriginal.taskID:
                 otToBuffer = ot
                 break
 
@@ -157,7 +157,7 @@ def scheduleTransmissions(otList: list[OT], ttwList: list[TTW], gstwList: list[G
                 nextGSTWList = closestGSTWSorted[i + 1:] if i + 1 < len(closestGSTWSorted) else []
                 candidateOTList = otListMod.copy()
                 candidateOTList.append(otToBuffer)
-                candidateDTList = generateDownlinkTask(candidateOTList, gstw, nextGSTWList, dtList, otToBuffer.GT, p)
+                candidateDTList = generateDownlinkTask(candidateOTList, gstw, nextGSTWList, dtList, otToBuffer.taskID, p)
                 if candidateDTList is None: continue  # No valid downlink task could be scheduled in this ground station time window
                 dtListPlusCandidates = dtList + candidateDTList
                 bt, otListMod, btList = insertMethod.generateBuffer(otToBuffer, gstw, otListMod, btList,
@@ -202,7 +202,10 @@ def generateNewOTList(possibleTTW: list[TTW], otListScheduled: list[OT], btListS
         for tw in ttw.TWs:
             halfTime = (tw.start + tw.end) / 2
             # The new observation task will be centered, the insertion algorithms could always shift it if needed
-            otCandidate = OT(ttw.GT, halfTime - p.captureDuration / 2, halfTime + p.captureDuration / 2)
+            startTime = halfTime - p.captureDuration / 2
+            endTime = halfTime + p.captureDuration / 2
+            taskID = generateTaskID(ttw.GT.id, startTime)
+            otCandidate = OT(taskID, ttw.GT, startTime, endTime)
             # Check for a conflict of this OT with the already scheduled tasks and the new ones
             fullOTList = otListScheduled + newOTList
             if not observationTaskConflicting(otCandidate, btListScheduled, dtListScheduled, fullOTList, gstwList, p):

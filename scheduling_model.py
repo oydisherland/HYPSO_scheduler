@@ -17,13 +17,13 @@ TW = namedtuple("TW", ["start", "end"])
 TTW = namedtuple("TTW", ["GT", "TWs"])
 
 #Observation Task
-OT = namedtuple("OT", [ "GT", "start", "end"])
+OT = namedtuple("OT", [ "taskID", "GT", "start", "end"])
 
 #Scheduling Parameters for the model
 SP = namedtuple("SP", ["maxCaptures", "captureDuration", "transitionTime", "hypsoNr"])
 
 #Buffering Task
-BT = namedtuple("BT", ["GT", "fileID", "start", "end"])
+BT = namedtuple("BT", ["OTTaskID", "fileID", "start", "end"])
 
 #Ground Station
 GS = namedtuple("GS", ["id", "lat", "long", "minElevation"])
@@ -32,7 +32,7 @@ GS = namedtuple("GS", ["id", "lat", "long", "minElevation"])
 GSTW = namedtuple("GSTW", ["GS", "TWs"])
 
 #Downlink Task
-DT = namedtuple("DT", ["GT", "GS", "start", "end"])
+DT = namedtuple("DT", ["OTTaskID", "GS", "start", "end"])
 
 
 ## Functions to convert these nametuples to dictionaries for JSON serialization
@@ -68,10 +68,9 @@ def SP_toDict(sp):
     """Convert SP namedtuple to dictionary"""
     return sp._asdict()
 
-def BT_toDict(bt):
+def BT_toDict(bt: BT):
     """Convert BT namedtuple to dictionary, handling nested namedtuples"""
     bt_dict = bt._asdict()
-    bt_dict['GT'] = GT_toDict(bt.GT)
     return bt_dict
 
 def GS_toDict(gs):
@@ -85,10 +84,9 @@ def GSTW_toDict(gstw):
     gstw_dict['TWs'] = [TW_toDict(tw) for tw in gstw.TWs]
     return gstw_dict
 
-def DT_toDict(dt):
+def DT_toDict(dt: DT):
     """Convert DT namedtuple to dictionary, handling nested namedtuples"""
     dt_dict = dt._asdict()
-    dt_dict['GT'] = GT_toDict(dt.GT)
     dt_dict['GS'] = GS_toDict(dt.GS)
     return dt_dict
 
@@ -125,12 +123,11 @@ def dict_toTTW(ttw_dict):
 def dict_toOT(ot_dict):
     """Convert dictionary to OT namedtuple"""
     gt = dict_toGT(ot_dict['GT'])
-    return OT(GT=gt, start=ot_dict['start'], end=ot_dict['end'])
+    return OT(taskID=ot_dict['taskID'], GT=gt, start=ot_dict['start'], end=ot_dict['end'])
 
 def dict_toBT(bt_dict):
     """Convert dictionary to BT namedtuple"""
-    gt = dict_toGT(bt_dict['GT'])
-    return BT(GT=gt, fileID=bt_dict['fileID'], start=bt_dict['start'], end=bt_dict['end'])
+    return BT(OTTaskID=bt_dict['OTTaskID'], fileID=bt_dict['fileID'], start=bt_dict['start'], end=bt_dict['end'])
 
 def dict_toGS(gs_dict):
     """Convert dictionary to GS namedtuple"""
@@ -149,7 +146,21 @@ def dict_toGSTW(gstw_dict):
 
 def dict_toDT(dt_dict):
     """Convert dictionary to DT namedtuple"""
-    gt = dict_toGT(dt_dict['GT'])
     gs = dict_toGS(dt_dict['GS'])
-    return DT(GT=gt, GS=gs, start=dt_dict['start'], end=dt_dict['end'])
+    return DT(OTTaskID=dt_dict['OTTaskID'], GS=gs, start=dt_dict['start'], end=dt_dict['end'])
 
+
+def generateTaskID(gtName: str, startTime: float) -> int:
+    """
+    Generate a unique task ID for observation tasks based on the ground target name and start time.
+    ID is generated using hash, so the same gtName and startTime will always produce the same ID.
+
+    Args:
+        gtName (str): The name of the ground target.
+        startTime (float): The start time of the observation task in seconds relative to the start of the OH
+
+    Returns:
+        int: A unique task ID of 9 digits long.
+    """
+
+    return int(hash((gtName, startTime)) % 1e8 + 1e9)

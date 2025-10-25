@@ -5,7 +5,7 @@ from transmission_scheduling.util import getAvailableDownlinkTime
 
 
 def generateDownlinkTask(otList: list[OT], gstw: GSTW, nextGSTWList: list[tuple[GS,TW]],
-                         dtList: list[DT], gtToDownlink: GT, p: TransmissionParams) -> list[DT] | None:
+                         dtList: list[DT], taskIDToDownlink: int, p: TransmissionParams) -> list[DT] | None:
     """
     Tries to schedule an entire downlink of an observation task in two given ground station time windows.
     Returns a list of downlink task with either one entry if the task fit within the first window
@@ -16,14 +16,14 @@ def generateDownlinkTask(otList: list[OT], gstw: GSTW, nextGSTWList: list[tuple[
         gstw (GSTW): The ground station time window to schedule the downlink task in.
         nextGSTWList (list[tuple[GS,TW]]): The list of all future ground station passes that are considered for this OT.
         dtList (list[DT]): List of all already scheduled downlink tasks.
-        gtToDownlink (GT): The ground target of which the capture needs to be downlinked.
+        taskIDToDownlink (int): The ID of the observation task to downlink.
         p (TransmissionParams): The transmission scheduling parameters.
 
     Returns:
         list[DT]: A list of scheduled downlink tasks, or None if no valid scheduling was found.
     """
     candidateDT, isPartialSchedule = generatePartialDownlinkTask(otList, gstw, p.downlinkDuration, dtList,
-                                                                 gtToDownlink, p)
+                                                                 taskIDToDownlink, p)
     candidateList = [candidateDT]
 
     if candidateDT is None:
@@ -46,7 +46,7 @@ def generateDownlinkTask(otList: list[OT], gstw: GSTW, nextGSTWList: list[tuple[
         if previousCandidateSuccess:
             remainingDownlinkTime -= (candidateList[-1].end - candidateList[-1].start)
         newCandidateDT, isPartialSchedule = generatePartialDownlinkTask(otList, nextGSTW,
-                                                                        remainingDownlinkTime, dtList, gtToDownlink, p)
+                                                                        remainingDownlinkTime, dtList, taskIDToDownlink, p)
         previousCandidateSuccess = newCandidateDT is not None
         if previousCandidateSuccess:
             candidateList.append(newCandidateDT)
@@ -63,7 +63,7 @@ def generateDownlinkTask(otList: list[OT], gstw: GSTW, nextGSTWList: list[tuple[
 
 
 def generatePartialDownlinkTask(otList: list[OT], gstw: GSTW, desiredDownlinkTime: float,
-                                dtList: list[DT], gtToDownlink: GT, p: TransmissionParams):
+                                dtList: list[DT], taskIDToDownlink: int, p: TransmissionParams):
     """
     Try to schedule downlink tasks in the given ground station time window for the given observation task.
     If the downlink task cannot fit in the schedule, try to schedule a partial downlink task.
@@ -73,7 +73,7 @@ def generatePartialDownlinkTask(otList: list[OT], gstw: GSTW, desiredDownlinkTim
         gstw (GSTW): The ground station time window to schedule the downlink task in.
         desiredDownlinkTime (float): The length in seconds of the downlink task to schedule.
         dtList (list[DT]): List of all already scheduled downlink tasks.
-        gtToDownlink (GT): The ground target of which the capture needs to be downlinked.
+        taskIDToDownlink (int): The ID of the observation task to downlink.
         p (TransmissionParams): The transmission scheduling parameters.
 
     Returns:
@@ -98,7 +98,7 @@ def generatePartialDownlinkTask(otList: list[OT], gstw: GSTW, desiredDownlinkTim
     # First try to insert the downlink task at the start of the ground station time window
     dtStart = gstw.TWs[0].start + p.transmissionStartTime
     dtEnd = dtStart + downlinkTime
-    candidateDT = DT(gtToDownlink, gstw.GS, dtStart, dtEnd)
+    candidateDT = DT(taskIDToDownlink, gstw.GS, dtStart, dtEnd)
     if dtEnd <= gstw.TWs[0].end:
         if not downlinkTaskConflicting(candidateDT, dtList):
             return candidateDT, partial
@@ -108,7 +108,7 @@ def generatePartialDownlinkTask(otList: list[OT], gstw: GSTW, desiredDownlinkTim
     for otherDT in otherDTList:
         dtStart = otherDT.end
         dtEnd = dtStart + downlinkTime
-        candidateDT = DT(gtToDownlink, gstw.GS, dtStart, dtEnd)
+        candidateDT = DT(taskIDToDownlink, gstw.GS, dtStart, dtEnd)
 
         if dtEnd <= gstw.TWs[0].end:
             if not downlinkTaskConflicting(candidateDT, dtList):
