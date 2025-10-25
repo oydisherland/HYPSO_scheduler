@@ -20,11 +20,6 @@ def timer(description="Operation"):
 
 algorithmRuns = 10
 
-s = TestScenario(senarioID="_H2Miss24-10")
-ip = s.getInputParameters()
-ip.populationSize = 20
-ip.alnsRuns = 20
-
 
 ## Define test scenarios
 scenarios = [
@@ -34,16 +29,16 @@ scenarios = [
     # TestScenario(senarioID="_H2Miss25-10", startOH="2025-10-25T14:30:00Z", algorithmRuns=algorithmRuns),
     # TestScenario(senarioID="_H2Miss26-10", startOH="2025-10-26T14:30:00Z", algorithmRuns=algorithmRuns),
 
-
 # Run test scenarios
 print(f"Running a total of {len(scenarios)} test scenarios...")
 for scenario in scenarios:
     print(f"Scenario OH{scenario.senarioID} starting at {scenario.startOH} with {scenario.algorithmRuns} algorithm runs")
-    scenario.createInputAttributes(
-        os.path.join(os.path.dirname(__file__),"../data_input/input_parameters.csv"), 
-    )
-    scenario.setInputParameters(ip)
-    #scenario.recreateInputAttributes()
+    # scenario.createInputAttributes(
+    #     os.path.join(os.path.dirname(__file__),"../data_input/input_parameters.csv"), 
+    # )
+    scenario.recreateInputAttributes()
+    scenario.runGreedyAlgorithm()
+    
     with timer(f"Scenario OH{scenario.senarioID}"):
         scenario.runTestScenario()
 

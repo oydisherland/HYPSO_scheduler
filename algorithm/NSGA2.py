@@ -1,3 +1,4 @@
+from types import NoneType
 import numpy as np
 import math
 from pymoo.util.nds.non_dominated_sorting import NonDominatedSorting
@@ -5,7 +6,7 @@ from pymoo.operators.survival.rank_and_crowding.metrics import get_crowding_func
 from pymoo.mcdm.high_tradeoff import HighTradeoffPoints
 from collections import namedtuple
 
-from algorithm.ALNS_algorithm import runALNS, createInitialSolution
+from algorithm.ALNS_algorithm import runALNS, createInitialSolution, createGreedyInitialSolution
 from scheduling_model import SP, OH, GSTW, OT, BT, DT
 from transmission_scheduling.input_parameters import TransmissionParams
 
@@ -39,6 +40,14 @@ def findKneePoint(fronts, objectiveSpace):
             # HighTradeoffPoints is made for minimization, so we need to invert the objective space
             selector = HighTradeoffPoints()
             selected = selector.do(-pareto_front, n_points=1)
+            
+            if selected[0] is NoneType:
+                # if selected[0] is noneType object (should not happen) select the solution with highest priority
+                bestFrontIndex = np.argmax(pareto_front[:, 0])
+                bestSolution = pareto_front[bestFrontIndex]
+                bestIndex = pareto_front_indices[bestFrontIndex]
+                return bestSolution, bestIndex
+
             bestSolution = pareto_front[selected[0]]
             bestIndex = pareto_front_indices[selected[0]]
 
@@ -57,6 +66,7 @@ def runNSGA(
             IQNonLinear: bool,
             destructionNumber: int,
             maxSizeTabooBank: int,
+            greedyAlgorithm: bool=False,
             optimalTermination: bool=False) -> tuple[list[OT], list[BT], list[DT], list, list, list, list]:
     
     """ Runs the NSGA2 algorithm to optimize the observation schedule
@@ -75,7 +85,32 @@ def runNSGA(
     previousParetoFront = []
     terminationCounter = 0
 
-    # print(f"NSGA2 main loop using total of {nsga2Runs} runs: ", end='', flush=True) 
+    # If algorithm is run in greedy mode, only create one initial greedy solution and return the solution
+    if greedyAlgorithm:
+        greedyInitialSolution = createGreedyInitialSolution(ttwList.copy(), gstwList, schedulingParameters, transmissionParameters,
+                                         oh, destructionNumber, maxSizeTabooBank, isTabooBankFIFO).otList
+        
+        greedyState = runALNS(
+            greedyInitialSolution,
+            ttwList.copy(),
+            gstwList,
+            schedulingParameters,
+            transmissionParameters,
+            oh,
+            destructionNumber=0,
+            maxSizeTabooBank=0,
+            maxItr=1,
+            isTabooBankFIFO=True)
+
+        greedySolution = greedyState.best_state
+        population.append(INDIVIDUAL(individualID , greedySolution))
+        objectiveSpace = np.empty((0, 2))
+        priority = greedySolution.getScaledObjectiveValues()[0]
+        imageQuality = greedySolution.getScaledObjectiveValues()[1]
+        objectiveSpace = np.vstack([objectiveSpace, [priority, imageQuality]])
+        iterationData = ([0], objectiveSpace, [0])
+
+        return greedySolution.otList, greedySolution.btList, greedySolution.dtList, iterationData, objectiveSpace[0], 0, []
 
     ##### Main loop in the NSGA2 algorithm
     for generation in range(nsga2Runs):

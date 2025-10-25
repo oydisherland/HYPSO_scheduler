@@ -86,6 +86,31 @@ def createInitialSolution(ttwList: list, gstwList: list[GSTW], schedulingParamet
                              destructionNumber, maxSizeTabooBank, isTabooBankFIFO)
     return init_sol
 
+def createGreedyInitialSolution(ttwList: list, gstwList: list[GSTW], schedulingParameters: SP,
+                               transmissionParams: TransmissionParams, oh: OH, destructionNumber: int, maxSizeTabooBank: int,
+                               isTabooBankFIFO: bool):
+    """ Creates a greedy initial solution
+    Output:
+    - state: the greedy initial ProblemState object
+    """
+    tabooBank = []
+    otList = []
+    ttwListResorted, otListAdjusted, btList, dtList, objectiveValues = repairOperator(
+        ttwList, 
+        otList,
+        gstwList,
+        tabooBank, 
+        RepairType.GREEDY,
+        schedulingParameters,
+        transmissionParams,
+        oh,
+        True)
+    
+    state = ProblemState(otListAdjusted, btList, dtList, ttwListResorted, gstwList, oh, destructionNumber, schedulingParameters,
+                         transmissionParams, maxSizeTabooBank, isTabooBankFIFO)
+    state.objectiveValues = objectiveValues
+
+    return state
 ### Helper functions for destroy and repair operators ###
 
 def adjustTabooBank(current: ProblemState) -> list:

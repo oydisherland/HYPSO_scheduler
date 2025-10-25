@@ -42,6 +42,7 @@ class TestScenario:
     _objectiveValues = None
     _algorithmDataAllRuns = None
 
+
     def __init__(self, senarioID: str, startOH: str = None, algorithmRuns: int = None):
         
         self.senarioID = senarioID
@@ -246,7 +247,58 @@ class TestScenario:
             self._downlinkSchedules.append(convertDTListToDateTime(downlinkSchedule, self._oh))
             self._objectiveValues.append((totalPriority, totalImageQuality))
             self._algorithmDataAllRuns.append(algorithmData)
-    
+    def runGreedyAlgorithm(self):
+        """ Run the greedy algorithm and create output file for the run """
+        # Initialize result attributes
+        self._observationSchedules = []
+        self._bufferSchedules = []
+        self._downlinkSchedules = []
+        self._objectiveValues = []
+        self._algorithmDataAllRuns = []
+
+       
+        folderPathScenario = os.path.join(os.path.dirname(__file__), f"testing_results/OH{self.senarioID}")
+
+
+        
+        # Create model parameters
+        schedulingParameters = SP(int(self._inputParameters.maxCaptures), int(self._inputParameters.captureDuration), int(self._inputParameters.transitionTime), int(self._inputParameters.hypsoNr))
+
+        # Run greedy algorithm
+        observationSchedule, bufferSchedule, downlinkSchedule, iterationData, bestSolution, bestIndex, _ = runNSGA(
+            int(self._inputParameters.populationSize),
+            int(self._inputParameters.nsga2Runs),
+            self._ttwList,
+            self._gstwList,
+            schedulingParameters,
+            self._transmissionParameters,
+            self._oh,
+            int(self._inputParameters.alnsRuns),
+            bool(self._inputParameters.isTabooBankFIFO),
+            bool(self._inputParameters.iqNonLinear),
+            int(self._inputParameters.desNumber),
+            int(self._inputParameters.maxTabBank),
+            greedyAlgorithm=True
+        )
+        if bufferSchedule is None or downlinkSchedule is None:
+            raise ValueError("Error in transmission scheduling, no buffer or downlink schedule created.")
+        # Clean up schedule for transmission
+        bufferSchedule, downlinkSchedule = cleanUpSchedule(
+            observationSchedule,
+            bufferSchedule,
+            downlinkSchedule,
+            self._gstwList,
+            self._transmissionParameters,
+            OrderType.FIFO,
+            OrderType.FIFO
+        )
+
+        # Save output data in files
+        cmdLines = createCmdLinesForCaptureAndBuffering(observationSchedule, bufferSchedule, downlinkSchedule, self._inputParameters, self._oh)
+        createCmdFile(f"{folderPathScenario}/GA_cmdLines.txt", cmdLines)
+
+
+
     # If output from running test already exsists, recreate all alltributes of TestScenario object
     def recreateTestScenario(self):
         """ Recreate observation schedules from the output cmd files, and set attributes """
