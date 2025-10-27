@@ -106,9 +106,10 @@ def scheduleTransmissions(otList: list[OT], ttwList: list[TTW], gstwList: list[G
     if existingOTList is not None:
         # Check if there are any tasks in the existing OT list that are also in the list to be scheduled
         for existingOT in existingOTList:
-            for ot in otListMod:
+            for ot in otList:
                 if ot.taskID == existingOT.taskID:
-                    raise ValueError("The existing OT list contains a task that is also in the list to be scheduled.")
+                    # The observation task in the list of tasks to be scheduled (otList) is already scheduled
+                    otListMod.remove(ot)
 
         # We will add the existing OT list as highest priority to the list,
         # making it less likely for them to be modified or deleted
