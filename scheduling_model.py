@@ -160,7 +160,7 @@ def generateTaskID(gtName: str, startTime: float) -> int:
         startTime (float): The start time of the observation task in seconds relative to the start of the OH
 
     Returns:
-        int: A unique task ID of 9 digits long.
+        int: A unique task ID of 15 digits long.
     """
 
-    return int(hash((gtName, startTime)) % 1e8 + 1e9)
+    return int(hash((gtName, startTime)) % 1e14 + 1e14)
