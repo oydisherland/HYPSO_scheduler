@@ -7,4 +7,4 @@ output/
 testing/testing_results/
 .env
 data_input/input_parameters.csv
-data_input/HYPSO_data/HYPSO-2__TLE.txt
+data_input/HYPSO_data/HYPSO-2_TLE.txt

@@ -9,9 +9,11 @@ import json
 
 import pandas as pd
 from datetime import timedelta
-from data_postprocessing.quaternions import generate_quaternions
+from data_postprocessing.quaternions import generate_quaternions 
 from data_input.satellite_positioning_calculations import createSatelliteObject, findSatelliteTargetElevation
-from scheduling_model import OT, GT, BT, OH, DT, TW, TTW, generateTaskID
+from scheduling_model import OT, GT, BT, OH, DT, TW, TTW, list_toDict, OT_toDict, dict_toOT, generateTaskID
+
+
 
 """ 
 - Create a function that takes in the test number as input, 
@@ -50,20 +52,31 @@ def saveAlgorithmDataInJsonFile(filepath: str, algorithmData: list):
     """ Save the algorithm data to a JSON file """
     iterationData, bestIndex = algorithmData
     serializable_iterationData = []
+    
     for i in range(len(iterationData)):
-        fronts, objectiveSpace, selectedObjectiveVals = iterationData[i]
+        
+        fronts, objectiveSpace, selectedObjectiveVals, paretoFrontIndividuals = iterationData[i]
+        
+        serializable_paretofrontOtLists = []
+        for individual in paretoFrontIndividuals:
+            otList = individual.solutionState.otList
+            serializable_paretofrontOtLists.append(
+                list_toDict(otList, OT_toDict)
+            )
+
         serializable_iterationData.append({
             "fronts": [front.tolist() for front in fronts],  # Convert NumPy arrays to lists
             "objectiveSpace": [obj.tolist() for obj in objectiveSpace],  # Convert NumPy arrays to lists
             "selectedObjectiveVals": [val.tolist() for val in selectedObjectiveVals],  # Convert NumPy arrays to lists
+            "paretoFrontOtLists": serializable_paretofrontOtLists,  # add list of serialized pareto front individuals
         })
+   
     serializable_algorithmData = {
         "iterationData": serializable_iterationData, 
-        "bestIndex": int(bestIndex) if bestIndex is not None else None
+        "bestIndex": int(bestIndex) if bestIndex is not None else None,
     }
     with open(filepath, mode='w') as file:
         json.dump(serializable_algorithmData, file, indent=4)
-
 
 # Functions that read data from json files and recreate the original data structure
 
@@ -141,16 +154,19 @@ def getAlgorithmDatafromJsonFile(filepath: str):
 
         bestIndex = serializedAlgData.get("bestIndex", None)
         serialized_Iterationdata = serializedAlgData.get("iterationData", [])
+        
         # Reconstruct iterationData from the serialized data
         iterationData = []
         for entry in serialized_Iterationdata:
             fronts = [np.array(front) for front in entry["fronts"]]  # Convert lists back to NumPy arrays
             objectiveSpace = [np.array(obj) for obj in entry["objectiveSpace"]]  # Convert lists back to NumPy arrays
             selectedObjectiveVals = [np.array(val) for val in entry["selectedObjectiveVals"]]  # Convert lists back to NumPy arrays
-            iterationData.append((fronts, objectiveSpace, selectedObjectiveVals))
-
-        # Reconstruct Kneepoints from the serialized data
-        # kneePoints = [np.array(entry["kneePoint"]) for entry in serialized_data]
+            paretoFrontOtLists_serialized = entry.get("paretoFrontOtLists", []) # Get serialized pareto front individuals
+            paretoFrontOtLists = []
+            for otList_serialized in paretoFrontOtLists_serialized:
+                paretoFrontOtList = [dict_toOT(dictOT) for dictOT in otList_serialized]
+                paretoFrontOtLists.append(paretoFrontOtList)
+            iterationData.append((fronts, objectiveSpace, selectedObjectiveVals, paretoFrontOtLists))
 
     except FileNotFoundError:
         print(f"File not found: {filepath}")

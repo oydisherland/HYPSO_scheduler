@@ -200,11 +200,13 @@ def runNSGA(
         oldPopulation = population.copy()
         population = newPopulation
 
-        #### Printing results: 
-        # print(f"{generation + 1} | ", end='', flush=True)
-
+        ## Save paretofront individuals for analysis of result
+        paretoFrontIndividuals = []
+        for index in fronts[0]:
+            paretoFrontIndividuals.append(oldPopulation[index])
+        
         ### Save all data from this iteration in iterationData, to use for analysis of the algorithm
-        iterationData.append((fronts, objectiveSpace, selectedObjectiveVals))
+        iterationData.append((fronts, objectiveSpace, selectedObjectiveVals, paretoFrontIndividuals))
 
         #### Check termination criteria
         if not optimalTermination:

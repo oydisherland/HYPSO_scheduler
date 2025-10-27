@@ -172,12 +172,16 @@ class TestScenario:
     # Run test: create output attributes and cmd-files for each run of the algorithm
     def runTestScenario(self):
         """ Run the algorithm and create output file for each run of the algorithm """
+        
+        
         # Initialize result attributes
         self._observationSchedules = []
         self._bufferSchedules = []
         self._downlinkSchedules = []
         self._objectiveValues = []
         self._algorithmDataAllRuns = []
+
+
 
         # Create folder to save cmd files and algorithm iteration data. 
         folderPathCmdLines = os.path.join(os.path.dirname(__file__), f"testing_results/OH{self.senarioID}/cmdLines")
@@ -205,7 +209,7 @@ class TestScenario:
         # Run algorithm
         for runNr in range(self.algorithmRuns):
             # Create observation schedule. bestSchedule, bestBufferSchedule, bestDownlinkSchedule, algorithmData, bestSolution, bestIndex, oldPopulation
-            observationSchedule, bufferSchedule, downlinkSchedule, iterationData, bestSolution, bestIndex, _ = runNSGA(
+            observationSchedule, bufferSchedule, downlinkSchedule, iterationData, _, bestIndex, _ = runNSGA(
                 int(self._inputParameters.populationSize),
                 int(self._inputParameters.nsga2Runs),
                 self._ttwList,
@@ -295,7 +299,7 @@ class TestScenario:
 
         # Save output data in files
         cmdLines = createCmdLinesForCaptureAndBuffering(observationSchedule, bufferSchedule, downlinkSchedule, self._inputParameters, self._oh)
-        createCmdFile(f"{folderPathScenario}/GA_cmdLines.txt", cmdLines)
+        createCmdFile(f"{folderPathScenario}/{self.senarioID}_ga_cmdLines.txt", cmdLines)
 
 
 
