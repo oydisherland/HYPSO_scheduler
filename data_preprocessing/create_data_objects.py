@@ -287,8 +287,11 @@ def removeCloudObscuredPasses(allTargetPasses: list, startTimeOH: datetime, endT
         # Get the cloud data for the target in the given OH
         cloudData = getCloudData(latitude, longitude, startTimeOH, endTimeOH)
         assert cloudData is not None
-        predictionTimes = sorted(cloudData.keys())
+        if len(cloudData) == 0:
+            targetPassesWithoutClouds.append(targetPass)
+            continue
 
+        predictionTimes = sorted(cloudData.keys())
         # Loop over timestamps when target is passed and find the closest cloud data prediction
         for startTime in startTimes:
             # Find the closest prediction time to the start time of the target pass
