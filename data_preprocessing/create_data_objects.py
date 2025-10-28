@@ -1,4 +1,5 @@
 import csv
+from bisect import bisect_left
 from datetime import datetime, timezone, timedelta
 import os
 
@@ -286,17 +287,31 @@ def removeCloudObscuredPasses(allTargetPasses: list, startTimeOH: datetime, endT
         # Get the cloud data for the target in the given OH
         cloudData = getCloudData(latitude, longitude, startTimeOH, endTimeOH)
         assert cloudData is not None
+        if len(cloudData) == 0:
+            targetPassesWithoutClouds.append(targetPass)
+            continue
 
-        # Remove observation windows when the cloud coverage is too high
-        for key in cloudData:  #key is a datetime object
-            if cloudData[key] > float(maxCloudCoverage):
-                for st in startTimes:
-                    # Check the weather forcast corresponding to the closest whole hour of st
-                    if abs(key - st).total_seconds() <= 60 * 30:  #60s times 30min
-                        index = targetPass['startTimes'].index(st)
-                        targetPass['startTimes'].pop(index)
-                        targetPass['endTimes'].pop(index)
-                        break
+        predictionTimes = sorted(cloudData.keys())
+        # Loop over timestamps when target is passed and find the closest cloud data prediction
+        for startTime in startTimes:
+            # Find the closest prediction time to the start time of the target pass
+            pos = bisect_left(predictionTimes, startTime)
+            if pos == 0:
+                closestTime = predictionTimes[0]
+            elif pos == len(predictionTimes):
+                closestTime = predictionTimes[-1]
+            else:
+                before = predictionTimes[pos - 1]
+                after = predictionTimes[pos]
+                if abs((after - startTime).total_seconds()) < abs((startTime - before).total_seconds()):
+                    closestTime = after
+                else:
+                    closestTime = before
+
+            if cloudData[closestTime] > float(maxCloudCoverage):
+                index = targetPass['startTimes'].index(startTime)
+                targetPass['startTimes'].pop(index)
+                targetPass['endTimes'].pop(index)
 
         # If target has observation windows left, add it to the list of targets without clouds
         if len(targetPass['startTimes']) > 0:
