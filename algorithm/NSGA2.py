@@ -88,21 +88,21 @@ def runNSGA(
     # If algorithm is run in greedy mode, only create one initial greedy solution and return the solution
     if greedyAlgorithm:
         greedyInitialSolution = createGreedyInitialSolution(ttwList.copy(), gstwList, schedulingParameters, transmissionParameters,
-                                         oh, destructionNumber, maxSizeTabooBank, isTabooBankFIFO).otList
+                                         oh, destructionNumber, maxSizeTabooBank, isTabooBankFIFO)
         
-        greedyState = runALNS(
-            greedyInitialSolution,
-            ttwList.copy(),
-            gstwList,
-            schedulingParameters,
-            transmissionParameters,
-            oh,
-            destructionNumber=0,
-            maxSizeTabooBank=0,
-            maxItr=1,
-            isTabooBankFIFO=True)
+        # greedyState = runALNS(
+        #     greedyInitialSolution,
+        #     ttwList.copy(),
+        #     gstwList,
+        #     schedulingParameters,
+        #     transmissionParameters,
+        #     oh,
+        #     destructionNumber=0,
+        #     maxSizeTabooBank=0,
+        #     maxItr=1,
+        #     isTabooBankFIFO=True)
 
-        greedySolution = greedyState.best_state
+        greedySolution = greedyInitialSolution
         population.append(INDIVIDUAL(individualID , greedySolution))
         objectiveSpace = np.empty((0, 2))
         priority = greedySolution.getScaledObjectiveValues()[0]

@@ -18,14 +18,14 @@ def timer(description="Operation"):
         print(f"{description} completed in {execution_time:.2f} seconds ({execution_time/60:.2f} minutes)")
 
 
-algorithmRuns = 1
+algorithmRuns = 5
 
 
 ## Define test scenarios
 scenarios = [
-    TestScenario(senarioID="26", startOH="2025-10-26T14:30:00Z", algorithmRuns=algorithmRuns),
-    TestScenario(senarioID="27", startOH="2025-10-27T14:30:00Z", algorithmRuns=algorithmRuns),
-    TestScenario(senarioID="28", startOH="2025-10-28T14:30:00Z", algorithmRuns=algorithmRuns),
+    TestScenario(senarioID="check", startOH="2025-10-29T18:50:00Z", algorithmRuns=algorithmRuns),
+    TestScenario(senarioID="check2", startOH="2025-10-30T18:50:00Z", algorithmRuns=algorithmRuns),
+    TestScenario(senarioID="check3", startOH="2025-11-01T18:50:00Z", algorithmRuns=algorithmRuns)
 ]
 
     

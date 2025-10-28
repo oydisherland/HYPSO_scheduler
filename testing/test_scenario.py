@@ -13,7 +13,7 @@ from algorithm.NSGA2 import runNSGA
 from data_preprocessing.create_data_objects import createTTWList, createOH, createGSTWList
 from data_postprocessing.generate_cmdLine import createCmdFile, createCmdLinesForCaptureAndBuffering, recreateOTListFromCmdFile, recreateBTListFromCmdFile
 from data_postprocessing.algorithmData_api import convertOTListToDateTime, convertBTListToDateTime, convertDTListToDateTime, getAlgorithmDatafromJsonFile, saveAlgorithmDataInJsonFile
-from data_preprocessing.objective_functions import objectiveFunctionImageQuality, objectiveFunctionPriority
+from data_preprocessing.objective_functions import getIQFromOT, objectiveFunctionImageQuality, objectiveFunctionPriority
 from transmission_scheduling.clean_schedule import cleanUpSchedule, OrderType
 from transmission_scheduling.input_parameters import getTransmissionInputParams, getTransmissionInputParamsFromJsonFile
 from data_input.utility_functions import InputParameters
@@ -223,6 +223,13 @@ class TestScenario:
                 int(self._inputParameters.desNumber),
                 int(self._inputParameters.maxTabBank)
             )
+            ## REMOVE THIS BELOW
+            for ot in observationSchedule:
+                e = getIQFromOT(ot, self._oh, int(self._inputParameters.hypsoNr))
+                if e < 40:
+                    print("Low elevation found before cleanup")
+            ## REMOVE ABOVE
+
             if bufferSchedule is None or downlinkSchedule is None:
                 raise ValueError("Error in transmission scheduling, no buffer or downlink schedule created.")
             # Clean up schedule for transmission
@@ -235,6 +242,10 @@ class TestScenario:
                 OrderType.FIFO,
                 OrderType.FIFO
             )
+            for ot in observationSchedule:
+                e = getIQFromOT(ot, self._oh, int(self._inputParameters.hypsoNr))
+                if e < 40:
+                    print("Low elevation found after cleanup")
             algorithmData = (iterationData, bestIndex)
             # Save output data in files
             cmdLines = createCmdLinesForCaptureAndBuffering(observationSchedule, bufferSchedule, downlinkSchedule, self._inputParameters, self._oh)
@@ -339,6 +350,19 @@ class TestScenario:
             downLinkSchedules.append(dtList)
 
         self._observationSchedules = obsSchedules
+
+        ## REMOVE THIS BELOW
+        totalLowIQ = []
+        for otList in obsSchedules:
+            lowIQ = 0
+            for ot in otList:
+                e = getIQFromOT(ot, self._oh, int(self._inputParameters.hypsoNr))
+                if e < 40:
+                    lowIQ += 1
+            totalLowIQ.append(lowIQ)
+        print(f"Total low elevation occurrences: {totalLowIQ}")
+
+        ## REMOVE ABOVE
         self._bufferSchedules = bufSchedules
         self._downlinkSchedules = downLinkSchedules
 

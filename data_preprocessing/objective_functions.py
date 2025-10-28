@@ -17,6 +17,22 @@ def objectiveFunctionPriority(otList: list) -> int:
         priority += ot.GT.priority
     return priority
 
+def getIQFromOT(ot, oh: OH, hypsoNr: int) -> float:
+    """ Given an OT, calculate the image quality based on the elevation of the satellite at capture time"""
+    
+    captureTimeMiddel = ot.start + (ot.end - ot.start) / 2
+    utcTime = oh.utcStart + datetime.timedelta(seconds=captureTimeMiddel)
+
+
+
+    elevation = findSatelliteTargetElevation(float(ot.GT.lat), float(ot.GT.long), utcTime, hypsoNr)
+
+    if elevation < 0:
+        # This should not happen
+        print(f"Elevation value: {elevation} for {ot.GT.id} at {utcTime}")
+        elevation = 0
+    
+    return elevation
 
 def objectiveFunctionImageQuality(otList:list, oh: OH, hypsoNr: int) -> float:
     """ Objective function representing the angle between satellite and target when capturing 
@@ -30,24 +46,24 @@ def objectiveFunctionImageQuality(otList:list, oh: OH, hypsoNr: int) -> float:
     for ot in otList:
         captureTimeMiddel = ot.start + (ot.end - ot.start) / 2
         utcTime = oh.utcStart + datetime.timedelta(seconds=captureTimeMiddel)
-        # Round the utcTime down to 10 seconds to estimate the elevation more efficiently
-        unixTime = calendar.timegm(utcTime.utctimetuple()) + utcTime.microsecond / 1e6
-        unixTimeRounded = round(unixTime, -1)
+        # # Round the utcTime down to 10 seconds to estimate the elevation more efficiently
+        # unixTime = calendar.timegm(utcTime.utctimetuple()) + utcTime.microsecond / 1e6
+        # unixTimeRounded = round(unixTime, -1)
 
-        # Round position down to 1 decimal, which gives around 10km resolution
-        latRounded = round(float(ot.GT.lat), 1)
-        longRounded = round(float(ot.GT.long), 1)
+        # # Round position down to 1 decimal, which gives around 10km resolution
+        # latRounded = round(float(ot.GT.lat), 1)
+        # longRounded = round(float(ot.GT.long), 1)
 
-        if (latRounded, longRounded, unixTimeRounded) not in imageQualityDict:
-            imageQualityDict[(latRounded, longRounded, unixTimeRounded)] = findSatelliteTargetElevation(float(ot.GT.lat), float(ot.GT.long), utcTime, hypsoNr)
+        # if (latRounded, longRounded, unixTimeRounded) not in imageQualityDict:
+        #     imageQualityDict[(latRounded, longRounded, unixTimeRounded)] = findSatelliteTargetElevation(float(ot.GT.lat), float(ot.GT.long), utcTime, hypsoNr)
 
-        elevation = imageQualityDict[(latRounded, longRounded, unixTimeRounded)]
-
+        # elevation = imageQualityDict[(latRounded, longRounded, unixTimeRounded)]
+        elevation = findSatelliteTargetElevation(float(ot.GT.lat), float(ot.GT.long), utcTime, hypsoNr)
         if elevation < 0:
             # This should not happen
             print(f"Elevation value: {elevation} for {ot.GT.id} at {utcTime}")
             elevation = 0
-            
+    
         elevationAverage += elevation
 
     elevationAverage = elevationAverage / len(otList)

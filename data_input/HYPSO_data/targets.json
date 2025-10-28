@@ -983,18 +983,6 @@
         "t1": ""
     },
     {
-        "name": "bccampaign              ",
-        "lat": 49.376987,
-        "lon": -124.012595,
-        "elev": 10.0,
-        "cc": 25.0,
-        "exp": 42.0,
-        "mode": "wide",
-        "night": 0,
-        "t0": "",
-        "t1": ""
-    },
-    {
         "name": "oklahomafire            ",
         "lat": 35.942,
         "lon": -97.183,
