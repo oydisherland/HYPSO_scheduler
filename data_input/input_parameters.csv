@@ -26,6 +26,7 @@ interTaskTime, 100
 interDownlinkTime, 5
 downlinkDuration, 217
 transmissionStartTime, 260
+overLappingWithCaptureSetback, 120
 
 # Transmission scheduling parameters
 minDownlinkFraction, 0.4
@@ -37,4 +38,3 @@ maxBufferFilesH1, 2
 bufferStartIDH2, 19
 bufferStartIDH1, 25
 commInterface, xband
-overLappingWithCaptureSetback, 120
