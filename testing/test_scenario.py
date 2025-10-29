@@ -350,19 +350,6 @@ class TestScenario:
             downLinkSchedules.append(dtList)
 
         self._observationSchedules = obsSchedules
-
-        ## REMOVE THIS BELOW
-        totalLowIQ = []
-        for otList in obsSchedules:
-            lowIQ = 0
-            for ot in otList:
-                e = getIQFromOT(ot, self._oh, int(self._inputParameters.hypsoNr))
-                if e < 40:
-                    lowIQ += 1
-            totalLowIQ.append(lowIQ)
-        print(f"Total low elevation occurrences: {totalLowIQ}")
-
-        ## REMOVE ABOVE
         self._bufferSchedules = bufSchedules
         self._downlinkSchedules = downLinkSchedules
 

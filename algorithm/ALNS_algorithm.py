@@ -339,7 +339,7 @@ def runALNS(initial_otList: list, initial_ttwList: list, gstwList: list[GSTW], s
     - state: the final ProblemState object of the problem after the ALNS run
     """
     # Format the problem state
-    state = ProblemState(initial_otList, None, None, initial_ttwList, gstwList, oh, destructionNumber, schedulingParameters,
+    state = ProblemState(initial_otList, [], [], initial_ttwList, gstwList, oh, destructionNumber, schedulingParameters,
                          transmissionParameters, maxSizeTabooBank, isTabooBankFIFO)
     state.objectiveValues = [objectiveFunctionPriority(initial_otList),
                            objectiveFunctionImageQuality(initial_otList, oh, schedulingParameters.hypsoNr)]
