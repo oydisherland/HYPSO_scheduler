@@ -37,3 +37,4 @@ maxBufferFilesH1, 2
 bufferStartIDH2, 19
 bufferStartIDH1, 25
 commInterface, xband
+overLappingWithCaptureSetback, 120
