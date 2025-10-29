@@ -365,13 +365,13 @@ class AnalyseTest:
                 # Horizontal bars sorted by priority low->high (y_positions corresponds to that)
                 ax.barh(y_positions, imageQuality, height=10, color=color, alpha=0.3)
 
-                ax.set_xlabel('Targets chosen', fontsize=10)
+                ax.set_xlabel('Image Quality', fontsize=10)
                 # ax.set_xticks(range(0, 100))
                 ax.set_title(label, fontsize=11, fontweight='bold')
                 ax.grid(True, axis='x', alpha=0.25)
 
 
-            fig.suptitle(f'Scenario {scenario.senarioID} — Target selections by algorithm', fontsize=14, fontweight='bold')
+            fig.suptitle(f'Scenario: {scenario.senarioID} — Target selections by algorithm', fontsize=14, fontweight='bold')
             plt.tight_layout(rect=[0, 0, 1, 0.95])
             plt.show()
     def plotNumberOfCapturedTargets(self):
@@ -1025,12 +1025,13 @@ class AnalyseTest:
        
 
 scenarioIds = ["_H2Miss26-10", "_H2Miss27-10", "_H2Miss28-10"]
-scenarioIds1 = ["26", "27", "28"]
+scenarioIds1 = ["27"]
 scenarioIds2 = ["longWindow"]
 scenarioIdCCheck = ["check"]
+scenarioIdsX = ["X"]
 
-analyse = AnalyseTest(scenarioIds2)
-# analyse.plotParetoFrontEvolution(scenarioIndex=0, runIndex=0)
+analyse = AnalyseTest(scenarioIdCCheck)
+analyse.plotParetoFrontEvolution(scenarioIndex=0, runIndex=0)
 # analyse.plotObjectiveValues()
 # analyse.plotNumberOfCapturedTargets()
 # analyse.plotNumTargIQandPriority()
@@ -1038,7 +1039,7 @@ analyse = AnalyseTest(scenarioIds2)
 # analyse.plotGraphNumTargIQandPriorityAverage()
 # analyse.plotTargetsChosen()
 # analyse.plotTargetsChosen2()
-analyse.plotTargetsChosen3()
+# analyse.plotTargetsChosen3()
 
 
 

@@ -18,38 +18,25 @@ def timer(description="Operation"):
         print(f"{description} completed in {execution_time:.2f} seconds ({execution_time/60:.2f} minutes)")
 
 
-algorithmRuns = 5
-
+id = "missionPlanning_29-10"
+start = "2025-10-29T15:00:00Z"
 
 ## Define test scenarios
-scenarios = [
-    TestScenario(senarioID="check", startOH="2025-10-29T18:50:00Z", algorithmRuns=algorithmRuns),
-    TestScenario(senarioID="check2", startOH="2025-10-30T18:50:00Z", algorithmRuns=algorithmRuns),
-    TestScenario(senarioID="check3", startOH="2025-11-01T18:50:00Z", algorithmRuns=algorithmRuns)
-]
+scenario= TestScenario(senarioID=id, startOH=start, algorithmRuns=1)
 
-    
 
-# Run test scenarios
-print(f"Running a total of {len(scenarios)} test scenarios...")
-for scenario in scenarios:
-    print(f"Scenario OH{scenario.senarioID} starting at {scenario.startOH} with {scenario.algorithmRuns} algorithm runs")
-    scenario.createInputAttributes(
-        os.path.join(os.path.dirname(__file__),"../data_input/input_parameters.csv"), 
-    )
-    # scenario.recreateInputAttributes()
-    scenario.runGreedyAlgorithm()
-    
-    with timer(f"Scenario OH{scenario.senarioID}"):
-        scenario.runTestScenario()
+print(f"Scenario OH{scenario.senarioID} starting at {scenario.startOH}")
+scenario.createInputAttributes(
+    os.path.join(os.path.dirname(__file__),"../data_input/input_parameters.csv"), 
+)
+scenario.runGreedyAlgorithm()
+with timer(f"Scenario OH{scenario.senarioID}"):
+    scenario.runTestScenario()
 
 
 # #Analyse tests
-for scenario in scenarios:
-    scenario.recreateTestScenario()
 
-    otLists = scenario.getObservationSchedules()
-    schedulePriorities = [sum(ot.GT.priority for ot in otList) for otList in otLists]
-    obVals = scenario.getAllObjectiveValues()
-    print(f"Scenario OH{scenario.senarioID}: Best run is run number {schedulePriorities.index(max(schedulePriorities))} with total priority {max(schedulePriorities)}")
-    # print(f"Compared to the stores objective values: {obVals[schedulePriorities.index(max(schedulePriorities))]}")
+otLists = scenario.getObservationSchedules()
+schedulePriorities = [sum(ot.GT.priority for ot in otList) for otList in otLists]
+obVals = scenario.getAllObjectiveValues()
+print(f"Scenario OH{scenario.senarioID}: Best run is run number {schedulePriorities.index(max(schedulePriorities))} with total priority {max(schedulePriorities)}")
