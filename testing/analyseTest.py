@@ -1021,7 +1021,7 @@ class AnalyseTest:
        
 
 scenarioIds = ["_H2Miss26-10", "_H2Miss27-10", "_H2Miss28-10"]
-scenarioIds1 = ["26", "27", "28"]
+scenarioIds1 = ["27"]
 scenarioIds2 = ["longWindow"]
 scenarioIdCCheck = ["check"]
 allScenarioIds = scenarioIds + scenarioIds1 + scenarioIds2 + scenarioIdCCheck
