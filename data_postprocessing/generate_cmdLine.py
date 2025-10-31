@@ -141,6 +141,7 @@ def createCmdLinesForCaptureAndBuffering(observationSchedule: list, bufferSchedu
     schedule_dt = algDataApi.convertOTListToDateTime(observationSchedule, oh)
     bufferschedule_dt = algDataApi.convertBTListToDateTime(bufferSchedule, oh)
     downlinkschedule_dt = algDataApi.convertDTListToDateTime(downlinkSchedule, oh)
+    downlinkschedule_dtSorted = sorted(downlinkschedule_dt, key=lambda x: x.start, reverse = True)
     combinedSchedule = algDataApi.CombineCaptureAndBufferSchedules(schedule_dt, bufferschedule_dt)
 
     cmdLines = []
@@ -154,7 +155,7 @@ def createCmdLinesForCaptureAndBuffering(observationSchedule: list, bufferSchedu
             scheduledOTs[task.taskID] = [quaternions, task]  # Store quaternions and task for buffer use
         elif taskType == "Buffer":
             quaternions, ot = scheduledOTs.get(task.OTTaskID)
-            downlinkTask = next((dt for dt in downlinkschedule_dt if dt.OTTaskID == task.OTTaskID), None)
+            downlinkTask = next((dt for dt in downlinkschedule_dtSorted if dt.OTTaskID == task.OTTaskID), None)
             newBufferCommandLine = createBufferCmdLine(task, downlinkTask, ot, int(inputParameters.hypsoNr), quaternions)
             cmdLines.append(newBufferCommandLine)
     return cmdLines
