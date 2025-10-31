@@ -160,10 +160,12 @@ def createGSTWList(startTimeOH: datetime, endTimeOH: datetime, minWindowLength: 
 
     # Bookings at KSAT Svalbard ground station are only made 3 days in advance and past bookings are not available via the API
     now = datetime.now(timezone.utc)
-    if (endTimeOH - now).total_seconds() < 3 * 24 * 3600 and  \
-        (startTimeOH - now).total_seconds() > 0:
+    print("Not looking at KSAT Svalbard booked passes, as this feature is currently disabled.")
+    ## Comment out if statement below to disable booked passes from KSAT Svalbard ground station
+    # if (endTimeOH - now).total_seconds() < 3 * 24 * 3600 and  \
+    #     (startTimeOH - now).total_seconds() > 0:
 
-        return getBookedGSTWList(startTimeOH, endTimeOH, hypsoNr, commInterface)
+    #     return getBookedGSTWList(startTimeOH, endTimeOH, hypsoNr, commInterface)
 
     return createGSTWListFromFile(startTimeOH, endTimeOH, minWindowLength, hypsoNr, groundStationsFilePath)
 
@@ -376,6 +378,7 @@ def createTTWList(captureDuration: int, oh: OH, hypsoNr: int, ttwFilePathRead: s
     
     # Filter out targets that are obscured by clouds
     cloudlessTargetpasses = illuminatedPasses
+    print(f"Skipping cloud coverage filtering step.")
     #cloudlessTargetpasses = removeCloudObscuredPasses(illuminatedPasses, oh.utcStart, oh.utcEnd)
     print(f"After filtering out cloud-obscured passes, targets: {len(cloudlessTargetpasses)}, captures: {howManyPasses(cloudlessTargetpasses)}")
 
