@@ -18,7 +18,7 @@ def timer(description="Operation"):
         print(f"{description} completed in {execution_time:.2f} seconds ({execution_time/60:.2f} minutes)")
 
 
-id = "missionPlanning_29-10"
+id = "delete_me"
 start = "2025-10-29T15:00:00Z"
 
 ## Define test scenarios

@@ -1,0 +1,40 @@
+testName, testPlot
+
+# Scheduling specific parameters
+
+maxCaptures, 23
+captureDuration, 60
+transitionTime, 660
+startTimeOH, 2025-10-17 14:40:00.000000+00:00
+durationInDaysOH, 2
+delayInHoursOH, 0
+hypsoNr, 2
+
+# Algorithm specific parameters
+populationSize, 10
+isTabooBankFIFO, True
+iqNonLinear, False
+NSGA2Runs, 5
+ALNSRuns, 50
+maxTabBank, 2
+desNumber, 1
+
+# Transmission timing parameters
+bufferingTime, 1500
+afterCaptureTime, 600
+interTaskTime, 100
+interDownlinkTime, 5
+downlinkDuration, 217
+transmissionStartTime, 260
+overLappingWithCaptureSetback, 120
+
+# Transmission scheduling parameters
+minDownlinkFraction, 0.4
+maxLatencyHours, 20
+slidingInsertIterations, 5
+reInsertIterations, 3
+maxBufferFilesH2, 7
+maxBufferFilesH1, 2
+bufferStartIDH2, 19
+bufferStartIDH1, 25
+commInterface, xband
