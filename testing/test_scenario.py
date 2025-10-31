@@ -242,10 +242,7 @@ class TestScenario:
                 OrderType.FIFO,
                 OrderType.FIFO
             )
-            for ot in observationSchedule:
-                e = getIQFromOT(ot, self._oh, int(self._inputParameters.hypsoNr))
-                if e < 40:
-                    print("Low elevation found after cleanup")
+
             algorithmData = (iterationData, bestIndex)
             # Save output data in files
             cmdLines = createCmdLinesForCaptureAndBuffering(observationSchedule, bufferSchedule, downlinkSchedule, self._inputParameters, self._oh)
@@ -295,8 +292,7 @@ class TestScenario:
             int(self._inputParameters.maxTabBank),
             greedyAlgorithm=True
         )
-        if bufferSchedule is None or downlinkSchedule is None:
-            raise ValueError("Error in transmission scheduling, no buffer or downlink schedule created.")
+
         # Clean up schedule for transmission
         bufferSchedule, downlinkSchedule = cleanUpSchedule(
             observationSchedule,

@@ -286,6 +286,11 @@ class AnalyseTest:
         # Sort targets by priority low -> high
         sorted_targets = sorted(targetIdPriorityDict.items(), key=lambda x: x[1])
 
+        # Collect targets across all scenarios
+        totalIQ_NA = []
+        totalIQ_CP = []
+        totalIQ_GA = []
+        total_yPositions = []
         for scenario, cp_otList, ga_otList in zip(self.scenarios, self.cp_observationSchedules, self.ga_observationSchedules):
             # Prepare counts for NSGA-II (average over runs), CP and GA
             targetIdsChosenNA =  []
@@ -312,22 +317,8 @@ class AnalyseTest:
                 imageQualityGA.append(scaleIQFromDegTo100(getIQFromOT(ot, scenario.getOh(), int(scenario.getInputParameters().hypsoNr))))
                 targetIdsChosenGA.append(ot.GT.id)
 
-
-            # check for negative iq values
-            if any(iq < 0 for iq in imageQualityNA):
-                print(f"Negative IQ values found in NSGA-II for scenario {scenario.senarioID}")
-            if any(iq < 0 for iq in imageQualityCP):
-                print(f"Negative IQ values found in CP Planner for scenario {scenario.senarioID}")
-            if any(iq < 0 for iq in imageQualityGA):
-                print(f"Negative IQ values found in GA Planner for scenario {scenario.senarioID}")
-
             target_names = [targetID for targetID, _ in sorted_targets]
             y_positions = np.arange(len(target_names))
-
-            # efficient membership check against the first element of each tuple (targetID, ImQuality)
-            allTargetsNA = [1 if targetID in targetIdsChosenNA else 0 for targetID in target_names]
-            allTargetsCP = [1 if targetID in targetIdsChosenCP else 0 for targetID in target_names]
-            allTargetsGA = [1 if targetID in targetIdsChosenGA else 0 for targetID in target_names]
 
             allImageQualityNA, allImageQualityCP, allImageQualityGA = [], [], []
             for targetID in target_names:
@@ -350,30 +341,35 @@ class AnalyseTest:
                 else:
                     allImageQualityGA.append(0)
 
-            fig, axes = plt.subplots(1, 3, figsize=(10, 5), sharey=True)
-            if not isinstance(axes, (list, np.ndarray)):
-                axes = [axes]
+            totalIQ_NA.extend(allImageQualityNA)
+            totalIQ_CP.extend(allImageQualityCP)
+            totalIQ_GA.extend(allImageQualityGA)
+            total_yPositions.extend(y_positions)
 
-            algo_data = [
-                ("NSGA-II", allImageQualityNA, '#00A8E0'),
-                ("CP Planner", allImageQualityCP, '#00A8E0'),
-                ("GA Planner", allImageQualityGA, '#00A8E0'),
-            ]
+        fig, axes = plt.subplots(1, 3, figsize=(10, 5), sharey=True)
+        if not isinstance(axes, (list, np.ndarray)):
+            axes = [axes]
 
-            # Plot each algorithm in its own subplot
-            for ax, (label, imageQuality, color) in zip(axes, algo_data):
-                # Horizontal bars sorted by priority low->high (y_positions corresponds to that)
-                ax.barh(y_positions, imageQuality, height=10, color=color, alpha=0.3)
+        algo_data = [
+            ("NSGA-II", totalIQ_NA, '#00A8E0'),
+            ("CP Planner", totalIQ_CP, '#00A8E0'),
+            ("GA Planner", totalIQ_GA, '#00A8E0'),
+        ]
 
-                ax.set_xlabel('Targets chosen', fontsize=10)
-                # ax.set_xticks(range(0, 100))
-                ax.set_title(label, fontsize=11, fontweight='bold')
-                ax.grid(True, axis='x', alpha=0.25)
+        # Plot each algorithm in its own subplot
+        for ax, (label, imageQuality, color) in zip(axes, algo_data):
+            # Horizontal bars sorted by priority low->high (y_positions corresponds to that)
+            ax.barh(total_yPositions, imageQuality, height=10, color=color, alpha=0.1)
+
+            ax.set_xlabel('Image quality [%]', fontsize=10)
+            # ax.set_xticks(range(0, 100))
+            ax.set_title(label, fontsize=11, fontweight='bold')
+            ax.grid(True, axis='x', alpha=0.25)
 
 
-            fig.suptitle(f'Scenario {scenario.senarioID} — Target selections by algorithm', fontsize=14, fontweight='bold')
-            plt.tight_layout(rect=[0, 0, 1, 0.95])
-            plt.show()
+        fig.suptitle(f'Scenario {scenario.senarioID} — Target selections by algorithm', fontsize=14, fontweight='bold')
+        plt.tight_layout(rect=[0, 0, 1, 0.95])
+        plt.show()
     def plotNumberOfCapturedTargets(self):
         """ Plot the number of unique targets captured in each scenario """
         # Calculate averages for NSGA-II algorithm
@@ -1028,9 +1024,12 @@ scenarioIds = ["_H2Miss26-10", "_H2Miss27-10", "_H2Miss28-10"]
 scenarioIds1 = ["26", "27", "28"]
 scenarioIds2 = ["longWindow"]
 scenarioIdCCheck = ["check"]
+allScenarioIds = scenarioIds + scenarioIds1 + scenarioIds2 + scenarioIdCCheck
+scenarioIds_cl = [ "cl_3"]
 
-analyse = AnalyseTest(scenarioIds2)
-# analyse.plotParetoFrontEvolution(scenarioIndex=0, runIndex=0)
+
+analyse = AnalyseTest(scenarioIds_cl)
+analyse.plotParetoFrontEvolution(scenarioIndex=0, runIndex=0)
 # analyse.plotObjectiveValues()
 # analyse.plotNumberOfCapturedTargets()
 # analyse.plotNumTargIQandPriority()
@@ -1038,7 +1037,7 @@ analyse = AnalyseTest(scenarioIds2)
 # analyse.plotGraphNumTargIQandPriorityAverage()
 # analyse.plotTargetsChosen()
 # analyse.plotTargetsChosen2()
-analyse.plotTargetsChosen3()
+# analyse.plotTargetsChosen3()
 
 
 
