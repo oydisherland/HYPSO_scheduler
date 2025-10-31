@@ -11,7 +11,7 @@ import pandas as pd
 from datetime import timedelta
 from data_postprocessing.quaternions import generate_quaternions 
 from data_input.satellite_positioning_calculations import createSatelliteObject, findSatelliteTargetElevation
-from scheduling_model import OT, GT, BT, OH, DT, TW, TTW, list_toDict, OT_toDict, dict_toOT, generateTaskID
+from scheduling_model import OT, GT, BT, OH, DT, TW, TTW, GT, list_toDict, OT_toDict, dict_toOT, generateTaskID
 
 
 
@@ -323,6 +323,24 @@ def convertToUnixTime(dateTime: datetime.datetime) -> int:
 def convertFromUnixTime(unixTime: int) -> datetime.datetime:
     """Convert Unix time to a timezone-aware datetime object (UTC)"""
     return datetime.datetime.fromtimestamp(unixTime, tz=datetime.timezone.utc)
+def convertBTListToRelativeTime(bufferScheduleWithDateTime: list, oh: OH) -> list:
+    """ Convert the time representation in the buffer schedule to relative time representation, 
+    relative to the start of optimization horizon"""
+
+    bufferScheduleWithRelativeTime = []
+    for bt in bufferScheduleWithDateTime:
+        # Convert the start and end times of each BT to relative time
+        bufferStart = (bt.start - oh.utcStart).total_seconds()
+        bufferEnd = (bt.end - oh.utcStart).total_seconds()
+
+        btWithRelativeTime = BT(
+            OTTaskID=bt.OTTaskID,
+            fileID=bt.fileID,
+            start=bufferStart,
+            end=bufferEnd
+        )
+        bufferScheduleWithRelativeTime.append(btWithRelativeTime)
+    return bufferScheduleWithRelativeTime
 def convertBTListToDateTime(bufferScheduleWithRelativeTime: list, oh: OH) -> list:
     """ Convert the time representation in the buffer schedule to the absolute datetime representation, 
     instead of relative to the start of optimization horizon"""
@@ -341,6 +359,24 @@ def convertBTListToDateTime(bufferScheduleWithRelativeTime: list, oh: OH) -> lis
         )
         bufferScheduleWithDatetimeObj.append(btWithDatetime)
     return bufferScheduleWithDatetimeObj
+def convertOTListToRelativeTime(scheduleWithDateTime: list, oh: OH) -> list:
+    """ Convert the time representation in the schedule to relative time representation, 
+    relative to the start of optimization horizon"""
+
+    scheduleWithRelativeTime = []
+    for ot in scheduleWithDateTime:
+        # Convert the start and end times of each OT to relative time
+        captureStart = (ot.start - oh.utcStart).total_seconds()
+        captureEnd = (ot.end - oh.utcStart).total_seconds()
+
+        otWithRelativeTime = OT(
+            taskID= ot.taskID,
+            GT=ot.GT,
+            start=captureStart,
+            end=captureEnd
+        )
+        scheduleWithRelativeTime.append(otWithRelativeTime)
+    return scheduleWithRelativeTime
 def convertOTListToDateTime(scheduleWithRelativeTime: list, oh: OH) -> list:
     """ Convert the time representation in the schedule to the absolute datetime representation, 
     instead of relative to the start of optimization horizon"""
@@ -377,6 +413,23 @@ def convertDTListToDateTime(downlinkScheduleWithRelativeTime: list, oh: OH) -> l
         )
         downlinkScheduleWithDatetimeObj.append(dtWithDatetime)
     return downlinkScheduleWithDatetimeObj
+def convertDTListToRelativeTime(downlinkScheduleWithDateTime: list, oh: OH) -> list:
+    """ Convert the time representation in the downlink schedule to relative time representation, 
+    relative to the start of optimization horizon"""
+    downlinkScheduleWithRelativeTime = []
+    for dt in downlinkScheduleWithDateTime:
+        # Convert the start and end times of each DT to relative time
+        downlinkStart = (dt.start - oh.utcStart).total_seconds()
+        downlinkEnd = (dt.end - oh.utcStart).total_seconds()
+
+        dtWithRelativeTime = DT(
+            OTTaskID=dt.OTTaskID,
+            GS=dt.GS,
+            start=downlinkStart,
+            end=downlinkEnd
+        )
+        downlinkScheduleWithRelativeTime.append(dtWithRelativeTime)
+    return downlinkScheduleWithRelativeTime
 def getMiddleTime(startTime: datetime.datetime, endTime: datetime.datetime) -> datetime.datetime:
     """ Get the middle time of the capture window for a given observation target """
     middleTime = startTime + timedelta(seconds=(endTime - startTime).seconds / 2)

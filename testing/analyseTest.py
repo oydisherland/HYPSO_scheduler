@@ -18,6 +18,8 @@ from data_input.utility_functions import InputParameters
 from data_preprocessing.create_data_objects import createOH
 from data_preprocessing.objective_functions import objectiveFunctionPriority, objectiveFunctionImageQuality, getIQFromOT
 from data_preprocessing.parseTargetsFile import getTargetIdPriorityDictFromJson
+from transmission_scheduling.util import plotSchedule
+from data_postprocessing.algorithmData_api import convertOTListToRelativeTime, convertBTListToRelativeTime, convertDTListToRelativeTime
 
 
 #plt.rcParams['text.usetex'] = True  # Optional: for LaTeX rendering
@@ -70,6 +72,18 @@ class AnalyseTest:
             ga_otList = recreateOTListFromCmdFile(targetFilePath, ga_cmdFilePath, oh, inputParameters.bufferingTime, inputParameters.captureDuration)
             self.ga_observationSchedules.append(ga_otList)
                
+
+    def plotOneschedule(self, scenarioIndex: int, runIndex: int):
+        """ Plot the observation schedule for a given scenario and run index """ 
+        scenario = self.scenarios[scenarioIndex]
+        plotSchedule(
+            scenario.getObservationSchedules()[runIndex],
+            scenario.getBufferSchedules()[runIndex],
+            convertDTListToRelativeTime(scenario.getDownlinkSchedules()[runIndex], scenario.getOh()),
+            scenario.getGSTWList(),
+            scenario.getTTWList(),
+            scenario.getTransmissionParameters()
+        )
 
     def plotObjectiveValues(self):
         """ Plot the objective values for each scenario """
@@ -136,148 +150,6 @@ class AnalyseTest:
         plt.tight_layout()
         plt.show()         
     def plotTargetsChosen(self):
-        """ Plot the targets chosen in each scenario """
-
-        targetFilePath = os.path.join(os.path.dirname(__file__), "../data_input/HYPSO_data/targets.json")
-        targetIdPriorityDict = getTargetIdPriorityDictFromJson(targetFilePath)
-        
-        for i, (scenario, cp_otList, ga_otList) in enumerate(zip(self.scenarios, self.cp_observationSchedules, self.ga_observationSchedules)):
-            # One plot each scenario
-
-            sorted_targets = sorted(targetIdPriorityDict.items(), key=lambda x: x[1], reverse=True)
-
-            targetCount_NA = {targetId: 0 for targetId in targetIdPriorityDict.keys()} 
-            targetCount_CP = {targetId: 0 for targetId in targetIdPriorityDict.keys()}
-            targetCount_GA = {targetId: 0 for targetId in targetIdPriorityDict.keys()}
-            
-            obsSchedsAllRuns = scenario.getObservationSchedules()
-
-            for obsSched in obsSchedsAllRuns:
-                for ot in obsSched:
-                    targetCount_NA[ot.GT.id] += 1
-            targetCount_NA = {k: v / len(obsSchedsAllRuns) for k, v in targetCount_NA.items()}  # Average over all runs
-            for ot in cp_otList:
-                targetCount_CP[ot.GT.id] += 1
-            for ot in ga_otList:
-                targetCount_GA[ot.GT.id] += 1
-
-            # Filter out targets with 0 count in all algorithms
-            filtered_targets = [
-                (targetId, priority) for targetId, priority in sorted_targets 
-                if targetCount_NA[targetId] > 0 or targetCount_CP[targetId] > 0 or targetCount_GA[targetId] > 0
-            ]
-            
-            # Prepare data for plotting
-            target_names = [targetId for targetId, priority in filtered_targets]
-            na_counts = [targetCount_NA[targetId] for targetId, priority in filtered_targets]
-            cp_counts = [targetCount_CP[targetId] for targetId, priority in filtered_targets]
-            ga_counts = [targetCount_GA[targetId] for targetId, priority in filtered_targets]
-            
-            # Create the side-by-side bar chart
-            fig, ax = plt.subplots(figsize=(14, 8))
-            
-            # Bar settings
-            bar_width = 0.25
-            x_positions = np.array(range(len(target_names)))
-            
-            # Create side-by-side bars
-            bars1 = ax.bar(x_positions - bar_width, na_counts, bar_width, 
-                        label='NSGA-II Algorithm', color='#03045E', alpha=0.8)
-            bars2 = ax.bar(x_positions, cp_counts, bar_width, 
-                        label='CP Planner', color='#00A8E0', alpha=0.8)
-            bars3 = ax.bar(x_positions + bar_width, ga_counts, bar_width, 
-                        label='GA Planner', color='#90E0EF', alpha=0.8)
-            
-            # Customize the plot 
-            ax.set_xlabel('Target ID', fontsize=12)
-            ax.set_ylabel('Selection Count', fontsize=12)
-            ax.set_title(f'Target Selection Frequency - Scenario {scenario.senarioID}', 
-                        fontsize=14, fontweight='bold')
-            ax.set_xticks(x_positions)
-            ax.set_xticklabels(target_names, rotation=45, ha='right')
-            ax.legend()
-            ax.grid(True, alpha=0.3, axis='y')
-            
-            # Force y-axis to show only integer values - start from 0
-            max_count = max(max(na_counts), max(cp_counts), max(ga_counts))
-            ax.set_ylim(0, max_count + 1)
-            ax.yaxis.set_major_locator(plt.MaxNLocator(integer=True))
-            
-            plt.tight_layout()
-            plt.show()
-    def plotTargetsChosen2(self):
-        """For each scenario create one figure containing three subplots (NSGA-II, CP, GA).
-        Each subplot shows horizontal bars for targets (sorted by priority low->high)."""
-        targetFilePath = os.path.join(os.path.dirname(__file__), "../data_input/HYPSO_data/targets.json")
-        targetIdPriorityDict = getTargetIdPriorityDictFromJson(targetFilePath)
-
-        # Sort targets by priority low -> high
-        sorted_targets = sorted(targetIdPriorityDict.items(), key=lambda x: x[1])
-
-        for scenario, cp_otList, ga_otList in zip(self.scenarios, self.cp_observationSchedules, self.ga_observationSchedules):
-            # Prepare counts for NSGA-II (average over runs), CP and GA
-            targetCount_NA = {targetId: 0 for targetId in targetIdPriorityDict.keys()}
-            targetCount_CP = {targetId: 0 for targetId in targetIdPriorityDict.keys()}
-            targetCount_GA = {targetId: 0 for targetId in targetIdPriorityDict.keys()}
-
-            # Add targets from scenario, take average over all runs
-            obsSchedsAllRuns = scenario.getObservationSchedules() or []
-            for obsSched in obsSchedsAllRuns:
-                for ot in obsSched:
-                    targetCount_NA[ot.GT.id] += 1
-            if len(obsSchedsAllRuns) > 0:
-                targetCount_NA = {k: v / len(obsSchedsAllRuns) for k, v in targetCount_NA.items()}
-
-            for ot in cp_otList:
-                targetCount_CP[ot.GT.id] += 1
-            for ot in ga_otList:
-                targetCount_GA[ot.GT.id] += 1
-
-            selected_targets = [(targetID, priority) for targetID, priority in sorted_targets]  # Show all targets regardless of selection count
-
-            if not selected_targets:
-                # Nothing to show for this scenario
-                fig = plt.figure(figsize=(8, 3))
-                plt.text(0.5, 0.5, f'No selected targets for scenario {scenario.senarioID}',
-                         ha='center', va='center')
-                plt.axis('off')
-                plt.show()
-                continue
-
-            target_names = [targetID for targetID, _ in selected_targets]
-            priorities = [pr for _, pr in selected_targets]
-            y_positions = np.arange(len(target_names))
-
-            na_counts = [targetCount_NA.get(targetID, 0) for targetID in target_names]
-            cp_counts = [targetCount_CP.get(targetID, 0) for targetID in target_names]
-            ga_counts = [targetCount_GA.get(targetID, 0) for targetID in target_names]
-
- 
-            fig, axes = plt.subplots(1, 3, figsize=(10, 5), sharey=True)
-            if not isinstance(axes, (list, np.ndarray)):
-                axes = [axes]
-
-            algo_data = [
-                ("NSGA-II (avg)", na_counts, '#03045E'),
-                ("CP Planner", cp_counts, '#03045E'),
-                ("GA Planner", ga_counts, '#03045E'),
-            ]
-
-            # Plot each algorithm in its own subplot
-            for ax, (label, counts, color) in zip(axes, algo_data):
-                # Horizontal bars sorted by priority low->high (y_positions corresponds to that)
-                ax.barh(y_positions, counts, height=10, color=color, alpha=0.3)
-
-                ax.set_xlabel('Selection Count', fontsize=10)
-                ax.set_xticks([1, 2, 3])
-                ax.set_title(label, fontsize=11, fontweight='bold')
-                ax.grid(True, axis='x', alpha=0.25)
-
-
-            fig.suptitle(f'Scenario {scenario.senarioID} — Target selections by algorithm', fontsize=14, fontweight='bold')
-            plt.tight_layout(rect=[0, 0, 1, 0.95])
-            plt.show()
-    def plotTargetsChosen3(self): # only use on ru of the algorthm for this 
         """For each scenario create one figure containing three subplots (NSGA-II, CP, GA).
         Each subplot shows horizontal bars for targets (sorted by priority low->high)."""
         targetFilePath = os.path.join(os.path.dirname(__file__), "../data_input/HYPSO_data/targets.json")
@@ -712,45 +584,54 @@ class AnalyseTest:
             all_imageQualityNA.append(value_imageQualityNA/maxImageQuality)
             all_imageQualityCP.append(value_imageQualityCP/maxImageQuality)
             all_imageQualityGA.append(value_imageQualityGA/maxImageQuality)
+            all_priorityPCapNA = [priority / numCaptures for priority, numCaptures in zip(all_priorityNA, all_sumOfCapturesNA)]
+            all_priorityPCapCP = [priority / numCaptures for priority, numCaptures in zip(all_priorityCP, all_sumOfCapturesCP)]
+            all_priorityPCapGA = [priority / numCaptures for priority, numCaptures in zip(all_priorityGA, all_sumOfCapturesGA)]
 
         # Calculate means and standard deviations across all scenarios
-        metrics = ['Captures', 'Priority', 'Image Quality']
+        metrics = ['Captures', 'Priority', 'Priority per Capture', 'Image Quality']
         x_positions = range(len(metrics))
         
         # NSGA-II data
         na_means = [
             np.mean(all_sumOfCapturesNA),
             np.mean(all_priorityNA),
-            np.mean(all_imageQualityNA)
+            np.mean(all_imageQualityNA),
+            np.mean(all_priorityPCapNA)
         ]
         na_stds = [
             np.std(all_sumOfCapturesNA),
             np.std(all_priorityNA),
-            np.std(all_imageQualityNA)
+            np.std(all_imageQualityNA),
+            np.std(all_priorityPCapNA)  
         ]
         
         # GA Planner data
         ga_means = [
             np.mean(all_sumOfCapturesGA),
             np.mean(all_priorityGA),
-            np.mean(all_imageQualityGA)
+            np.mean(all_imageQualityGA),
+            np.mean(all_priorityPCapGA)
         ]
         ga_stds = [
             np.std(all_sumOfCapturesGA),
             np.std(all_priorityGA),
-            np.std(all_imageQualityGA)
+            np.std(all_imageQualityGA),
+            np.std(all_priorityPCapGA)
         ]
         
         # CP Planner data
         cp_means = [
             np.mean(all_sumOfCapturesCP),
             np.mean(all_priorityCP),
-            np.mean(all_imageQualityCP)
+            np.mean(all_imageQualityCP),
+            np.mean(all_priorityPCapCP)
         ]
         cp_stds = [
             np.std(all_sumOfCapturesCP),
             np.std(all_priorityCP),
-            np.std(all_imageQualityCP)
+            np.std(all_imageQualityCP),
+            np.std(all_priorityPCapCP)
         ]
 
         # Create the combined plot
@@ -1028,16 +909,16 @@ allScenarioIds = scenarioIds + scenarioIds1 + scenarioIds2 + scenarioIdCCheck
 scenarioIds_cl = [ "cl_3"]
 
 
-analyse = AnalyseTest(scenarioIds_cl)
-analyse.plotParetoFrontEvolution(scenarioIndex=0, runIndex=0)
+analyse = AnalyseTest(allScenarioIds)
+# analyse.plotParetoFrontEvolution(scenarioIndex=0, runIndex=0)
 # analyse.plotObjectiveValues()
 # analyse.plotNumberOfCapturedTargets()
 # analyse.plotNumTargIQandPriority()
 # analyse.plotNumTargIQandPriorityAverage()
 # analyse.plotGraphNumTargIQandPriorityAverage()
 # analyse.plotTargetsChosen()
-# analyse.plotTargetsChosen2()
-# analyse.plotTargetsChosen3()
+analyse.plotOneschedule(scenarioIndex=0, runIndex=0)
+
 
 
 

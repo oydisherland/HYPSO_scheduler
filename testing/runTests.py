@@ -23,7 +23,7 @@ algorithmRuns = 1
 
 ## Define test scenarios
 scenarios = [
-    TestScenario(senarioID="cl_4", startOH="2025-11-01T13:00:00Z", algorithmRuns=algorithmRuns)
+    TestScenario(senarioID="cl_5", startOH="2025-11-04T13:00:00Z", algorithmRuns=algorithmRuns)
 ]
 
 for scenario in scenarios:

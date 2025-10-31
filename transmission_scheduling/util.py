@@ -362,6 +362,136 @@ def plotSchedule(otList: list[OT], btList: list[BT], dtList: list[DT], gstwList:
     else:
         plt.show()
 
+def plotSchedule(otList: list[OT], btList: list[BT], dtList: list[DT], gstwList: list[GSTW],
+                 ttwList: list[TTW], p: TransmissionParams, savePlotPath=None):
+    otListPrio = sorted(otList, key=lambda x: x.GT.priority, reverse=True)
+    taskIDPrio = [ot.taskID for ot in otListPrio]
+    taskIDPrio.insert(0, -1)  # So that taskID 0 is at index 1
+
+    # Also some printing of metrics
+    print(" ")
+    print(f"Number of scheduled observation tasks: {len(otListPrio)}")
+    latencyCounter(otListPrio, dtList)
+
+    fig, ax = plt.subplots(figsize=(30, 5))
+
+    # Observation Tasks (blue)
+    for i, ot in enumerate(otListPrio, start=1):
+        ax.barh(
+            y=0,
+            width=ot.end - ot.start,
+            left=ot.start,
+            height=0.5,
+            color="royalblue",
+            alpha=1,
+            label="OT modified" if i == 1 else ""
+        )
+        # Label under the box
+        ax.text(
+            x=ot.start + (ot.end - ot.start) / 2,
+            y=0 - (i % 3) * 0.04,  # below y=0 row
+            s= str(taskIDPrio.index(ot.taskID)),
+            ha="center",
+            va="top",
+            fontsize=10,
+            color="black"
+        )
+
+    # Buffering Tasks (orange)
+    for i, bt in enumerate(btList, start=1):
+        ax.barh(
+            y=0.5,
+            width=bt.end - bt.start,
+            left=bt.start,
+            height=0.5,
+            color="darkorange",
+            alpha=0.7,
+            label="BT" if i == 1 else ""
+        )
+        ax.text(
+            x=bt.start + (bt.end - bt.start) / 2,
+            y= 0.62 - (i % 5) * 0.02,  # below y=0.5 row
+            s=str(taskIDPrio.index(bt.OTTaskID)),
+            ha="center",
+            va="top",
+            fontsize=10,
+            color="black"
+        )
+        ax.text(
+            x=bt.start + (bt.end - bt.start) / 2,
+            y=0.25,  # below y=0.5 row
+            s=bt.fileID,
+            ha="center",
+            va="top",
+            fontsize=10,
+            color="grey"
+        )
+
+    # GSTWs (green)
+    counter = 1
+    for gstw in gstwList:
+        for tw in gstw.TWs:
+            ax.barh(
+                y=1,
+                width=tw.end - tw.start,
+                left=tw.start,
+                height=0.5,
+                color="green",
+                alpha=0.3,
+                label=gstw.GS.id if counter == 1 else ""
+            )
+            ax.text(
+                x=tw.start + (tw.end - tw.start) / 2,
+                y=0.75,  # below y=1 row
+                s=str(counter),
+                ha="center",
+                va="top",
+                fontsize=10,
+                color="black"
+            )
+            counter += 1
+
+    for gt in ttwList:
+        for tw in gt.TWs:
+            ax.barh(
+                y=-0.3,
+                width=tw.end - tw.start,
+                left=tw.start,
+                height=0.2,
+                color="lightblue",
+                alpha=0.7,
+            )
+
+    # Add DTlist plotting
+    for i, dt in enumerate(dtList, start=1):
+        ax.barh(
+            y=1.5,
+            width=dt.end - dt.start + 217, # 217 = downlink time, sorry should not be hardcoded
+            left=dt.start,
+            height=0.5,
+            color="red",
+            alpha=0.4,
+            label="DT" if i == 1 else ""
+        )
+        ax.text(
+            x=dt.start + (dt.end - dt.start) / 2,
+            y=1.75 - (i % 11) * 0.05,  # below y=1.5 row
+            s=str(taskIDPrio.index(dt.OTTaskID)),
+            ha="center",
+            va="top",
+            fontsize=10,
+            color="black"
+        )
+
+    # Formatting
+    plt.xlim(0, p.ohDuration)
+    plt.legend()
+    plt.tight_layout()
+    if savePlotPath is not None:
+        plt.savefig(f"{savePlotPath}.png")
+        plt.close()  # Close the figure to free memory
+    else:
+        plt.show()
 
 def plotCompareSchedule(otListCp: list[OT], otList: list[OT], btList: list[BT], dtList: list[DT], gstwList: list[GSTW],
                  ttwList: list[TTW], p: TransmissionParams, savePlotPath=None):

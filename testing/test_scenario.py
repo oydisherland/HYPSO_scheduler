@@ -11,7 +11,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 from scheduling_model import SP, list_toDict, TTW_toDict, GSTW_toDict, OH_toDict, dict_toTTW, dict_toGSTW
 from algorithm.NSGA2 import runNSGA
 from data_preprocessing.create_data_objects import createTTWList, createOH, createGSTWList
-from data_postprocessing.generate_cmdLine import createCmdFile, createCmdLinesForCaptureAndBuffering, recreateOTListFromCmdFile, recreateBTListFromCmdFile
+from data_postprocessing.generate_cmdLine import createCmdFile, createCmdLinesForCaptureAndBuffering, recreateDTListFromCmdFile, recreateOTListFromCmdFile, recreateBTListFromCmdFile
 from data_postprocessing.algorithmData_api import convertOTListToDateTime, convertBTListToDateTime, convertDTListToDateTime, getAlgorithmDatafromJsonFile, saveAlgorithmDataInJsonFile
 from data_preprocessing.objective_functions import getIQFromOT, objectiveFunctionImageQuality, objectiveFunctionPriority
 from transmission_scheduling.clean_schedule import cleanUpSchedule, OrderType
@@ -87,6 +87,9 @@ class TestScenario:
     def getBufferSchedules(self) -> list:
         """ Get the buffer schedules for each run of the algorithm """
         return self._bufferSchedules
+    def getDownlinkSchedules(self) -> list:
+        """ Get the downlink schedules for each run of the algorithm """
+        return self._downlinkSchedules
     def getAllObjectiveValues(self) -> list:
         """ Get the objective values for each run of the algorithm """
         return self._objectiveValues
@@ -96,13 +99,18 @@ class TestScenario:
     def getInputParameters(self) -> InputParameters:
         """ Get the input parameters object """
         return self._inputParameters
+    def getTransmissionParameters(self):
+        """ Get the transmission parameters object """
+        return self._transmissionParameters
     def getAlgorithmDataAllRuns(self) -> list:
         """ Get the algorithm data for each run of the algorithm """
         return self._algorithmDataAllRuns
     def getTTWList(self) -> list:
         """ Get the time to wait list """
         return self._ttwList
-
+    def getGSTWList(self) -> list:
+        """ Get the ground station time windows list """
+        return self._gstwList
     # Set input attributes needed to run test scenario, either create new data or read existing data from files
     def createInputAttributes(self, inputParameterFilePath: str):
         """ Create input files for testing """
@@ -335,7 +343,7 @@ class TestScenario:
                 self._oh,
                 bufferDurationSec=int(self._inputParameters.bufferingTime)
             )
-            dtList = recreateOTListFromCmdFile(
+            dtList = recreateDTListFromCmdFile(
                 os.path.join(os.path.dirname(os.path.dirname(__file__)), f"data_input/HYPSO_data/targets.json"),
                 pathScript,
                 self._oh,

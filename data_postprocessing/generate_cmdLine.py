@@ -8,7 +8,7 @@ from data_preprocessing.parseTargetsFile import getTargetIdPriorityDictFromJson
 from data_input.utility_functions import InputParameters
 
 
-from scheduling_model import OT, GT, BT, OH, DT, generateTaskID
+from scheduling_model import OT, GT, BT, OH, DT, GS, generateTaskID
 
 
 #### FUNCTIONS TO CREATE CAMPAIGN PLANNER COMMAND LINES ####
@@ -141,6 +141,7 @@ def createCmdLinesForCaptureAndBuffering(observationSchedule: list, bufferSchedu
     schedule_dt = algDataApi.convertOTListToDateTime(observationSchedule, oh)
     bufferschedule_dt = algDataApi.convertBTListToDateTime(bufferSchedule, oh)
     downlinkschedule_dt = algDataApi.convertDTListToDateTime(downlinkSchedule, oh)
+    downlinkschedule_dtSorted = sorted(downlinkschedule_dt, key=lambda x: x.start, reverse = True)
     combinedSchedule = algDataApi.CombineCaptureAndBufferSchedules(schedule_dt, bufferschedule_dt)
 
     cmdLines = []
@@ -154,7 +155,7 @@ def createCmdLinesForCaptureAndBuffering(observationSchedule: list, bufferSchedu
             scheduledOTs[task.taskID] = [quaternions, task]  # Store quaternions and task for buffer use
         elif taskType == "Buffer":
             quaternions, ot = scheduledOTs.get(task.OTTaskID)
-            downlinkTask = next((dt for dt in downlinkschedule_dt if dt.OTTaskID == task.OTTaskID), None)
+            downlinkTask = next((dt for dt in downlinkschedule_dtSorted if dt.OTTaskID == task.OTTaskID), None)
             newBufferCommandLine = createBufferCmdLine(task, downlinkTask, ot, int(inputParameters.hypsoNr), quaternions)
             cmdLines.append(newBufferCommandLine)
     return cmdLines
@@ -271,9 +272,10 @@ def recreateBTListFromCmdFile(targetFilePath: str, cmdFilePath: str, oh: OH, buf
     return btList
 def recreateDTListFromCmdFile(targetFilePath: str, cmdFilePath: str, oh: OH, bufferDurationSec: int, captureDurationSec: int = 60):
     """ Reads a command file and recreates the list of DT objects from the command lines
-    Output:
+    Output: 
     - dtList: list of DT objects
     """
+    gs = GS("ksatsvalbard", "78.2208", "15.4260", "5") 
     dtList = []
     with open(cmdFilePath, 'r') as f:
         cmdLines = f.readlines()
@@ -286,7 +288,7 @@ def recreateDTListFromCmdFile(targetFilePath: str, cmdFilePath: str, oh: OH, buf
 
                 dt = DT(
                     OTTaskID = bt.OTTaskID,
-                    GS = None,  # Ground station info not available in cmd line
+                    GS = gs,
                     start = estimatedEndTime - timedelta(seconds=bufferDurationSec),
                     end = estimatedEndTime
                 )
