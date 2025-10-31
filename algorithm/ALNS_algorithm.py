@@ -305,19 +305,16 @@ def repairCongestion(current: ProblemState, rng: rnd.Generator) -> ProblemState:
 
 ### Function to run ALNS algorithm
 
-def runALNS(initial_otList: list, initial_ttwList: list, gstwList: list[GSTW], schedulingParameters: SP,
-            transmissionParameters: TransmissionParams, oh: OH, destructionNumber: int, maxSizeTabooBank: int,
-            maxItr: int, isTabooBankFIFO: bool):
+def runALNS(initialState: ProblemState, maxItr: int):
     """ Runs the ALNS algorithm to find a good heuristic solution
     Output:
     - result: the result object from the ALNS run, containing the best solution found
     - state: the final ProblemState object of the problem after the ALNS run
     """
     # Format the problem state
-    state = ProblemState(initial_otList, [], [], initial_ttwList, gstwList, oh, destructionNumber, schedulingParameters,
-                         transmissionParameters, maxSizeTabooBank, isTabooBankFIFO)
-    state.objectiveValues = [objectiveFunctionPriority(initial_otList),
-                           objectiveFunctionImageQuality(initial_otList, oh, schedulingParameters.hypsoNr)]
+    initialState.objectiveValues = [objectiveFunctionPriority(initialState.otList),
+                           objectiveFunctionImageQuality(initialState.otList, initialState.oh,
+                                                         initialState.schedulingParameters.hypsoNr)]
 
     # Create ALNS and add one or more destroy and repair operators
     alns = ALNS() # Initialize without a random seed
@@ -346,7 +343,7 @@ def runALNS(initial_otList: list, initial_ttwList: list, gstwList: list[GSTW], s
     stop = MaxIterations(maxItr)  
 
     # Run the ALNS algorithm
-    result = alns.iterate(state, select, accept, stop)
+    result = alns.iterate(initialState, select, accept, stop)
 
     # Retrieve the final solution
     # best = result.best_state

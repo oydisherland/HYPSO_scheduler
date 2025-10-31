@@ -87,23 +87,16 @@ def runNSGA(
 
             if i >= len(population):
                 # Create initial population
-                otList_i = createInitialSolution(ttwList.copy(), gstwList, schedulingParameters, transmissionParameters,
-                                         oh, destructionNumber, maxSizeTabooBank, isTabooBankFIFO).otList
+                initialState = createInitialSolution(ttwList.copy(), gstwList, schedulingParameters, transmissionParameters,
+                                         oh, destructionNumber, maxSizeTabooBank, isTabooBankFIFO)
             else:
                 # create mutation
-                otList_i = population[i].solutionState.otList.copy()
+                initialState = population[i].solutionState
 
             newIndividual = runALNS(
-                otList_i,
-                ttwList.copy(),
-                gstwList,
-                schedulingParameters,
-                transmissionParameters,
-                oh,
-                destructionNumber,
-                maxSizeTabooBank,
-                alnsRuns,
-                isTabooBankFIFO)
+                initialState,
+                alnsRuns
+            )
 
             best = newIndividual.best_state
             population.append(INDIVIDUAL(individualID , best))
