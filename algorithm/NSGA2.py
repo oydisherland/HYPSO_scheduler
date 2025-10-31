@@ -1,3 +1,5 @@
+import copy
+
 import numpy as np
 import math
 from pymoo.util.nds.non_dominated_sorting import NonDominatedSorting
@@ -91,7 +93,7 @@ def runNSGA(
                                          oh, destructionNumber, maxSizeTabooBank, isTabooBankFIFO)
             else:
                 # create mutation
-                initialState = population[i].solutionState
+                initialState = copy.deepcopy(population[i].solutionState)
 
             newIndividual = runALNS(
                 initialState,
