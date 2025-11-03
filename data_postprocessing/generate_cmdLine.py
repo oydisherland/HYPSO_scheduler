@@ -199,9 +199,12 @@ def getScheduleFromCmdLine(targetFilePath: str,cmdLine: str, oh: OH, bufferDurat
                     continue
                 
             if cmd == '-n' and i < len(cmds) - 2:
-                # Check if the next cmd is targetID and double word target name
-                if not cmds[i+2].startswith("-"):
-                    cmdNext = cmdNext + " " + cmds[i+2]
+                # Check if the next cmds are a part of the targetID name
+                for j in range(i+2, len(cmds)):
+                    if not cmds[j].startswith("-"):
+                        cmdNext = cmdNext + " " + cmds[j]
+                    else:
+                        break
             cmdDict[cmd] = cmdNext
     
     # Recreate target data object to find objectiveValue

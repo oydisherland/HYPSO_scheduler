@@ -821,9 +821,12 @@ class AnalyseTest:
             ha='center',
             va='center',
             wrap=True,
-            fontsize=14,
+            fontsize=13,
             bbox=dict(facecolor='white', edgecolor='none', alpha=0.0)
         )
+        # Save plot in file
+        out_pdf = os.path.join(os.path.dirname(__file__), f"../testing/testing_results/barPlot.pdf")
+        fig.savefig(out_pdf, format='pdf', bbox_inches='tight')
         plt.show()
     def plotGraphNumTargIQandPriorityAverages(self):
         """ Plot the average number of targets, priority, and image quality as line plots with standard deviation """
@@ -999,7 +1002,11 @@ class AnalyseTest:
         algData = algDataAllRuns[runIndex]  
         iterationData, bestIndex, = algData
         kneePoint = scenario.getAllObjectiveValues()[runIndex]
-       
+
+        # different approch
+        p_val = objectiveFunctionPriority(scenario.getObservationSchedules()[runIndex])
+        iq_val = objectiveFunctionImageQuality(scenario.getObservationSchedules()[runIndex], scenario.getOh(), int(scenario.getInputParameters().hypsoNr))
+        kneePoint = (p_val, iq_val)
        # Calculate objective values for CP and GA planners
         cp_otList = self.cp_observationSchedules[scenarioIndex]
         ga_otList = self.ga_observationSchedules[scenarioIndex]
@@ -1049,7 +1056,8 @@ class AnalyseTest:
                 # print a cirkle around the kneepoint in the final pareto front
                 if finalParetoFront:
                     # Plot a big circle around the knee point
-                    ax.scatter(kneePoint[0], scaleIQFromDegTo100(kneePoint[1]), 
+                    iq = scaleIQFromDegTo100(kneePoint[1])
+                    ax.scatter(kneePoint[0], iq, 
                             facecolors='none',
                             edgecolors=colors[1],  # circle for visibility
                             s=200,  # Large size
@@ -1187,7 +1195,7 @@ class AnalyseTest:
 scenarioIds = ["_H2Miss26-10", "_H2Miss27-10", "_H2Miss28-10"]
 scenarioIds1 = ["27"]
 scenarioIds2 = ["mission27_v2"]
-scenarioIdCCheck = ["e2", "e4", "e2_v2", "e4_v2"]
+scenarioIdCCheck = [ "e4", "e6"]
 allScenarioIds = scenarioIds + scenarioIds1 + scenarioIds2 + scenarioIdCCheck
 scenarioIds_cl = [ "cl_5", "cl_6", "cl_5"]
 test = ['g2', 'g4', 'g6', 'e2', 'e4', 'e6']
@@ -1195,7 +1203,7 @@ test = ['g2', 'g4', 'g6', 'e2', 'e4', 'e6']
 filename27_10 = "/Users/oydisherland/Documents/OBD scheduling paper/Testing/27-10/images"
 
 analyse = AnalyseTest(test)
-analyse.plotParetoFrontEvolution(scenarioIndex=5, runIndex=0)
+analyse.plotParetoFrontEvolution(scenarioIndex=2, runIndex=0)
 # analyse.plotObjectiveValues()
 # analyse.plotNumberOfCapturedTargets()
 # analyse.plotNumTargIQandPriority()
