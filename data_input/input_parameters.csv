@@ -11,10 +11,10 @@ delayInHoursOH, 0
 hypsoNr, 2
 
 # Algorithm specific parameters
-populationSize, 10
+populationSize, 50
 isTabooBankFIFO, True
 iqNonLinear, False
-NSGA2Runs, 5
+NSGA2Runs, 15
 ALNSRuns, 50
 maxTabBank, 2
 desNumber, 1
