@@ -137,7 +137,9 @@ def getFreeGSGaps(btList: list[BT], gstwListSorted: list[tuple[GS, TW]]) -> list
         gstwListSorted (list[tuple[GS, TW]): List of all ground station time windows.
 
     Returns:
-        list[tuple[TW, TW]]: List with the time windows from the ground station pass before and after the gaps
+        list[tuple[TW, TW]]: List with tuples containing two time windows which represent a free gap.
+        The first time windows is from the ground station pass before the gap,
+        and the second time window is from the ground station pass after the gap.
     """
     freeGapList = []  # List with the end time of the free gaps
     btListToCheck = btList.copy()
@@ -186,7 +188,9 @@ def getBufferClearedTimestamps(otList: list[OT], btList: list[BT], dtList: list[
                 preGapFileCount += 1
 
         if preGapFileCount == 0:
-            bufferClearedTimestamps.append(freeGSGap[0].start)
+            # The buffer is cleared at the end of the GS pass directly after the gap,
+            # so add the end of the time window corresponding to this pass.
+            bufferClearedTimestamps.append(freeGSGap[1].end)
             continue
 
         if preGapFileCount <= 2:
@@ -194,6 +198,8 @@ def getBufferClearedTimestamps(otList: list[OT], btList: list[BT], dtList: list[
             availableTime = getAvailableDownlinkTime(freeGSGap[0], [], otList, p) + \
                                 getAvailableDownlinkTime(freeGSGap[1], [], otList, p)
             if availableTime > preGapFileCount * 1.5 * p.downlinkDuration:
+                # The buffer is cleared at the end of the GS pass directly after the gap,
+                # so add the end of the time window corresponding to this pass.
                 bufferClearedTimestamps.append(freeGSGap[1].end)
 
     bufferClearedTimestamps.insert(0, 0)
