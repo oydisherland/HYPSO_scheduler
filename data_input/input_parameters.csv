@@ -2,20 +2,20 @@ testName, testPlot
 
 # Scheduling specific parameters
 
-maxCaptures, 23
+maxCaptures, 60
 captureDuration, 60
 transitionTime, 660
 startTimeOH, 2025-10-17 14:40:00.000000+00:00
-durationInDaysOH, 5
+durationInDaysOH, 2
 delayInHoursOH, 0
 hypsoNr, 2
 
 # Algorithm specific parameters
-populationSize, 100
+populationSize, 50
 isTabooBankFIFO, True
 iqNonLinear, False
-NSGA2Runs, 10
-ALNSRuns, 50
+NSGA2Runs, 15
+ALNSRuns, 30
 maxTabBank, 2
 desNumber, 1
 

@@ -42,15 +42,15 @@ def findKneePoint(fronts, objectiveSpace):
             selector = HighTradeoffPoints()
             selected = selector.do(-pareto_front, n_points=1)
             
-            if selected[0] is NoneType:
-                # if selected[0] is noneType object (should not happen) select the solution with highest priority
+            # selector.do may return None or an empty result; guard before indexing
+            if not selected or selected[0] is None:
+                # fallback: select the solution with the highest priority
                 bestFrontIndex = np.argmax(pareto_front[:, 0])
                 bestSolution = pareto_front[bestFrontIndex]
                 bestIndex = pareto_front_indices[bestFrontIndex]
-                return bestSolution, bestIndex
-
-            bestSolution = pareto_front[selected[0]]
-            bestIndex = pareto_front_indices[selected[0]]
+            else:
+                bestSolution = pareto_front[selected[0]]
+                bestIndex = pareto_front_indices[selected[0]]
 
         return bestSolution, bestIndex
 
@@ -225,9 +225,10 @@ def runNSGA(
                 terminationCounter = 0  
 
         previousParetoFront = fronts[0]
+        print(f"| {generation + 1} ", end='')
 
     ##### end main loop
-
+    print(" ")
     bestSolution, bestIndex = findKneePoint(fronts, objectiveSpace)
     bestBufferSchedule = None
     bestDownlinkSchedule = None

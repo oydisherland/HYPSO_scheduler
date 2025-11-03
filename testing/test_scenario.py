@@ -34,6 +34,7 @@ class TestScenario:
     _ttwList = None
     _gstwList = None
     _oh = None
+    _targetsFilePath = None
 
     # private result attributes created after running the test
     _observationSchedules = None
@@ -80,6 +81,9 @@ class TestScenario:
     def setInputParameters(self, inputParameters: InputParameters):
         """ Set the input parameters for the test scenario """
         self._inputParameters = inputParameters
+    def setOh(self, oh: OH):
+        """ Set the observation horizon for the test scenario """
+        self._oh = oh
 
     def getObservationSchedules(self) -> list:
         """ Get the observation schedules for each run of the algorithm """
@@ -111,10 +115,17 @@ class TestScenario:
     def getGSTWList(self) -> list:
         """ Get the ground station time windows list """
         return self._gstwList
+    def getTargetsFilePath(self) -> str:
+        """ Get the path to the targets file """
+        return self._targetsFilePath
     # Set input attributes needed to run test scenario, either create new data or read existing data from files
-    def createInputAttributes(self, inputParameterFilePath: str):
+    def createInputAttributes(self, inputParameterFilePath: str, targetFilePath: str = None):
         """ Create input files for testing """
-
+        # If no target file is spesifies use default path for HYPSO mission targets
+        if targetFilePath is None:
+            self._targetsFilePath = os.path.join(os.path.dirname(__file__),"../data_input/HYPSO_data/targets.json")
+        else:
+            self._targetsFilePath = targetFilePath
         # Read initial input parameters from cvs file
         self._inputParameters = InputParameters.from_csv(inputParameterFilePath)
         self._transmissionParameters = getTransmissionInputParams(inputParameterFilePath)
@@ -122,7 +133,7 @@ class TestScenario:
 
         # Create input data Objects
         self._oh = createOH(datetime.datetime.fromisoformat(self.startOH), int(self._inputParameters.durationInDaysOH))
-        self._ttwList = createTTWList(int(self._inputParameters.captureDuration), self._oh, int(self._inputParameters.hypsoNr))
+        self._ttwList = createTTWList(int(self._inputParameters.captureDuration), self._oh, int(self._inputParameters.hypsoNr), str(self._targetsFilePath))
         self._gstwList = createGSTWList(self._oh.utcStart, self._oh.utcEnd,
                                         self._transmissionParameters.minGSWindowTime, int(self._inputParameters.hypsoNr),
                                         commInterface=self._inputParameters.commInterface)
@@ -130,7 +141,29 @@ class TestScenario:
         # Save input data in files
         folderPathTestScenario = os.path.join(os.path.dirname(__file__), f"testing_results/OH{self.senarioID}")
         os.makedirs(folderPathTestScenario, exist_ok=True)
+        with open(os.path.join(folderPathTestScenario, "targetFile.json"), "w") as f:
+            json.dump(self._targetsFilePath, f, indent=4)
+        with open(os.path.join(folderPathTestScenario, "input_parameters.json"), "w") as f:
+            f.write(self._inputParameters.to_json())
+        with open(os.path.join(folderPathTestScenario, "ttw_list.json"), "w") as f:
+            json.dump(list_toDict(self._ttwList, TTW_toDict), f, indent=4)
+        with open(os.path.join(folderPathTestScenario, "gstw_list.json"), "w") as f:
+            json.dump(list_toDict(self._gstwList, GSTW_toDict), f, indent=4)
+        with open(os.path.join(folderPathTestScenario, "oh.json"), "w") as f:
+            json.dump(OH_toDict(self._oh), f, indent=4)
+    def updateInputAttributes(self):
+        """ Update input attributes for testing """
 
+        # Create input data Objects
+        self._oh = createOH(datetime.datetime.fromisoformat(self.startOH), int(self._inputParameters.durationInDaysOH))
+        self._ttwList = createTTWList(int(self._inputParameters.captureDuration), self._oh, int(self._inputParameters.hypsoNr), str(self._targetsFilePath))
+        self._gstwList = createGSTWList(self._oh.utcStart, self._oh.utcEnd,
+                                        self._transmissionParameters.minGSWindowTime, int(self._inputParameters.hypsoNr),
+                                        commInterface=self._inputParameters.commInterface)
+
+        # Save input data in files
+        folderPathTestScenario = os.path.join(os.path.dirname(__file__), f"testing_results/OH{self.senarioID}")
+        os.makedirs(folderPathTestScenario, exist_ok=True)
         with open(os.path.join(folderPathTestScenario, "input_parameters.json"), "w") as f:
             f.write(self._inputParameters.to_json())
         with open(os.path.join(folderPathTestScenario, "ttw_list.json"), "w") as f:
@@ -153,6 +186,12 @@ class TestScenario:
             utcStart = datetime.datetime.fromisoformat(ohData["utcStart"].replace('Z', '+00:00')),
             utcEnd = datetime.datetime.fromisoformat(ohData["utcEnd"].replace('Z', '+00:00'))
         )
+
+        # Recreate target file path from json file
+        pathTargetFile = os.path.join(folderPathOutput, "targetFile.json")
+        with open(pathTargetFile, "r") as f:
+            targetData = json.load(f)
+        self._targetsFilePath = targetData
         # Recreate inputParameters from json file
         pathInputParamsFile = os.path.join(folderPathOutput,"input_parameters.json")
         self._inputParameters = InputParameters.from_json(pathInputParamsFile)
@@ -239,6 +278,7 @@ class TestScenario:
             ## REMOVE ABOVE
 
             if bufferSchedule is None or downlinkSchedule is None:
+                # should not happen
                 raise ValueError("Error in transmission scheduling, no buffer or downlink schedule created.")
             # Clean up schedule for transmission
             bufferSchedule, downlinkSchedule = cleanUpSchedule(
@@ -332,22 +372,23 @@ class TestScenario:
         for runNr in range(self.algorithmRuns):
             pathScript = os.path.join(folderPathOutput, f"cmdLines/{runNr}_cmdLines.txt")
             otList = recreateOTListFromCmdFile(
-                os.path.join(os.path.dirname(os.path.dirname(__file__)), f"data_input/HYPSO_data/targets.json"),
+                self._targetsFilePath,
                 pathScript,
                 self._oh,
                 bufferDurationSec=int(self._inputParameters.bufferingTime)
             )
             btList = recreateBTListFromCmdFile(
-                os.path.join(os.path.dirname(os.path.dirname(__file__)), f"data_input/HYPSO_data/targets.json"),
+                self._targetsFilePath,
                 pathScript,
                 self._oh,
                 bufferDurationSec=int(self._inputParameters.bufferingTime)
             )
             dtList = recreateDTListFromCmdFile(
-                os.path.join(os.path.dirname(os.path.dirname(__file__)), f"data_input/HYPSO_data/targets.json"),
+                self._targetsFilePath,
                 pathScript,
                 self._oh,
-                bufferDurationSec=0
+                bufferDurationSec=int(self._inputParameters.bufferingTime),
+                downlinkDurationSec=int(self._inputParameters.downlinkDuration)
             )
             obsSchedules.append(otList)
             bufSchedules.append(btList)

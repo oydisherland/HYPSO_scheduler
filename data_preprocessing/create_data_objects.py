@@ -328,7 +328,7 @@ def createOH(startTimeOH: datetime, ohDurationInDays: int) -> OH:
     """
 
     endTimeOH = startTimeOH + timedelta(days=ohDurationInDays)
-    print("Start time OH:", startTimeOH.strftime('%Y-%m-%dT%H:%M:%SZ'), "End time OH:", endTimeOH.strftime('%Y-%m-%dT%H:%M:%SZ'))
+    # print("Start time OH:", startTimeOH.strftime('%Y-%m-%dT%H:%M:%SZ'), "End time OH:", endTimeOH.strftime('%Y-%m-%dT%H:%M:%SZ'))
 
     oh = OH(
         utcStart=startTimeOH,
@@ -338,7 +338,7 @@ def createOH(startTimeOH: datetime, ohDurationInDays: int) -> OH:
     return oh
 
 
-def createTTWList(captureDuration: int, oh: OH, hypsoNr: int, ttwFilePathRead: str = None, ttwFilePathWrite: str = None) -> list:
+def createTTWList(captureDuration: int, oh: OH, hypsoNr: int, targetsFilePath: str, ttwFilePathRead: str = None, ttwFilePathWrite: str = None) -> list:
     """ Calculate the satellite passes and store in data objects defined in scheduling_model.py
 
     Args:
@@ -365,22 +365,19 @@ def createTTWList(captureDuration: int, oh: OH, hypsoNr: int, ttwFilePathRead: s
     # Update TLE
     updateTLE(hypsoNr)
 
-    # Path to the file containing the ground targets data
-    targetsFilePath = os.path.join(os.path.dirname(__file__),"../data_input/HYPSO_data/targets.json")
-
     # Get the target passes
     allTargetPasses = getAllTargetPasses(captureDuration, oh.utcStart, oh.utcEnd, targetsFilePath, hypsoNr)
-    print(f"Without filtering, targets: {len(allTargetPasses)}, captures: {howManyPasses(allTargetPasses)}")
+    # print(f"Without filtering, targets: {len(allTargetPasses)}, captures: {howManyPasses(allTargetPasses)}")
     
     # Filter out night passes that are not illuminated by the sun
     illuminatedPasses = removeNonIlluminatedPasses(allTargetPasses, oh.utcStart, oh.utcEnd)
-    print(f"After filtering out non-illuminated passes, targets: {len(illuminatedPasses)}, captures: {howManyPasses(illuminatedPasses)}")
+    # print(f"After filtering out non-illuminated passes, targets: {len(illuminatedPasses)}, captures: {howManyPasses(illuminatedPasses)}")
     
     # Filter out targets that are obscured by clouds
     cloudlessTargetpasses = illuminatedPasses
     print(f"Skipping cloud coverage filtering step.")
     #cloudlessTargetpasses = removeCloudObscuredPasses(illuminatedPasses, oh.utcStart, oh.utcEnd)
-    print(f"After filtering out cloud-obscured passes, targets: {len(cloudlessTargetpasses)}, captures: {howManyPasses(cloudlessTargetpasses)}")
+    # print(f"After filtering out cloud-obscured passes, targets: {len(cloudlessTargetpasses)}, captures: {howManyPasses(cloudlessTargetpasses)}")
 
     # Create objects from the ground targets data
     ttwList = []

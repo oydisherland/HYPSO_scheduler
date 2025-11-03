@@ -1,6 +1,7 @@
 
 import os
 import sys
+import re
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 import matplotlib.pyplot as plt
@@ -12,14 +13,14 @@ import datetime
 from dataclasses import dataclass
 from test_scenario import TestScenario
 
-from data_postprocessing.generate_cmdLine import recreateOTListFromCmdFile
+from data_postprocessing.generate_cmdLine import recreateOTListFromCmdFile, recreateDTListFromCmdFile
 from scheduling_model import OH
 from data_input.utility_functions import InputParameters
 from data_preprocessing.create_data_objects import createOH
 from data_preprocessing.objective_functions import objectiveFunctionPriority, objectiveFunctionImageQuality, getIQFromOT
 from data_preprocessing.parseTargetsFile import getTargetIdPriorityDictFromJson
-from transmission_scheduling.util import plotSchedule
-from data_postprocessing.algorithmData_api import convertOTListToRelativeTime, convertBTListToRelativeTime, convertDTListToRelativeTime
+from transmission_scheduling.util import latencyCounter
+from data_postprocessing.algorithmData_api import convertDTListToRelativeTime
 
 
 #plt.rcParams['text.usetex'] = True  # Optional: for LaTeX rendering
@@ -31,6 +32,28 @@ plt.rcParams['axes.formatter.use_mathtext'] = True
 def scaleIQFromDegTo100(iqInDegrees: float) -> float:
     """ Scale image quality from degrees to a 0-100 scale """
     return (iqInDegrees - 40) / (90 - 40) * 100
+def getDTFromImageFiles(imageFilePath: str) -> list:
+    """ Get the datetime objects from image file names in the specified directory """
+    imageFiles = [f for f in os.listdir(imageFilePath) if f.endswith('.png')]
+    downLinkTimes = []
+    targetIds = []
+    for imageFile in imageFiles:
+        # Extract datetime string from filename
+        base = os.path.basename(imageFile)
+        base_no_ext = os.path.splitext(base)[0]
+        # split once at first underscore
+        prefix, rest = base_no_ext.split('_', 1)
+        # find the date substring that ends with Z (e.g. 2025-10-28T09-04-13Z)
+        rest = rest.upper()
+        m = re.search(r'(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}Z)', rest)
+        date_str = m.group(1) if m else None
+        # parse to datetime (format uses hyphens between time fields)
+        dt = datetime.datetime.strptime(date_str, '%Y-%m-%dT%H-%M-%SZ') if date_str else None
+        if dt is not None:
+            dt = dt.replace(tzinfo=datetime.timezone.utc)
+        downLinkTimes.append(dt)
+        targetIds.append(prefix)
+    return zip(targetIds, downLinkTimes)
 
 @dataclass
 class AnalyseTest:
@@ -62,7 +85,7 @@ class AnalyseTest:
             # Recreate output of scenario
             cp_cmdFilePath = os.path.join(os.path.dirname(__file__), f"../testing/testing_results/OH{scenarioId}/{scenarioId}_cp_cmdLines.txt")
             ga_cmdFilePath = os.path.join(os.path.dirname(__file__), f"../testing/testing_results/OH{scenarioId}/{scenarioId}_ga_cmdLines.txt")
-            targetFilePath = os.path.join(os.path.dirname(__file__), f"../data_input/HYPSO_data/targets.json") 
+            targetFilePath = scenario.getTargetsFilePath()
             oh = scenario.getOh()
             inputParameters = scenario.getInputParameters()
             # CP observation schedule
@@ -73,17 +96,152 @@ class AnalyseTest:
             self.ga_observationSchedules.append(ga_otList)
                
 
-    def plotOneschedule(self, scenarioIndex: int, runIndex: int):
+    def plotOneschedule(self, scenarioIndex: int, runIndex: int, imageFilePath: str):
         """ Plot the observation schedule for a given scenario and run index """ 
+
         scenario = self.scenarios[scenarioIndex]
-        plotSchedule(
-            scenario.getObservationSchedules()[runIndex],
-            scenario.getBufferSchedules()[runIndex],
-            convertDTListToRelativeTime(scenario.getDownlinkSchedules()[runIndex], scenario.getOh()),
-            scenario.getGSTWList(),
-            scenario.getTTWList(),
-            scenario.getTransmissionParameters()
-        )
+
+        otList = scenario.getObservationSchedules()[runIndex]
+        btList = scenario.getBufferSchedules()[runIndex]
+        dtList = convertDTListToRelativeTime(scenario.getDownlinkSchedules()[runIndex], scenario.getOh())
+        gstwList = scenario.getGSTWList()
+        ttwList = scenario.getTTWList()
+        p = scenario.getTransmissionParameters()
+        savePlotPath = None
+
+        otListPrio = sorted(otList, key=lambda x: x.GT.priority, reverse=True)
+        taskIDPrio = [ot.taskID for ot in otListPrio]
+        taskIDPrio.insert(0, -1)  # So that taskID 0 is at index 1
+
+        colors = ['#03045E', '#023E8A', '#0077B6',  '#00A8E0', '#48CAE4', '#90E0EF', '#CAF0F8']
+
+        # Get actual downlink times from image files
+        dtActualTuples = getDTFromImageFiles(imageFilePath)
+        dtList_actual = []
+        for targetId, dt in dtActualTuples:
+            relativeTime = (dt - scenario.getOh().utcStart).total_seconds()
+            dtList_actual.append(relativeTime)
+
+
+        fig, ax = plt.subplots(figsize=(15, 3))
+        
+        # The sizing of the bars
+        height = 0.3
+        distance = 0.1
+        ttw_y = 0
+        ot_y = ttw_y + height / 2 + distance
+        bt_y = ot_y + height + distance
+        dt_y = bt_y + height + distance
+        gstw_y = dt_y + height / 2 + distance
+        dtA_y = gstw_y + height / 2 + distance
+        
+        # Target Passes, showed in dots
+        dot_label_shown = False
+        for ttw in ttwList:
+            for tw in ttw.TWs:
+                x_center = tw.start + (tw.end - tw.start) / 2
+                duration = max(1.0, tw.end - tw.start)
+                # Map duration to marker area (s). Adjust scaling factor if markers are too large/small.
+                marker_area = max(40, (duration / max(1.0, p.ohDuration)) * 3000)
+                dot_y = ttw_y   # -0.25 -> bottom of OT bars
+                # show legend label only once
+                lbl = "Target pass" if not dot_label_shown else None
+                ax.scatter(
+                    x_center,
+                    dot_y,
+                    s=marker_area,
+                    color=colors[1],
+                    alpha=0.9,
+                    linewidths=0.5,
+                    label=lbl
+                )
+                if lbl is not None:
+                    dot_label_shown = True
+
+        # Observation Tasks (blue)
+        for i, ot in enumerate(otListPrio, start=1):
+            w = ot.end - ot.start + 100
+            ax.barh(
+                y=ot_y,
+                width=w,
+                left=ot.start,
+                height=height,
+                color=colors[2],
+                alpha=1,
+                label="Observation Task" if i == 1 else ""
+            )
+            # Label under the box
+
+        # Buffering Tasks (orange)
+        for i, bt in enumerate(btList, start=1):
+            ax.barh(
+                y=bt_y,
+                width=bt.end - bt.start,
+                left=bt.start,
+                height=height,
+                color=colors[3],
+                alpha=0.7,
+                edgecolor=colors[6],
+                label="BT" if i == 1 else ""
+            )
+
+        # GSTWs (green)
+        counter = 1
+        for gstw in gstwList:
+            for tw in gstw.TWs:
+                ax.barh(
+                    y=gstw_y,
+                    width=tw.end - tw.start,
+                    left=tw.start,
+                    height=height*2,
+                    color=colors[6],
+                    alpha=0.6,
+                    label="Ground Station Pass" if counter == 1 else ""
+                )
+                counter += 1
+
+
+        # Add DTlist plotting
+        for i, dt in enumerate(dtList, start=1):
+            ax.barh(
+                y=dt_y,
+                width=217, # 217 = downlink time, sorry should not be hardcoded
+                left=dt.end - 217,
+                height=height/2,
+                color=colors[0],
+                alpha=0.4,
+                label="Estimated Downlink" if i == 1 else ""
+            )
+        # Add DTlist plotting
+        for i, dt in enumerate(dtList_actual, start=1):
+            ax.barh(
+                y=dtA_y,
+                width=217, # 217 = downlink time, sorry should not be hardcoded
+                left=dt - 217,
+                height=height/2,
+                color=colors[0],
+                alpha=0.6,
+                label="Actually downlinked" if i == 1 else ""
+            )
+
+        # Formatting
+# increase font sizes for readability
+        large_fs = 14
+        med_fs = 14
+        small_fs = 14       
+        ax.set_xlabel('time 48h', fontsize=large_fs)
+        ax.set_xticks([])   # hide numeric tick labels
+        ax.set_yticks([])   # hide y ticks (targets rows)       # enlarge any tick labels (if you later enable them)
+        ax.tick_params(axis='x', labelsize=small_fs)
+        ax.tick_params(axis='y', labelsize=small_fs)        # place legend below the plot with larger text and a bit more space
+        ax.set_xlim(-100, p.ohDuration - 1000)
+        ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.12), ncol=6, frameon=False, fontsize=med_fs)      # reduce padding so the figure stays compact while leaving room for the legend
+        plt.tight_layout(rect=[0, 0.0, 1, 0.92])
+        if savePlotPath is not None:
+            plt.savefig(f"{savePlotPath}.png")
+            plt.close()  # Close the figure to free memory
+        else:
+            plt.show()
 
     def plotObjectiveValues(self):
         """ Plot the objective values for each scenario """
@@ -152,11 +310,7 @@ class AnalyseTest:
     def plotTargetsChosen(self):
         """For each scenario create one figure containing three subplots (NSGA-II, CP, GA).
         Each subplot shows horizontal bars for targets (sorted by priority low->high)."""
-        targetFilePath = os.path.join(os.path.dirname(__file__), "../data_input/HYPSO_data/targets.json")
-        targetIdPriorityDict = getTargetIdPriorityDictFromJson(targetFilePath)
-
-        # Sort targets by priority low -> high
-        sorted_targets = sorted(targetIdPriorityDict.items(), key=lambda x: x[1])
+        
 
         # Collect targets across all scenarios
         totalIQ_NA = []
@@ -164,6 +318,10 @@ class AnalyseTest:
         totalIQ_GA = []
         total_yPositions = []
         for scenario, cp_otList, ga_otList in zip(self.scenarios, self.cp_observationSchedules, self.ga_observationSchedules):
+            targetFilePath = scenario.getTargetsFilePath()
+            targetIdPriorityDict = getTargetIdPriorityDictFromJson(targetFilePath)  
+            # Sort targets by priority low -> high
+            sorted_targets = sorted(targetIdPriorityDict.items(), key=lambda x: x[1])
             # Prepare counts for NSGA-II (average over runs), CP and GA
             targetIdsChosenNA =  []
             imageQualityNA = []
@@ -541,10 +699,136 @@ class AnalyseTest:
 
         plt.tight_layout()
         plt.show()
-    def plotGraphNumTargIQandPriorityAverage(self):
+    def plotGraphNumTargIQandPrioritySubplots(self):
         """ Plot the average number of targets, priority, and image quality as line plots with standard deviation """
         
-        # Collect data for all scenarios
+        # Collect data for all scenarios 
+        all_sumOfCapturesNA, all_priorityNA, all_imageQualityNA = [], [], []
+        all_sumOfCapturesCP, all_priorityCP, all_imageQualityCP = [], [], []
+        all_sumOfCapturesGA, all_priorityGA, all_imageQualityGA = [], [], []
+
+        for i, (scenario, cp_otList, ga_otList) in enumerate(zip(self.scenarios, self.cp_observationSchedules, self.ga_observationSchedules)):
+            # Find sum of captures 
+            obsSchedsAllRuns = scenario.getObservationSchedules()
+            average = sum(len(obsSched) for obsSched in obsSchedsAllRuns) / len(obsSchedsAllRuns)
+
+            # Find priority and image quality 
+            # NA using average of all runs
+            obsValuesNA = scenario.getAllObjectiveValues()
+            value_priorityNA = sum(val[0] for val in obsValuesNA) / len(obsValuesNA)
+            value_imageQualityNA = sum(val[1] for val in obsValuesNA) / len(obsValuesNA)
+            value_priorityCP = objectiveFunctionPriority(cp_otList)
+            value_imageQualityCP = objectiveFunctionImageQuality(cp_otList, scenario.getOh(), int(scenario.getInputParameters().hypsoNr))
+            value_priorityGA = objectiveFunctionPriority(ga_otList)
+            value_imageQualityGA = objectiveFunctionImageQuality(ga_otList, scenario.getOh(), int(scenario.getInputParameters().hypsoNr))
+
+            # Scale IQ so that 0-1 maps 40 degrees to 90 degrees
+            value_imageQualityNA = (value_imageQualityNA - 40) / (90 - 40) 
+            value_imageQualityCP = (value_imageQualityCP - 40) / (90 - 40) 
+            value_imageQualityGA = (value_imageQualityGA - 40) / (90 - 40) 
+
+            #Normalize values
+            maxCapture = max(average, len(cp_otList), len(ga_otList))
+            maxPriority = max(value_priorityNA, value_priorityCP, value_priorityGA)
+            maxImageQuality = max(value_imageQualityNA, value_imageQualityCP, value_imageQualityGA)
+
+            # Add normalized values to lists
+            all_sumOfCapturesNA.append(average/maxCapture)
+            all_sumOfCapturesCP.append(len(cp_otList)/maxCapture)
+            all_sumOfCapturesGA.append(len(ga_otList)/maxCapture)
+            all_priorityNA.append(value_priorityNA/maxPriority)
+            all_priorityCP.append(value_priorityCP/maxPriority)
+            all_priorityGA.append(value_priorityGA/maxPriority)
+            all_imageQualityNA.append(value_imageQualityNA/maxImageQuality)
+            all_imageQualityCP.append(value_imageQualityCP/maxImageQuality)
+            all_imageQualityGA.append(value_imageQualityGA/maxImageQuality)
+        
+                # determine number of subplots (one per scenario)
+        n = len(all_sumOfCapturesNA)
+        if n == 0:
+            return
+
+        # layout: try to fit into a row up to 3 cols
+        max_cols = 3
+        ncols = min(n, max_cols)
+        nrows = int(np.ceil(n / ncols))
+        # create subplots with zero horizontal spacing between axes
+        per_col_width = 2.0   # smaller width per subplot (reduce to make plot narrower)
+        per_row_height = 3.0
+        fig_width = max(6, per_col_width * ncols)   # ensure a minimum width
+        fig_height = per_row_height * nrows
+        fig, axes = plt.subplots(nrows, ncols,
+                                 figsize=(fig_width, fig_height),
+                                 sharey=True,
+                                 gridspec_kw={'wspace': 0, 'hspace': 0.15})
+        axes = np.array(axes).reshape(-1)  # flatten
+         # set y-axis tick label font size for all subplots
+        y_tick_fs = 14
+        for a in axes:
+            a.tick_params(axis='y', labelsize=y_tick_fs)
+            for lbl in a.get_xticklabels() + a.get_yticklabels():
+                lbl.set_bbox(dict(facecolor='white', edgecolor='none', alpha=0.5,pad=1))
+
+        # remove y tick labels on all subplots except the first column to avoid clutter
+        # for idx, a in enumerate(axes):
+        #     if (idx % ncols) != 0 and idx != 3:
+        #         a.set_yticklabels([])
+        #         a.set_ylabel('')
+
+        # tighten left/right margins so plots butt up against each other
+        fig.subplots_adjust(left=0.08, right=0.98, top=0.95, bottom=0.06)
+        metrics = ['C', 'P', 'IQ']
+        x = np.arange(len(metrics))
+        bar_width = 0.22
+
+        colors = {'NA': '#03045E', 'GA': '#00A8E0', 'CP': '#90E0EF'}
+
+        for i in range(n):
+            ax = axes[i]
+            na_vals = [all_sumOfCapturesNA[i], all_priorityNA[i], all_imageQualityNA[i]]
+            ga_vals = [all_sumOfCapturesGA[i], all_priorityGA[i], all_imageQualityGA[i]]
+            cp_vals = [all_sumOfCapturesCP[i], all_priorityCP[i], all_imageQualityCP[i]]
+
+            ax.bar(x - bar_width, na_vals, bar_width, label='ALNS+NSGA-II', color=colors['NA'], alpha=0.8, edgecolor='k', linewidth=0.4)
+            ax.bar(x, ga_vals, bar_width, label='Greedy1', color=colors['GA'], alpha=0.8, edgecolor='k', linewidth=0.4)
+            ax.bar(x + bar_width, cp_vals, bar_width, label='Greedy2', color=colors['CP'], alpha=0.8, edgecolor='k', linewidth=0.4)
+
+            if i == 0 or i == 3:
+                ax.set_ylabel('Normalized Score', fontsize=14)
+            
+            ax.set_xticks(x)
+            # show metric tick labels only on bottom row and place them inside the plot
+
+            ax.set_xticklabels(metrics, rotation=0, fontsize=14)
+            # move the tick labels into the axes (negative pad)
+            ax.tick_params(axis='x', labelsize=14, pad=-20)
+
+            ax.set_ylim(0, 1.05)
+            ax.grid(True, axis='y', alpha=0.25)
+
+            scen = self.scenarios[i]
+            ax.set_title(f'Scenario {scen.senarioID}', fontsize=14, fontweight='bold')
+
+        handles, labels = axes[0].get_legend_handles_labels()
+        fig.legend(handles, labels, loc='lower center', bbox_to_anchor=(0.5, 0.08), ncols=3, fontsize=14)
+        # reserve right margin so external legend is not clipped
+        fig.subplots_adjust(bottom=0.18)
+        # add explanatory text block below the legend
+        fig.text(
+            0.5,                      # x (center)
+            0.04,                     # y (slightly above bottom)
+            "C: number of captures, P: priority objective, IQ: image quality objective",
+            ha='center',
+            va='center',
+            wrap=True,
+            fontsize=14,
+            bbox=dict(facecolor='white', edgecolor='none', alpha=0.0)
+        )
+        plt.show()
+    def plotGraphNumTargIQandPriorityAverages(self):
+        """ Plot the average number of targets, priority, and image quality as line plots with standard deviation """
+        
+        # Collect data for all scenarios 
         all_sumOfCapturesNA, all_priorityNA, all_imageQualityNA = [], [], []
         all_sumOfCapturesCP, all_priorityCP, all_imageQualityCP = [], [], []
         all_sumOfCapturesGA, all_priorityGA, all_imageQualityGA = [], [], []
@@ -589,7 +873,8 @@ class AnalyseTest:
             all_priorityPCapGA = [priority / numCaptures for priority, numCaptures in zip(all_priorityGA, all_sumOfCapturesGA)]
 
         # Calculate means and standard deviations across all scenarios
-        metrics = ['Captures', 'Priority', 'Priority per Capture', 'Image Quality']
+        # metrics = ['Captures', 'Priority', 'Priority per Capture', 'Image Quality']
+        metrics = ['Captures', 'Priority', 'Image Quality']
         x_positions = range(len(metrics))
         
         # NSGA-II data
@@ -597,13 +882,13 @@ class AnalyseTest:
             np.mean(all_sumOfCapturesNA),
             np.mean(all_priorityNA),
             np.mean(all_imageQualityNA),
-            np.mean(all_priorityPCapNA)
+            # np.mean(all_priorityPCapNA)
         ]
         na_stds = [
             np.std(all_sumOfCapturesNA),
             np.std(all_priorityNA),
             np.std(all_imageQualityNA),
-            np.std(all_priorityPCapNA)  
+            # np.std(all_priorityPCapNA)  
         ]
         
         # GA Planner data
@@ -611,13 +896,13 @@ class AnalyseTest:
             np.mean(all_sumOfCapturesGA),
             np.mean(all_priorityGA),
             np.mean(all_imageQualityGA),
-            np.mean(all_priorityPCapGA)
+            # np.mean(all_priorityPCapGA)
         ]
         ga_stds = [
             np.std(all_sumOfCapturesGA),
             np.std(all_priorityGA),
             np.std(all_imageQualityGA),
-            np.std(all_priorityPCapGA)
+            # np.std(all_priorityPCapGA)
         ]
         
         # CP Planner data
@@ -625,13 +910,13 @@ class AnalyseTest:
             np.mean(all_sumOfCapturesCP),
             np.mean(all_priorityCP),
             np.mean(all_imageQualityCP),
-            np.mean(all_priorityPCapCP)
+            # np.mean(all_priorityPCapCP)
         ]
         cp_stds = [
             np.std(all_sumOfCapturesCP),
             np.std(all_priorityCP),
             np.std(all_imageQualityCP),
-            np.std(all_priorityPCapCP)
+            # np.std(all_priorityPCapCP)
         ]
 
         # Create the combined plot
@@ -730,6 +1015,8 @@ class AnalyseTest:
         # Create the plot
         fig, ax = plt.subplots(figsize=(12, 8))
         
+        font_size = 14  # set all text to size 14
+        
         # Create a colormap for different iterations
         num_iterations = len(iterationData)
         custom_colors = ['#03045E', '#023E8A', '#0077B6', '#00A8E0', '#48CAE4', '#90E0EF']
@@ -771,29 +1058,26 @@ class AnalyseTest:
                             label='Knee Point')
         # Add CP planner point
         ax.scatter(cpOVPoints[0], cpOVPoints[1], 
-                c='black', 
+                c=custom_colors[0], 
                 alpha=1, 
                 s=100, 
-                label='CP Planner',
+                label='Greedy2',
                 marker='s',  # Square marker
-                edgecolors='black',
                 linewidth=1)
         
         # Add GA planner point
         ax.scatter(gaOVPoints[0], gaOVPoints[1], 
-                c='black', 
+                c=custom_colors[0], 
                 alpha=1, 
                 s=100, 
-                label='GA Planner',
+                label='Greedy1',
                 marker='^',  # Triangle marker
-                edgecolors='black',
                 linewidth=1)
         
-        # Customize the plot
-        ax.set_xlabel('Priority', fontsize=12)
-        ax.set_ylabel('Image Quality [1-100]', fontsize=12)
-        ax.set_title(f'Pareto Front Evolution - Scenario {scenario.senarioID}, Run {runIndex + 1}', 
-                    fontsize=14, fontweight='bold')
+        # Customize the plot (use font_size for all text)
+        ax.set_xlabel('Priority', fontsize=font_size)
+        ax.set_ylabel('Image Quality [1-100]', fontsize=font_size)
+        ax.tick_params(axis='both', which='major', labelsize=font_size)
         ax.grid(True, alpha=0.3)
         
         # Handle legend - only show every nth iteration if there are too many
@@ -803,7 +1087,7 @@ class AnalyseTest:
             handles = handles[::step]
             labels = labels[::step]
         
-        ax.legend(handles, labels, bbox_to_anchor=(1.05, 1), loc='upper left')
+        ax.legend(handles, labels, bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=font_size)
         
         plt.tight_layout()
         plt.show()
@@ -897,27 +1181,29 @@ class AnalyseTest:
         plt.tight_layout()
         plt.show()
         
-        
 
-       
+
 
 scenarioIds = ["_H2Miss26-10", "_H2Miss27-10", "_H2Miss28-10"]
 scenarioIds1 = ["27"]
-scenarioIds2 = ["longWindow"]
-scenarioIdCCheck = ["check"]
+scenarioIds2 = ["mission27_v2"]
+scenarioIdCCheck = ["e2", "e4", "e2_v2", "e4_v2"]
 allScenarioIds = scenarioIds + scenarioIds1 + scenarioIds2 + scenarioIdCCheck
-scenarioIds_cl = [ "cl_3"]
+scenarioIds_cl = [ "cl_5", "cl_6", "cl_5"]
+test = ['g2', 'g4', 'g6', 'e2', 'e4', 'e6']
 
+filename27_10 = "/Users/oydisherland/Documents/OBD scheduling paper/Testing/27-10/images"
 
-analyse = AnalyseTest(allScenarioIds)
-# analyse.plotParetoFrontEvolution(scenarioIndex=0, runIndex=0)
+analyse = AnalyseTest(test)
+analyse.plotParetoFrontEvolution(scenarioIndex=5, runIndex=0)
 # analyse.plotObjectiveValues()
 # analyse.plotNumberOfCapturedTargets()
 # analyse.plotNumTargIQandPriority()
 # analyse.plotNumTargIQandPriorityAverage()
-# analyse.plotGraphNumTargIQandPriorityAverage()
+# analyse.plotGraphNumTargIQandPrioritySubplots()
+# analyse.plotGraphNumTargIQandPriorityAverages()
 # analyse.plotTargetsChosen()
-analyse.plotOneschedule(scenarioIndex=0, runIndex=0)
+# analyse.plotOneschedule(scenarioIndex=0, runIndex=0, imageFilePath=filename27_10)
 
 
 

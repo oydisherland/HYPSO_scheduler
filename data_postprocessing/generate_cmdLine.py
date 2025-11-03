@@ -197,7 +197,11 @@ def getScheduleFromCmdLine(targetFilePath: str,cmdLine: str, oh: OH, bufferDurat
                 except ValueError:
                     # If the next command is not a number, skip it
                     continue
-
+                
+            if cmd == '-n' and i < len(cmds) - 2:
+                # Check if the next cmd is targetID and double word target name
+                if not cmds[i+2].startswith("-"):
+                    cmdNext = cmdNext + " " + cmds[i+2]
             cmdDict[cmd] = cmdNext
     
     # Recreate target data object to find objectiveValue
@@ -270,7 +274,7 @@ def recreateBTListFromCmdFile(targetFilePath: str, cmdFilePath: str, oh: OH, buf
             if commandType == 'Buffer':
                 btList.append(bt)
     return btList
-def recreateDTListFromCmdFile(targetFilePath: str, cmdFilePath: str, oh: OH, bufferDurationSec: int, captureDurationSec: int = 60):
+def recreateDTListFromCmdFile(targetFilePath: str, cmdFilePath: str, oh: OH, bufferDurationSec: int, downlinkDurationSec: int, captureDurationSec: int = 60):
     """ Reads a command file and recreates the list of DT objects from the command lines
     Output: 
     - dtList: list of DT objects
@@ -289,7 +293,7 @@ def recreateDTListFromCmdFile(targetFilePath: str, cmdFilePath: str, oh: OH, buf
                 dt = DT(
                     OTTaskID = bt.OTTaskID,
                     GS = gs,
-                    start = estimatedEndTime - timedelta(seconds=bufferDurationSec),
+                    start = estimatedEndTime - timedelta(seconds=downlinkDurationSec),
                     end = estimatedEndTime
                 )
                 dtList.append(dt)
