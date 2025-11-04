@@ -1,4 +1,4 @@
-from scheduling_model import GSTW, DT, TW, GS, GT, OT
+from scheduling_model import GSTW, DT, TW, GS, OT
 from transmission_scheduling.conflict_checks import downlinkTaskConflicting
 from transmission_scheduling.input_parameters import TransmissionParams
 from transmission_scheduling.util import getAvailableDownlinkTime
@@ -83,7 +83,7 @@ def generatePartialDownlinkTask(otList: list[OT], gstw: GSTW, desiredDownlinkTim
             - bool: True if only a partial downlink task was scheduled, False if the full downlink task was scheduled.
     """
     # First check if the ground station pass is long enough for downlinking at least some of the data
-    if gstw.TWs[0].end - gstw.TWs[0].start < p.minGSWindowTime:
+    if gstw.TWs[0].end - gstw.TWs[0].start <= p.transmissionStartTime:
         return None, True
 
     # Check the available downlink time during this ground station pass
