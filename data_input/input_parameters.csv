@@ -21,18 +21,18 @@ desNumber, 1
 
 # Transmission timing parameters
 bufferingTime, 1500
-afterCaptureTime, 600
-interTaskTime, 100
-interDownlinkTime, 5
+afterCaptureTime, 650
+interTaskTime, 1
+interDownlinkTime, 1
 downlinkDuration, 217
 transmissionStartTime, 260
 overLappingWithCaptureSetback, 120
 
 # Transmission scheduling parameters
 minDownlinkFraction, 0.4
-maxLatencyHours, 20
-slidingInsertIterations, 5
-reInsertIterations, 3
+maxLatencyHours, 48
+slidingInsertIterations, 3
+reInsertIterations, 2
 maxBufferFilesH2, 7
 maxBufferFilesH1, 2
 bufferStartIDH2, 19
