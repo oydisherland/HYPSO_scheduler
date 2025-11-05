@@ -77,8 +77,6 @@ plotSchedule(
 
 print(f"Priority objective value: {objectiveFunctionPriority(observationSchedule)}")
 print(f"Image quality objective value: {objectiveFunctionImageQuality(observationSchedule, oh, schedulingParameters.hypsoNr)}")
-from transmission_scheduling.two_stage_transmission_insert import methodsUsed
-print(f"Methods used: {methodsUsed}")
 
 ### CREATE COMMAND LINES FOR SATELLITE CAPTURE AND BUFFERING ###
 

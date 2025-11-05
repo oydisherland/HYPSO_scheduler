@@ -6,8 +6,6 @@ from transmission_scheduling.input_parameters import TransmissionParams
 from transmission_scheduling.util import getClosestGSTW, gstwToSortedTupleList, findPossibleTTW
 
 
-methodsUsed = [0, 0, 0]
-
 def twoStageTransmissionScheduling(otList: list[OT], ttwList: list[TTW], gstwList: list[GSTW],
                                    parameters: TransmissionParams, sortOtList: bool = True,
                                    fullReinsert: bool = False) -> tuple[list[BT], list[DT], list[OT]]:
@@ -94,8 +92,6 @@ def scheduleTransmissions(otList: list[OT], ttwList: list[TTW], gstwList: list[G
             - A list of observation tasks, possibly changed to fit the buffering and downlinking tasks.
     """
     p = parameters
-
-    global methodsUsed
 
     directInsert = insertion.DirectInsertion(p)
     slideInsert = insertion.SlideInsertion(p)
