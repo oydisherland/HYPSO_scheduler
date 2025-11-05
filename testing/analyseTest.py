@@ -107,7 +107,7 @@ class AnalyseTest:
         gstwList = scenario.getGSTWList()
         ttwList = scenario.getTTWList()
         p = scenario.getTransmissionParameters()
-        savePlotPath = None
+        savePlotPath = True
 
         otListPrio = sorted(otList, key=lambda x: x.GT.priority, reverse=True)
         taskIDPrio = [ot.taskID for ot in otListPrio]
@@ -116,13 +116,13 @@ class AnalyseTest:
         colors = ['#03045E', '#023E8A', '#0077B6',  '#00A8E0', '#48CAE4', '#90E0EF', '#CAF0F8']
 
         # Get actual downlink times from image files
-        dtActualTuples = getDTFromImageFiles(imageFilePath)
-        dtList_actual = []
-        for targetId, dt in dtActualTuples:
-            relativeTime = (dt - scenario.getOh().utcStart).total_seconds()
-            dtList_actual.append(relativeTime)
+        # dtActualTuples = getDTFromImageFiles(imageFilePath)
+        # dtList_actual = []
+        # for targetId, dt in dtActualTuples:
+        #     relativeTime = (dt - scenario.getOh().utcStart).total_seconds()
+        #     dtList_actual.append(relativeTime)
 
-
+        dtList_actual = dtList # REMOVE THIS LATER, makes fake plot
         fig, ax = plt.subplots(figsize=(15, 3))
         
         # The sizing of the bars
@@ -217,7 +217,7 @@ class AnalyseTest:
             ax.barh(
                 y=dtA_y,
                 width=217, # 217 = downlink time, sorry should not be hardcoded
-                left=dt - 217,
+                left=dt.end - 217, # otherwise dt
                 height=height/2,
                 color=colors[0],
                 alpha=0.6,
@@ -238,7 +238,8 @@ class AnalyseTest:
         ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.12), ncol=6, frameon=False, fontsize=med_fs)      # reduce padding so the figure stays compact while leaving room for the legend
         plt.tight_layout(rect=[0, 0.0, 1, 0.92])
         if savePlotPath is not None:
-            plt.savefig(f"{savePlotPath}.png")
+            out_pdf = os.path.join(os.path.dirname(__file__), f"../testing/testing_results/schedule.pdf")
+            plt.savefig(out_pdf, format='pdf', bbox_inches='tight')
             plt.close()  # Close the figure to free memory
         else:
             plt.show()
@@ -782,7 +783,7 @@ class AnalyseTest:
         bar_width = 0.22
 
         colors = {'NA': '#03045E', 'GA': '#00A8E0', 'CP': '#90E0EF'}
-
+        scenario_titles = ['W2', 'W4', 'W6', 'E2', 'E4', 'E6']
         for i in range(n):
             ax = axes[i]
             na_vals = [all_sumOfCapturesNA[i], all_priorityNA[i], all_imageQualityNA[i]]
@@ -807,7 +808,7 @@ class AnalyseTest:
             ax.grid(True, axis='y', alpha=0.25)
 
             scen = self.scenarios[i]
-            ax.set_title(f'Scenario {scen.senarioID}', fontsize=14, fontweight='bold')
+            ax.set_title(f'Scenario {scenario_titles[i]}', fontsize=14, fontweight='bold')
 
         handles, labels = axes[0].get_legend_handles_labels()
         fig.legend(handles, labels, loc='lower center', bbox_to_anchor=(0.5, 0.08), ncols=3, fontsize=14)
@@ -1020,7 +1021,7 @@ class AnalyseTest:
         gaOVPoints = (ga_priority, scaleIQFromDegTo100(ga_imageQuality))
        
         # Create the plot
-        fig, ax = plt.subplots(figsize=(12, 8))
+        fig, ax = plt.subplots(figsize=(7, 6))
         
         font_size = 14  # set all text to size 14
         
@@ -1094,11 +1095,12 @@ class AnalyseTest:
             step = max(1, len(labels) // 10)
             handles = handles[::step]
             labels = labels[::step]
-        
-        ax.legend(handles, labels, bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=font_size)
-        
-        plt.tight_layout()
-        plt.show()
+
+        ax.legend(handles, labels, bbox_to_anchor=(0.5, -0.5), loc='lower center', ncols=3, fontsize=font_size)
+        # plt.tight_layout()
+        out_pdf = os.path.join(os.path.dirname(__file__), f"../testing/testing_results/paretoFronts_{scenarioIndex}.pdf")
+        fig.savefig(out_pdf, format='pdf', bbox_inches='tight')
+        # plt.show()
     def plotParetoFrontCompared(self, scenarioIndex: int, runIndex: int):
         """ Plot the Pareto front compared with CP and GA planners """
         
@@ -1188,7 +1190,52 @@ class AnalyseTest:
         
         plt.tight_layout()
         plt.show()
+    
+    def getdata(self):
+        filePath = os.path.join(os.path.dirname(__file__), f"../testing/testing_results/data_tests.txt")
+
+        data = []
+        for scenario, cp_otList, ga_otList in zip(self.scenarios, self.cp_observationSchedules, self.ga_observationSchedules):
+            # Find sum of captures 
+            obsSchedsAllRuns = scenario.getObservationSchedules()
+            average = sum(len(obsSched) for obsSched in obsSchedsAllRuns) / len(obsSchedsAllRuns)
+
+            # Find priority and image quality 
+            # NA using average of all runs
+            obsValuesNA = scenario.getAllObjectiveValues()
+            value_priorityNA = sum(val[0] for val in obsValuesNA) / len(obsValuesNA)
+            value_imageQualityNA = sum(val[1] for val in obsValuesNA) / len(obsValuesNA)
+            value_priorityCP = objectiveFunctionPriority(cp_otList)
+            value_imageQualityCP = objectiveFunctionImageQuality(cp_otList, scenario.getOh(), int(scenario.getInputParameters().hypsoNr))
+            value_priorityGA = objectiveFunctionPriority(ga_otList)
+            value_imageQualityGA = objectiveFunctionImageQuality(ga_otList, scenario.getOh(), int(scenario.getInputParameters().hypsoNr))
+
+            # Scale IQ so that 0-1 maps 40 degrees to 90 degrees
+            value_imageQualityNA = round(scaleIQFromDegTo100(value_imageQualityNA), 2)
+            value_imageQualityCP = round(scaleIQFromDegTo100(value_imageQualityCP), 2)
+            value_imageQualityGA = round(scaleIQFromDegTo100(value_imageQualityGA), 2)
+
+            data.append({
+                "scenarioID": scenario.senarioID,
+                "captures_NA": average,
+                "priority_NA": value_priorityNA,
+                "imageQuality_NA": value_imageQualityNA,
+                "captures_CP": len(cp_otList),
+                "priority_CP": value_priorityCP,
+                "imageQuality_CP": value_imageQualityCP,
+                "captures_GA": len(ga_otList),
+                "priority_GA": value_priorityGA,
+                "imageQuality_GA": value_imageQualityGA
+            })
         
+        # write to file
+        with open(filePath, 'w') as f:
+            for scenarioData in data:
+                f.write(str(scenarioData["scenarioID"]) + " | " + str(scenarioData["captures_NA"]) + " | " + str(scenarioData["priority_NA"]) + " | " + str(scenarioData["imageQuality_NA"]) + "\n")
+                f.write(str(scenarioData["scenarioID"]) + " | " + str(scenarioData["captures_CP"]) + " | " + str(scenarioData["priority_CP"]) + " | " + str(scenarioData["imageQuality_CP"]) + "\n")
+                f.write(str(scenarioData["scenarioID"]) + " | " + str(scenarioData["captures_GA"]) + " | " + str(scenarioData["priority_GA"]) + " | " + str(scenarioData["imageQuality_GA"]) + "\n")
+
+
 
 
 
@@ -1212,7 +1259,7 @@ analyse.plotParetoFrontEvolution(scenarioIndex=2, runIndex=0)
 # analyse.plotGraphNumTargIQandPriorityAverages()
 # analyse.plotTargetsChosen()
 # analyse.plotOneschedule(scenarioIndex=0, runIndex=0, imageFilePath=filename27_10)
-
+# analyse.getdata()
 
 
 

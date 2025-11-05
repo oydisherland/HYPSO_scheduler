@@ -29,27 +29,27 @@ targetsFilePathEurope = os.path.join(os.path.dirname(__file__),"../data_input/HY
 
 ## Define test scenarios
 scenarios = [
-    # TestScenario(senarioID="g2", startOH="2025-11-04T13:00:00Z", algorithmRuns=algorithmRuns),
-    # TestScenario(senarioID="g4", startOH="2025-11-04T13:00:00Z", algorithmRuns=algorithmRuns),
-    # TestScenario(senarioID="g6", startOH="2025-11-04T13:00:00Z", algorithmRuns=algorithmRuns),
+    TestScenario(senarioID="g2_v2", startOH="2025-11-04T13:00:00Z", algorithmRuns=algorithmRuns),
+    TestScenario(senarioID="g4_v2", startOH="2025-11-04T13:00:00Z", algorithmRuns=algorithmRuns),
+    TestScenario(senarioID="g6_v2", startOH="2025-11-04T13:00:00Z", algorithmRuns=algorithmRuns),
     TestScenario(senarioID="e2_v2", startOH="2025-11-04T13:00:00Z", algorithmRuns=algorithmRuns),
     TestScenario(senarioID="e4_v2", startOH="2025-11-04T13:00:00Z", algorithmRuns=algorithmRuns),
     TestScenario(senarioID="e6_v2", startOH="2025-11-04T13:00:00Z", algorithmRuns=algorithmRuns)
 ]
 
 targetFiles = [
-    # targetsFilePath_world,
-    # targetsFilePath_world,
-    # targetsFilePath_world,
+    targetsFilePath_world,
+    targetsFilePath_world,
+    targetsFilePath_world,
     targetsFilePathEurope,
     targetsFilePathEurope,
     targetsFilePathEurope
 ]
-OHdurations = [ 2, 4, 6]
-maxCaptures = [ 25, 50, 75]
+OHdurations = [ 2, 4, 6, 2, 4, 6]
+maxCaptures = [ 25, 50, 75, 25, 50, 75]
 
-popsizes = [ 100, 100, 100]
-alnsRuns = [ 50, 50, 50]
+popsizes = [ 50, 50, 20, 50, 50, 20]
+alnsRuns = [ 30, 30, 30, 30, 30, 30]
 
 
 for scenario, i in zip(scenarios, range(len(scenarios))):
@@ -63,7 +63,7 @@ for scenario, i in zip(scenarios, range(len(scenarios))):
     input.durationInDaysOH = OHdurations[i]
     input.maxCaptures = maxCaptures[i]
     input.populationSize = popsizes[i]
-    input.ALNSRuns = alnsRuns[i]
+    input.alnsRuns = alnsRuns[i]
     scenario.setInputParameters(input)
 
     # Update all data input attributes
@@ -71,16 +71,17 @@ for scenario, i in zip(scenarios, range(len(scenarios))):
 
     print(f"Scenario OH{scenario.senarioID} start time: {scenario.getOh().utcStart}, end time: {scenario.getOh().utcEnd}")
     # Run Greedy algorithm 
-    scenario.runGreedyAlgorithm()
+    # scenario.runGreedyAlgorithm()
     
     # Run ALNS + NSGA-II algorithm
     with timer(f"Scenario OH{scenario.senarioID}"):
-        scenario.runTestScenario()
+        # scenario.runTestScenario()
+        scenario.runGreedyAlgorithm()
 
 
 # #Analyse tests
-for scenario in scenarios:
-    otLists = scenario.getObservationSchedules()
-    schedulePriorities = [sum(ot.GT.priority for ot in otList) for otList in otLists]
-    obVals = scenario.getAllObjectiveValues()
-    print(f"Scenario OH{scenario.senarioID}: Best run is run number {schedulePriorities.index(max(schedulePriorities))} with total priority {max(schedulePriorities)}")
+# for scenario in scenarios:
+#     otLists = scenario.getObservationSchedules()
+#     schedulePriorities = [sum(ot.GT.priority for ot in otList) for otList in otLists]
+#     obVals = scenario.getAllObjectiveValues()
+#     print(f"Scenario OH{scenario.senarioID}: Best run is run number {schedulePriorities.index(max(schedulePriorities))} with total priority {max(schedulePriorities)}")
