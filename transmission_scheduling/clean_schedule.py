@@ -90,7 +90,7 @@ def assignBufferIDs(otList: list[OT], btList: list[BT], dtList: list[DT], gstwLi
         btListSorted = sorted(btList, key=lambda x: x.start)
 
     gstwSortedTupleList = gstwToSortedTupleList(gstwList)
-    bufferClearedTimestamps = getBufferClearedTimestamps(otList, btList, dtList, gstwSortedTupleList, p)
+    bufferClearedTimestamps = getBufferClearedTimestamps(otList, btList, dtList, gstwSortedTupleList)
 
     btListIDAssigned: list[BT] = []
     for bt in btListSorted:

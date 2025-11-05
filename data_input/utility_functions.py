@@ -45,9 +45,9 @@ class InputParameters:
 
     # Transmission timing parameters
     bufferingTime: int
-    afterCaptureTime: int
-    interTaskTime: int      
-    interDownlinkTime: int
+    preBufferTime: int
+    preCaptureTime: int
+    postCaptureTime: int
     downlinkDuration: int
     transmissionStartTime: int
 
@@ -84,9 +84,9 @@ class InputParameters:
             maxTabBank=int(params_dict['maxTabBank']),
             desNumber=int(params_dict['desNumber']),
             bufferingTime=int(params_dict['bufferingTime']),
-            afterCaptureTime=int(params_dict['afterCaptureTime']),
-            interTaskTime=int(params_dict['interTaskTime']),
-            interDownlinkTime=int(params_dict['interDownlinkTime']),
+            preBufferTime=int(params_dict['preBufferTime']),
+            preCaptureTime=int(params_dict['preCaptureTime']),
+            postCaptureTime=int(params_dict['postCaptureTime']),
             downlinkDuration=int(params_dict['downlinkDuration']),
             transmissionStartTime=int(params_dict['transmissionStartTime']),
             minDownlinkFraction=float(params_dict['minDownlinkFraction']),

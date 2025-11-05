@@ -6,6 +6,8 @@ from transmission_scheduling.input_parameters import TransmissionParams
 from transmission_scheduling.util import getClosestGSTW, gstwToSortedTupleList, findPossibleTTW
 
 
+methodsUsed = [0, 0, 0]
+
 def twoStageTransmissionScheduling(otList: list[OT], ttwList: list[TTW], gstwList: list[GSTW],
                                    parameters: TransmissionParams, sortOtList: bool = True,
                                    fullReinsert: bool = False) -> tuple[list[BT], list[DT], list[OT]]:
@@ -93,6 +95,8 @@ def scheduleTransmissions(otList: list[OT], ttwList: list[TTW], gstwList: list[G
     """
     p = parameters
 
+    global methodsUsed
+
     directInsert = insertion.DirectInsertion(p)
     slideInsert = insertion.SlideInsertion(p)
     deleteInsert = insertion.DeleteInsertion(p)
@@ -151,7 +155,7 @@ def scheduleTransmissions(otList: list[OT], ttwList: list[TTW], gstwList: list[G
             if validBTFound:
                 # If a valid buffer task has been found we don't need to look further
                 break
-            for insertMethod in insertList:
+            for j, insertMethod in enumerate(insertList):
                 gstw = GSTW(entry[0], [entry[1]])
                 # Find the list of future GSTW that could be used to downlink the remaining data if needed
                 nextGSTWList: list[tuple[GS, TW]]  # Storing the GS passes in this form is more convenient
@@ -166,6 +170,7 @@ def scheduleTransmissions(otList: list[OT], ttwList: list[TTW], gstwList: list[G
 
                 if bt is not None:
                     btList.append(bt)
+                    methodsUsed[j] += 1
                     for candidate in candidateDTList:
                         dtList.append(candidate)
                     validBTFound = True

@@ -375,7 +375,8 @@ def createTTWList(captureDuration: int, oh: OH, hypsoNr: int, ttwFilePathRead: s
     print(f"After filtering out non-illuminated passes, targets: {len(illuminatedPasses)}, captures: {howManyPasses(illuminatedPasses)}")
     
     # Filter out targets that are obscured by clouds
-    cloudlessTargetpasses = removeCloudObscuredPasses(illuminatedPasses, oh.utcStart, oh.utcEnd)
+    # cloudlessTargetpasses = removeCloudObscuredPasses(illuminatedPasses, oh.utcStart, oh.utcEnd)
+    cloudlessTargetpasses = illuminatedPasses
     print(f"After filtering out cloud-obscured passes, targets: {len(cloudlessTargetpasses)}, captures: {howManyPasses(cloudlessTargetpasses)}")
 
     # Create objects from the ground targets data

@@ -64,7 +64,7 @@ class DeleteInsertion(InsertionInterface):
 
 
         # Only remove the observation tasks that are needed to fit the buffering task
-        bufferTimeWindow = TW(bt.start, bt.end + p.interTaskTime)
+        bufferTimeWindow = TW(bt.start - p.preBufferTime, bt.end)
         conflictOTs, conflictBTs, conflictGSTWs = getConflictingTasks(bufferTimeWindow, btList, otListPrioSorted,
                                                                       gstwList, p)
         if conflictBTs or conflictGSTWs:

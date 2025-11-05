@@ -4,8 +4,8 @@ testName, testPlot
 
 maxCaptures, 23
 captureDuration, 60
-transitionTime, 660
-startTimeOH, 2025-10-17 14:40:00.000000+00:00
+transitionTime, 1050
+startTimeOH, 2025-11-11 11:00:00.000000+00:00
 durationInDaysOH, 2
 delayInHoursOH, 0
 hypsoNr, 2
@@ -20,10 +20,10 @@ maxTabBank, 2
 desNumber, 1
 
 # Transmission timing parameters
-bufferingTime, 1500
-afterCaptureTime, 650
-interTaskTime, 1
-interDownlinkTime, 1
+bufferingTime, 1509
+preBufferTime, 275
+preCaptureTime, 400
+postCaptureTime, 620
 downlinkDuration, 217
 transmissionStartTime, 260
 overLappingWithCaptureSetback, 120
@@ -31,7 +31,7 @@ overLappingWithCaptureSetback, 120
 # Transmission scheduling parameters
 minDownlinkFraction, 0.4
 maxLatencyHours, 48
-slidingInsertIterations, 3
+slidingInsertIterations, 5
 reInsertIterations, 2
 maxBufferFilesH2, 7
 maxBufferFilesH1, 2

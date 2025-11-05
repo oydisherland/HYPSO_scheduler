@@ -162,10 +162,13 @@ def getFreeGSGaps(btList: list[BT], gstwListSorted: list[tuple[GS, TW]]) -> list
     return freeGapList
 
 def getBufferClearedTimestamps(otList: list[OT], btList: list[BT], dtList: list[DT],
-                               gstwSortedTupleList: list[tuple[GS,TW]], p: TransmissionParams) -> list[float]:
+                               gstwSortedTupleList: list[tuple[GS,TW]]) -> list[float]:
     """
     Find the timestamps when the buffer is cleared.
     This happens when there are one or two buffer files left which get two full ground station passes to downlink.
+    This is only the case for HYPSO-2, normally, a buffer file is cleared in its last downlink tasks.
+    However, for HYPSO-2, some cleanup is needed via s-band instead of x-band, so we need this logic to estimate
+    when the buffer is fully empty so we can start filling it again after those timestamps.
     """
     freeGSGapList = getFreeGSGaps(btList, gstwSortedTupleList)
     # Store the last part of all the downlink tasks
@@ -187,22 +190,38 @@ def getBufferClearedTimestamps(otList: list[OT], btList: list[BT], dtList: list[
             if bt.start < freeGSGap[0].start:
                 preGapFileCount += 1
 
+        # It is possible to clear the buffer if there is less than or equal to two files in the buffer before the gap
+        # So check for those conditions
         if preGapFileCount == 0:
-            # The buffer is cleared at the end of the GS pass directly after the gap,
-            # so add the end of the time window corresponding to this pass.
+            # There are no files in the buffer before the gap, but there might still be some cleanup left to do
+            # So add the end of the GS pass after the gap as the moment that the buffer is cleared
             bufferClearedTimestamps.append(freeGSGap[1].end)
             continue
 
         if preGapFileCount <= 2:
-            # Check if there is enough available time in the GS passes right before and after the gap to clear the buffer
-            availableTime = getAvailableDownlinkTime(freeGSGap[0], [], otList, p) + \
-                                getAvailableDownlinkTime(freeGSGap[1], [], otList, p)
-            if availableTime > preGapFileCount * 1.5 * p.downlinkDuration:
-                # The buffer is cleared at the end of the GS pass directly after the gap,
+            # Check if there is enough available time in the GS pass right before and after the gap to clear the buffer
+            # Two passes should be enough, but there might be too many observation tasks scheduled during the pass
+            # These observation tasks reduce the available downlink time
+            twBefore = freeGSGap[0]
+            twAfter = freeGSGap[1]
+            # Determine the number of OT during either the GS pass before or after the gap
+            otDuringGS = [ot for ot in otList if not (ot.end <= twBefore.start or ot.start >= twBefore.end) or \
+                          not (ot.end <= twAfter.start or ot.start >= twAfter.end)]
+            maxOTDuringGS = 0 if preGapFileCount == 2 else 1
+            if len(otDuringGS) <= maxOTDuringGS:
+                # Enough time is available to clear the buffer at the end of the GS pass directly after the gap,
                 # so add the end of the time window corresponding to this pass.
                 bufferClearedTimestamps.append(freeGSGap[1].end)
 
     bufferClearedTimestamps.insert(0, 0)
+
+    # Do a special check for the last GS pass
+    # This is because one file can be left to be cleaned up when the next schedule starts
+    # First get the number of downlink tasks in the lass GS pass
+    lastGSTW = gstwSortedTupleList[-1]
+    downlinkTasksInLastGSTW = [dt for dt in dtList if dt.start >= lastGSTW[1].start]
+    if len(downlinkTasksInLastGSTW) <= 1:
+        bufferClearedTimestamps.append(lastGSTW[1].end)
 
     return bufferClearedTimestamps
 
