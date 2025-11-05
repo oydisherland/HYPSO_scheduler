@@ -151,7 +151,7 @@ def scheduleTransmissions(otList: list[OT], ttwList: list[TTW], gstwList: list[G
             if validBTFound:
                 # If a valid buffer task has been found we don't need to look further
                 break
-            for j, insertMethod in enumerate(insertList):
+            for insertMethod in insertList:
                 gstw = GSTW(entry[0], [entry[1]])
                 # Find the list of future GSTW that could be used to downlink the remaining data if needed
                 nextGSTWList: list[tuple[GS, TW]]  # Storing the GS passes in this form is more convenient
@@ -166,7 +166,6 @@ def scheduleTransmissions(otList: list[OT], ttwList: list[TTW], gstwList: list[G
 
                 if bt is not None:
                     btList.append(bt)
-                    methodsUsed[j] += 1
                     for candidate in candidateDTList:
                         dtList.append(candidate)
                     validBTFound = True
