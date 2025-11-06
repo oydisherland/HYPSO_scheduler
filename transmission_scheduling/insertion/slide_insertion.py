@@ -110,7 +110,7 @@ class SlideInsertion(InsertionInterface):
 
         # Make an estimate of the shift that is needed
         # The processing time after other tasks are included in the gap length, but not the processing time of the buffering itself
-        shiftNeeded = p.bufferingTime + p.interTaskTime - gapLength
+        shiftNeeded = p.bufferingTime + p.preBufferTime - gapLength
 
         # Check if increasing the gap width by shifting will make the buffer fit
         if shiftNeeded > maxShift:
@@ -291,11 +291,11 @@ class SlideInsertion(InsertionInterface):
         previousBT = btListTimeSorted[0] if len(btListTimeSorted) > 0 else None
         for i, bt in enumerate(btListTimeSorted):
             if bt.start > otToShift.end:
-                if bt.start - otToShift.end == p.afterCaptureTime:
+                if bt.start - otToShift.end == p.preBufferTime + p.postCaptureTime:
                     # This is the first buffer after the gap window
                     btListIndex = btListCandidate.index(bt)
                     btListCandidate[btListIndex] = BT(bt.OTTaskID, -1, bt.start + forwardShift, bt.end + forwardShift)
-                elif bt.start - previousBT.end == p.interTaskTime:
+                elif bt.start - previousBT.end == p.preBufferTime:
                     # This is one of the buffers in the stack of buffers after the gap
                     btListIndex = btListCandidate.index(bt)
                     btListCandidate[btListIndex] = BT(bt.OTTaskID, -1, bt.start + forwardShift, bt.end + forwardShift)
@@ -366,7 +366,7 @@ class SlideInsertion(InsertionInterface):
     def mergeToTimeWindowList(self, otList: list[OT], btList: list[BT], gstwList: list[GSTW]):
         """
         Merge the observation tasks, buffering tasks and ground station time windows into a single list of time windows.
-        The time windows in the list will include the processing and waiting times after each task.
+        The time windows in the list will include the processing and waiting times after and before each task.
 
         Args:
             otList (list[OT]): List of observation tasks.
@@ -380,12 +380,12 @@ class SlideInsertion(InsertionInterface):
 
         twList: list[TW] = []
         for ot in otList:
-            twList.append(TW(ot.start, ot.end + p.afterCaptureTime))
+            twList.append(TW(ot.start - p.preCaptureTime, ot.end + p.postCaptureTime))
         for bt in btList:
-            twList.append(TW(bt.start, bt.end + p.interTaskTime))
+            twList.append(TW(bt.start - p.preBufferTime, bt.end))
         for gstw in gstwList:
             for tw in gstw.TWs:
-                twList.append(TW(tw.start, tw.end + p.interTaskTime))
+                twList.append(TW(tw.start, tw.end))
 
         return sorted(twList, key=lambda x: x.start)
 

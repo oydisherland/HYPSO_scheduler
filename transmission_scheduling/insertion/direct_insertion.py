@@ -45,7 +45,7 @@ class DirectInsertion(InsertionInterface):
 
         # First guess is to immediately start buffering after observation
         # Candidate buffer task start and end
-        btStart = otToBuffer.end + p.afterCaptureTime
+        btStart = otToBuffer.end + p.postCaptureTime + p.preBufferTime
         btEnd = btStart + p.bufferingTime
         candidateBT = BT(otToBuffer.taskID, -1, btStart, btEnd)
         if  btEnd < gstwToDownlink.TWs[0].start and btStart > latestBTStartTime:
@@ -56,7 +56,7 @@ class DirectInsertion(InsertionInterface):
         # Now try to insert the buffer task at the end of other observation tasks
         for ot in otList:
             # Candidate buffer task start and end
-            btStart = ot.end + p.afterCaptureTime
+            btStart = ot.end + p.postCaptureTime + p.preBufferTime
             btEnd = btStart + p.bufferingTime
 
             if btEnd > gstwToDownlink.TWs[0].start or ot.end < otToBuffer.end:
@@ -76,7 +76,7 @@ class DirectInsertion(InsertionInterface):
         # Now try to insert the buffer task at the end of other buffer tasks
         for bt in btList:
             # Candidate buffer task start and end
-            btStart = bt.end + p.interTaskTime
+            btStart = bt.end + p.preBufferTime
             btEnd = btStart + p.bufferingTime
             if btStart < otToBuffer.end or btEnd > gstwToDownlink.TWs[0].start:
                 continue
@@ -94,7 +94,7 @@ class DirectInsertion(InsertionInterface):
         for gstw in gstwList:
             for tw in gstw.TWs:
                 # Candidate buffer task start and end
-                btStart = tw.end + p.interTaskTime
+                btStart = tw.end
                 btEnd = btStart + p.bufferingTime
                 if btEnd > gstwToDownlink.TWs[0].start or btStart < otToBuffer.end:
                     continue

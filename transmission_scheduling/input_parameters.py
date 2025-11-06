@@ -12,14 +12,16 @@ class TransmissionParams:
 
     Attributes:
         bufferingTime: Time required to buffer capture data before it can be transmitted in seconds.
-        afterCaptureTime: Time required after a capture for processing in seconds.
-        interTaskTime: Time after a general task in seconds.
+        preBufferTime: Time required before starting buffering in seconds.
+        preCaptureTime: Time required before a capture for processing in seconds.
+        postCaptureTime: Time required after a capture for processing in seconds.
         downlinkDuration: Time needed for downlinking a capture in seconds.
         transmissionStartTime: How far into a ground station pass transmission can start in seconds.
         maxLatency: Maximum number of seconds between a capture and its downlink
         slidingInsertIterations: Number of iterations for sliding insert algorithm
         reInsertIterations: Number of iterations for re-insertion algorithm
-        minDownlinkFraction: Minimum fraction of a capture that must be able to be downlinked in a GS pass
+        minDownlinkFraction: Minimum fraction of a capture that must be able to be downlinked in a GS pass.
+            This is used if GS passes are determined outside the booked slots
         minGSWindowTime: Minimum time a ground station window must have to be considered for scheduling in seconds
         ohDuration: Observation horizon duration in seconds
         hypsoNr: Hyperspectral satellite number (1 or 2)
@@ -30,8 +32,9 @@ class TransmissionParams:
             during a ground station pass if an observation task is scheduled during that pass
     """
     bufferingTime: float = 0.0
-    afterCaptureTime: float = 0.0
-    interTaskTime: float = 0.0
+    preBufferTime: float = 0.0
+    preCaptureTime: float = 0.0
+    postCaptureTime: float = 0.0
     downlinkDuration: float = 0.0
     transmissionStartTime: float = 0.0
     maxLatency: float = 0.0

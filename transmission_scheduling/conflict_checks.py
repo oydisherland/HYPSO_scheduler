@@ -27,14 +27,14 @@ def getConflictingTasks(tw: TW, btList: list[BT], otList: list[OT], gstwList: li
     conflictingGSTWs: list[GSTW] = []
 
     for ot in otList:
-        if ot.start >= tw.end or ot.end + p.afterCaptureTime <= tw.start:
+        if ot.start - p.preCaptureTime >= tw.end or ot.end + p.postCaptureTime <= tw.start:
             continue
         else:
             conflictingOTs.append(ot)
             if cancelEarly: return conflictingOTs, conflictingBTs, conflictingGSTWs
 
     for otherBT in btList:
-        if otherBT.start >= tw.end or otherBT.end + p.interTaskTime <= tw.start:
+        if otherBT.start - p.preBufferTime >= tw.end or otherBT.end <= tw.start:
             continue
         else:
             conflictingBTs.append(otherBT)
@@ -42,7 +42,7 @@ def getConflictingTasks(tw: TW, btList: list[BT], otList: list[OT], gstwList: li
 
     for gstw in gstwList:
         for gstw_tw in gstw.TWs:
-            if gstw_tw.start >= tw.end or gstw_tw.end + p.interTaskTime <= tw.start:
+            if gstw_tw.start >= tw.end or gstw_tw.end <= tw.start:
                 continue
             else:
                 conflictingGSTWs.append(gstw)
@@ -68,7 +68,7 @@ def bufferTaskConflicting(bt: BT, btList: list[BT], otList: list[OT], dtList: li
     Returns:
         bool: True if the buffering task conflicts with any other task, False otherwise.
     """
-    bufferTimeWindow = TW(bt.start, bt.end + p.interTaskTime)
+    bufferTimeWindow = TW(bt.start - p.preBufferTime, bt.end)
     # Remove the buffer task from the list to prevent self conflict
     btListOther = [otherBT for otherBT in btList if otherBT != bt]
     conflictOTs, conflictBTs, conflictGSTWs = getConflictingTasks(bufferTimeWindow, btListOther, otList, gstwList, p, True)
@@ -104,7 +104,7 @@ def observationTaskConflicting(ot: OT, btList: list[BT], dtList: list[DT], otLis
         bool: True if the observation task conflicts with any other task, False otherwise.
     """
 
-    observationTimeWindow = TW(ot.start, ot.end + p.afterCaptureTime)
+    observationTimeWindow = TW(ot.start - p.preCaptureTime, ot.end + p.postCaptureTime)
     # Remove instances of the observation task itself from the list
     otListOther = [otherOT for otherOT in otList if otherOT != ot]
     conflictOTs, conflictBTs, conflictGSTWs = getConflictingTasks(observationTimeWindow, btList, otListOther, [],
@@ -158,7 +158,7 @@ def hypso2BufferLimitConflicting(otList: list[OT], btList: list[BT], dtList: lis
     """
 
     gstwSortedTupleList = gstwToSortedTupleList(gstwList)
-    bufferClearedTimestamps = getBufferClearedTimestamps(otList, btList, dtList, gstwSortedTupleList, p)
+    bufferClearedTimestamps = getBufferClearedTimestamps(otList, btList, dtList, gstwSortedTupleList)
 
     # The buffer should be cleared at the end of the schedule
     lastGSTW = gstwSortedTupleList[-1]
