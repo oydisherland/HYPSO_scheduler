@@ -46,19 +46,31 @@ def objectiveFunctionImageQuality(otList:list, oh: OH, hypsoNr: int) -> float:
     for ot in otList:
         captureTimeMiddel = ot.start + (ot.end - ot.start) / 2
         utcTime = oh.utcStart + datetime.timedelta(seconds=captureTimeMiddel)
-        # # Round the utcTime down to 10 seconds to estimate the elevation more efficiently
-        # unixTime = calendar.timegm(utcTime.utctimetuple()) + utcTime.microsecond / 1e6
-        # unixTimeRounded = round(unixTime, -1)
+        # Round the utcTime down to 10 seconds to estimate the elevation more efficiently
+        if utcTime.tzinfo is None:
+            unixTime = calendar.timegm(utcTime.utctimetuple()) + utcTime.microsecond / 1e6
+        else:
+            unixTime = utcTime.timestamp()
+        # round down to nearest 10 seconds deterministically
+        unixTimeRounded = (int(unixTime) // 10) * 10
 
-        # # Round position down to 1 decimal, which gives around 10km resolution
-        # latRounded = round(float(ot.GT.lat), 1)
-        # longRounded = round(float(ot.GT.long), 1)
+        # quantize latitude/longitude to 0.1 degrees, giving about 10 km resolution
+        latRounded = int(float(ot.GT.lat) * 10) / 10.0
+        longRounded = int(float(ot.GT.long) * 10) / 10.0
 
-        # if (latRounded, longRounded, unixTimeRounded) not in imageQualityDict:
-        #     imageQualityDict[(latRounded, longRounded, unixTimeRounded)] = findSatelliteTargetElevation(float(ot.GT.lat), float(ot.GT.long), utcTime, hypsoNr)
+        # Image quality key
+        iqKey = (latRounded, longRounded, unixTimeRounded, hypsoNr)
 
-        # elevation = imageQualityDict[(latRounded, longRounded, unixTimeRounded)]
-        elevation = findSatelliteTargetElevation(float(ot.GT.lat), float(ot.GT.long), utcTime, hypsoNr)
+        if iqKey not in imageQualityDict:
+            imageQualityDict[iqKey] = findSatelliteTargetElevation(
+                float(ot.GT.lat),
+                float(ot.GT.long),
+                utcTime,
+                hypsoNr
+            )
+
+        elevation = imageQualityDict[iqKey]
+
         if elevation < 0:
             # This should not happen
             print(f"Elevation value: {elevation} for {ot.GT.id} at {utcTime}")

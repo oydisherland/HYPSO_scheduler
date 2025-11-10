@@ -94,7 +94,7 @@ class DirectInsertion(InsertionInterface):
         for gstw in gstwList:
             for tw in gstw.TWs:
                 # Candidate buffer task start and end
-                btStart = tw.end
+                btStart = tw.end + p.preBufferTime
                 btEnd = btStart + p.bufferingTime
                 if btEnd > gstwToDownlink.TWs[0].start or btStart < otToBuffer.end:
                     continue
