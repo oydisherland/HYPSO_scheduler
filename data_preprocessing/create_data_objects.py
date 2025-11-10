@@ -363,7 +363,7 @@ def createTTWList(captureDuration: int, oh: OH, hypsoNr: int, targetsFilePath: s
             print("Error reading TTW data from file, calculating TTW data instead")
 
     # Update TLE
-    updateTLE(hypsoNr)
+    # updateTLE(hypsoNr)
 
     # Get the target passes
     allTargetPasses = getAllTargetPasses(captureDuration, oh.utcStart, oh.utcEnd, targetsFilePath, hypsoNr)

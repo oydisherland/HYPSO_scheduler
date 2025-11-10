@@ -225,7 +225,6 @@ def runNSGA(
                 terminationCounter = 0  
 
         previousParetoFront = fronts[0]
-        print(f"| {generation + 1} ", end='')
 
     ##### end main loop
     print(" ")

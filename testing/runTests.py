@@ -29,31 +29,30 @@ targetsFilePathEurope = os.path.join(os.path.dirname(__file__),"../data_input/HY
 
 ## Define test scenarios
 scenarios = [
-    TestScenario(senarioID="g2_v2", startOH="2025-11-04T13:00:00Z", algorithmRuns=algorithmRuns),
-    TestScenario(senarioID="g4_v2", startOH="2025-11-04T13:00:00Z", algorithmRuns=algorithmRuns),
-    TestScenario(senarioID="g6_v2", startOH="2025-11-04T13:00:00Z", algorithmRuns=algorithmRuns),
-    TestScenario(senarioID="e2_v2", startOH="2025-11-04T13:00:00Z", algorithmRuns=algorithmRuns),
-    TestScenario(senarioID="e4_v2", startOH="2025-11-04T13:00:00Z", algorithmRuns=algorithmRuns),
-    TestScenario(senarioID="e6_v2", startOH="2025-11-04T13:00:00Z", algorithmRuns=algorithmRuns)
+    TestScenario(senarioID="e2_v2", startOH="2025-11-11T13:00:00Z", algorithmRuns=algorithmRuns),
+    TestScenario(senarioID="e4_v2", startOH="2025-11-11T13:00:00Z", algorithmRuns=algorithmRuns),
+    TestScenario(senarioID="e6_v2", startOH="2025-11-11T13:00:00Z", algorithmRuns=algorithmRuns),
+    TestScenario(senarioID="g2_v2", startOH="2025-11-11T13:00:00Z", algorithmRuns=algorithmRuns),
+    TestScenario(senarioID="g4_v2", startOH="2025-11-11T13:00:00Z", algorithmRuns=algorithmRuns),
+    TestScenario(senarioID="g6_v2", startOH="2025-11-11T13:00:00Z", algorithmRuns=algorithmRuns)
 ]
 
 targetFiles = [
-    targetsFilePath_world,
-    targetsFilePath_world,
-    targetsFilePath_world,
     targetsFilePathEurope,
     targetsFilePathEurope,
-    targetsFilePathEurope
+    targetsFilePathEurope,
+    targetsFilePath_world,
+    targetsFilePath_world,
+    targetsFilePath_world
 ]
 OHdurations = [ 2, 4, 6, 2, 4, 6]
-maxCaptures = [ 25, 50, 75, 25, 50, 75]
+maxCaptures = [ 25, 45, 70, 25, 45, 70]
 
-popsizes = [ 50, 50, 20, 50, 50, 20]
-alnsRuns = [ 30, 30, 30, 30, 30, 30]
+popsizes = [ 50, 50, 30, 50, 50, 30]
+nsgaRuns = [10, 10, 5, 10, 10, 5]
 
 
 for scenario, i in zip(scenarios, range(len(scenarios))):
-    
     
     # Get input attributes from correct target file
     scenario.createInputAttributes(os.path.join(os.path.dirname(__file__),"../data_input/input_parameters.csv"), targetFiles[i])
@@ -61,9 +60,9 @@ for scenario, i in zip(scenarios, range(len(scenarios))):
     # Set OP duration and maxCaptures in input parameters
     input = scenario.getInputParameters()
     input.durationInDaysOH = OHdurations[i]
-    input.maxCaptures = maxCaptures[i]
+    input.maxCaptures =  maxCaptures[i]
     input.populationSize = popsizes[i]
-    input.alnsRuns = alnsRuns[i]
+    input.nsga2Runs = nsgaRuns[i]
     scenario.setInputParameters(input)
 
     # Update all data input attributes
@@ -71,12 +70,13 @@ for scenario, i in zip(scenarios, range(len(scenarios))):
 
     print(f"Scenario OH{scenario.senarioID} start time: {scenario.getOh().utcStart}, end time: {scenario.getOh().utcEnd}")
     # Run Greedy algorithm 
-    # scenario.runGreedyAlgorithm()
+    scenario.runGreedyAlgorithm()
     
     # Run ALNS + NSGA-II algorithm
     with timer(f"Scenario OH{scenario.senarioID}"):
-        # scenario.runTestScenario()
-        scenario.runGreedyAlgorithm()
+        scenario.runTestScenario()
+        # scenario.runGreedyAlgorithm()
+
 
 
 # #Analyse tests

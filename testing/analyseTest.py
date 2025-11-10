@@ -1246,10 +1246,11 @@ scenarioIdCCheck = [ "e4", "e6"]
 allScenarioIds = scenarioIds + scenarioIds1 + scenarioIds2 + scenarioIdCCheck
 scenarioIds_cl = [ "cl_5", "cl_6", "cl_5"]
 test = ['g2', 'g4', 'g6', 'e2', 'e4', 'e6']
+test_v2 = ['g2_v2', 'g4_v2', 'g6_v2', 'e2_v2', 'e4_v2', 'e6_v2']
 
 filename27_10 = "/Users/oydisherland/Documents/OBD scheduling paper/Testing/27-10/images"
 
-analyse = AnalyseTest(test)
+analyse = AnalyseTest(test_v2)
 analyse.plotParetoFrontEvolution(scenarioIndex=2, runIndex=0)
 # analyse.plotObjectiveValues()
 # analyse.plotNumberOfCapturedTargets()
