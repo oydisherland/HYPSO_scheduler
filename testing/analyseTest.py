@@ -815,16 +815,19 @@ class AnalyseTest:
         # reserve right margin so external legend is not clipped
         fig.subplots_adjust(bottom=0.18)
         # add explanatory text block below the legend
-        fig.text(
-            0.5,                      # x (center)
-            0.04,                     # y (slightly above bottom)
+        # add a wider explanatory text box below the legend using a small axes
+        # [left, bottom, width, height] - increase width to avoid wrapping
+        text_box_ax = fig.add_axes([0.10, 0.03, 0.80, 0.04], frameon=False)
+        text_box_ax.text(
+            0.5,
+            0.5,
             "C: number of captures, P: priority objective, IQ: image quality objective",
             ha='center',
             va='center',
-            wrap=True,
-            fontsize=13,
-            bbox=dict(facecolor='white', edgecolor='none', alpha=0.0)
+            fontsize=14,
+            wrap=False
         )
+        text_box_ax.set_axis_off()
         # Save plot in file
         out_pdf = os.path.join(os.path.dirname(__file__), f"../testing/testing_results/barPlot.pdf")
         fig.savefig(out_pdf, format='pdf', bbox_inches='tight')
@@ -1101,96 +1104,112 @@ class AnalyseTest:
         out_pdf = os.path.join(os.path.dirname(__file__), f"../testing/testing_results/paretoFronts_{scenarioIndex}.pdf")
         fig.savefig(out_pdf, format='pdf', bbox_inches='tight')
         # plt.show()
-    def plotParetoFrontCompared(self, scenarioIndex: int, runIndex: int):
-        """ Plot the Pareto front compared with CP and GA planners """
+    def plotParetoFrontCompare(self, scenarioIndex: int, runIndex: int):
+        """ Plot the Pareto front  together with the CP and GA planners """
         
-        #Extract the data for the specific scenario and run
+        #Extract the data for the spesific scenario and run
         scenario = self.scenarios[scenarioIndex]
         algDataAllRuns = scenario.getAlgorithmDataAllRuns()
         algData = algDataAllRuns[runIndex]  
-        iterationData, bestIndex, finalPopulation = algData
-        fronts, _, _ = iterationData[-1]
+        iterationData, bestIndex, = algData
+        kneePoint = scenario.getAllObjectiveValues()[runIndex]
 
-        otListsInParetoFront = [finalPopulation[index] for index in fronts[0]]
-        bestOT = finalPopulation[bestIndex]
-
-        # Calculate objective values for Pareto front points
-        finalPopulationOVPoints = []
-        for otList in otListsInParetoFront:
-            priority = objectiveFunctionPriority(otList)
-            imageQuality = objectiveFunctionImageQuality(otList, scenario.getOh(), int(scenario.getInputParameters().hypsoNr))
-            finalPopulationOVPoints.append((priority, imageQuality))
-        
-        # Calculate objective values for CP and GA planners
+        # different approch
+        p_val = objectiveFunctionPriority(scenario.getObservationSchedules()[runIndex])
+        iq_val = objectiveFunctionImageQuality(scenario.getObservationSchedules()[runIndex], scenario.getOh(), int(scenario.getInputParameters().hypsoNr))
+        kneePoint = (p_val, iq_val)
+       # Calculate objective values for CP and GA planners
         cp_otList = self.cp_observationSchedules[scenarioIndex]
         ga_otList = self.ga_observationSchedules[scenarioIndex]
         
         cp_priority = objectiveFunctionPriority(cp_otList)
         cp_imageQuality = objectiveFunctionImageQuality(cp_otList, scenario.getOh(), int(scenario.getInputParameters().hypsoNr))
-        cpOVPoints = (cp_priority, cp_imageQuality)
+        cpOVPoints = (cp_priority, scaleIQFromDegTo100(cp_imageQuality))
         
         ga_priority = objectiveFunctionPriority(ga_otList)
         ga_imageQuality = objectiveFunctionImageQuality(ga_otList, scenario.getOh(), int(scenario.getInputParameters().hypsoNr))
-        gaOVPoints = (ga_priority, ga_imageQuality)
-        
-        # Calculate objective values for the best solution
-        best_priority = objectiveFunctionPriority(bestOT)
-        best_imageQuality = objectiveFunctionImageQuality(bestOT, scenario.getOh(), int(scenario.getInputParameters().hypsoNr))
-
+        gaOVPoints = (ga_priority, scaleIQFromDegTo100(ga_imageQuality))
+       
         # Create the plot
-        fig, ax = plt.subplots(figsize=(12, 8))
+        fig, ax = plt.subplots(figsize=(4, 3))
         
-        # Plot Pareto front points
-        if finalPopulationOVPoints:
-            pareto_priorities = [point[0] for point in finalPopulationOVPoints]
-            pareto_imageQualities = [point[1] for point in finalPopulationOVPoints]
-            ax.scatter(pareto_priorities, pareto_imageQualities, 
-                    c='#03045E', 
-                    alpha=0.7, 
-                    s=50, 
-                    label='NSGA-II Pareto Front',
-                    marker='o')
+        font_size = 14  # set all text to size 14
         
-        # Plot CP planner point
-        ax.scatter(cpOVPoints[0], cpOVPoints[1], 
-                c='#00A8E0', 
-                alpha=1, 
-                s=100, 
-                label='CP Planner',
-                marker='s',  # Square marker
-                edgecolors='black',
-                linewidth=1)
-        
-        # Plot GA planner point
-        ax.scatter(gaOVPoints[0], gaOVPoints[1], 
-                c='#90E0EF', 
-                alpha=1, 
-                s=100, 
-                label='GA Planner',
-                marker='^',  # Triangle marker
-                edgecolors='black',
-                linewidth=1)
-        
-        # Plot best solution (knee point) with a circle around it
-        ax.scatter(best_priority, best_imageQuality, 
-                facecolors='none',
-                edgecolors='red',  # Red circle for visibility
-                s=200,  # Large size
-                linewidth=3,  # Thick edge
-                marker='o',
-                label='Best Solution (Knee Point)')
+        # Create a colormap for different iterations
+        num_iterations = len(iterationData)
+        custom_colors = ['#03045E', '#023E8A', '#0077B6', '#00A8E0', '#48CAE4', '#90E0EF']
 
-        # Customize the plot
-        ax.set_xlabel('Priority', fontsize=12)
-        ax.set_ylabel('Image Quality', fontsize=12)
-        ax.set_title(f'Pareto Front Comparison - Scenario {scenario.senarioID}, Run {runIndex + 1}', 
-                    fontsize=14, fontweight='bold')
-        ax.grid(True, alpha=0.3)
-        ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+        # Create a custom colormap
+        custom_cmap = LinearSegmentedColormap.from_list("custom_blues", custom_colors)
+        colors = custom_cmap(np.linspace(0, 1, num_iterations))
         
-        plt.tight_layout()
-        plt.show()
-    
+        _, _, _, paretoFrontOtlists= iterationData[-1]
+        
+        # Get the Pareto front (first front)
+        if len(paretoFrontOtlists) > 0:
+
+            # Extract priorities and image qualities
+            priorities_duplicates = [objectiveFunctionPriority(otList) for otList in paretoFrontOtlists]
+            image_qualities_duplicates = [scaleIQFromDegTo100(objectiveFunctionImageQuality(otList, scenario.getOh(), int(scenario.getInputParameters().hypsoNr))) for otList in paretoFrontOtlists]
+            
+            # Remove duplicate points in the Pareto front
+            priorities, image_qualities = [], []
+            for p, iq in zip(priorities_duplicates, image_qualities_duplicates):
+                if (p, iq) not in zip(priorities, image_qualities):
+                    priorities.append(p)
+                    image_qualities.append(iq)
+
+            # Plot the Pareto front for this iteration
+            ax.scatter(priorities, image_qualities, 
+                    alpha=0.6,
+                    s=50, 
+                    label=f'Pareto Front',
+                    marker='o',
+                    facecolors= colors[5],
+                    edgecolors= colors[4],)
+            
+            # print a cirkle around the kneepoint in the final pareto front
+            iq = scaleIQFromDegTo100(kneePoint[1])
+            ax.scatter(kneePoint[0], iq, 
+                    facecolors='none',
+                    edgecolors=colors[4],  # circle for visibility
+                    s=200,  # Large size
+                    linewidth=3,  # Thick edge
+                    marker='o',
+                    label='Knee Point')
+        # Add CP planner point
+        ax.scatter(cpOVPoints[0], cpOVPoints[1], 
+                c=custom_colors[0], 
+                alpha=0.7, 
+                edgecolors=custom_colors[0],
+                s=100, 
+                label='Greedy2',
+                marker='s',  # Square marker
+                linewidth=1)
+        
+        # Add GA planner point
+        ax.scatter(gaOVPoints[0], gaOVPoints[1], 
+                c=custom_colors[1], 
+                alpha=0.7,
+                edgecolors=custom_colors[1], 
+                s=100, 
+                label='Greedy1',
+                marker='s',  # Square marker
+                linewidth=1)
+        
+        # Customize the plot (use font_size for all text)
+        ax.set_xlabel('Priority', fontsize=font_size)
+        ax.set_ylabel('Image Quality [1-100]', fontsize=font_size)
+        ax.tick_params(axis='both', which='major', labelsize=font_size)
+        ax.grid(True, alpha=0.3)
+        
+        # Handle legend - only show every nth iteration if there are too many
+        handles, labels = ax.get_legend_handles_labels()
+        ax.legend(handles, labels, bbox_to_anchor=(1, 0.5), loc='center left', ncols=1, fontsize=13)
+        # plt.tight_layout()
+        out_pdf = os.path.join(os.path.dirname(__file__), f"../testing/testing_results/paretoFrontCompared_{scenarioIndex}.pdf")
+        fig.savefig(out_pdf, format='pdf', bbox_inches='tight')
+        # plt.show() 
     def getdata(self):
         filePath = os.path.join(os.path.dirname(__file__), f"../testing/testing_results/data_tests.txt")
 
@@ -1251,12 +1270,13 @@ test_v2 = ['g2_v2', 'g4_v2', 'g6_v2', 'e2_v2', 'e4_v2', 'e6_v2']
 filename27_10 = "/Users/oydisherland/Documents/OBD scheduling paper/Testing/27-10/images"
 
 analyse = AnalyseTest(test_v2)
-analyse.plotParetoFrontEvolution(scenarioIndex=2, runIndex=0)
+# analyse.plotParetoFrontEvolution(scenarioIndex=1, runIndex=0)
+# analyse.plotParetoFrontCompare(scenarioIndex=1, runIndex=0)
 # analyse.plotObjectiveValues()
 # analyse.plotNumberOfCapturedTargets()
 # analyse.plotNumTargIQandPriority()
 # analyse.plotNumTargIQandPriorityAverage()
-# analyse.plotGraphNumTargIQandPrioritySubplots()
+analyse.plotGraphNumTargIQandPrioritySubplots()
 # analyse.plotGraphNumTargIQandPriorityAverages()
 # analyse.plotTargetsChosen()
 # analyse.plotOneschedule(scenarioIndex=0, runIndex=0, imageFilePath=filename27_10)
