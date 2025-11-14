@@ -214,14 +214,19 @@ class AnalyseTest:
             )
         # Add DTlist plotting
         for i, dt in enumerate(dtList_actual, start=1):
-            ax.barh(
-                y=dtA_y,
-                width=217, # 217 = downlink time, sorry should not be hardcoded
-                left=dt.end - 217, # otherwise dt
-                height=height/2,
+            x_center = dt.start + (dt.end - dt.start) / 2
+            duration = 217
+            # Map duration to marker area (s). Adjust scaling factor if markers are too large/small.
+            marker_area = max(40, (duration / max(1.0, p.ohDuration)) * 3000)
+
+            ax.scatter(
+                x_center,
+                dtA_y,
+                s=marker_area,
                 color=colors[0],
                 alpha=0.6,
-                label="Actually downlinked" if i == 1 else ""
+                linewidths=0.5,
+                label= "Actually downlinked" if i == 1 else ""
             )
 
         # Formatting
@@ -790,9 +795,9 @@ class AnalyseTest:
             ga_vals = [all_sumOfCapturesGA[i], all_priorityGA[i], all_imageQualityGA[i]]
             cp_vals = [all_sumOfCapturesCP[i], all_priorityCP[i], all_imageQualityCP[i]]
 
-            ax.bar(x - bar_width, na_vals, bar_width, label='ALNS+NSGA-II', color=colors['NA'], alpha=0.8, edgecolor='k', linewidth=0.4)
-            ax.bar(x, ga_vals, bar_width, label='Greedy1', color=colors['GA'], alpha=0.8, edgecolor='k', linewidth=0.4)
-            ax.bar(x + bar_width, cp_vals, bar_width, label='Greedy2', color=colors['CP'], alpha=0.8, edgecolor='k', linewidth=0.4)
+            ax.bar(x - bar_width, na_vals, bar_width, label='ALNS+NSGA-II', color=colors['NA'], alpha=0.8, edgecolor='none', linewidth=0.4)
+            ax.bar(x, ga_vals, bar_width, label='Greedy1', color=colors['GA'], alpha=0.8, edgecolor='none', linewidth=0.4)
+            ax.bar(x + bar_width, cp_vals, bar_width, label='Greedy2', color=colors['CP'], alpha=0.8, edgecolor='none', linewidth=0.4)
 
             if i == 0 or i == 3:
                 ax.set_ylabel('Normalized Score', fontsize=14)
@@ -1271,12 +1276,12 @@ filename27_10 = "/Users/oydisherland/Documents/OBD scheduling paper/Testing/27-1
 
 analyse = AnalyseTest(test_v2)
 # analyse.plotParetoFrontEvolution(scenarioIndex=1, runIndex=0)
-# analyse.plotParetoFrontCompare(scenarioIndex=1, runIndex=0)
+analyse.plotParetoFrontCompare(scenarioIndex=4, runIndex=0)
 # analyse.plotObjectiveValues()
 # analyse.plotNumberOfCapturedTargets()
 # analyse.plotNumTargIQandPriority()
 # analyse.plotNumTargIQandPriorityAverage()
-analyse.plotGraphNumTargIQandPrioritySubplots()
+# analyse.plotGraphNumTargIQandPrioritySubplots()
 # analyse.plotGraphNumTargIQandPriorityAverages()
 # analyse.plotTargetsChosen()
 # analyse.plotOneschedule(scenarioIndex=0, runIndex=0, imageFilePath=filename27_10)
