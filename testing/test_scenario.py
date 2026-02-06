@@ -356,8 +356,6 @@ class TestScenario:
         cmdLines = createCmdLinesForCaptureAndBuffering(observationSchedule, bufferSchedule, downlinkSchedule, self._inputParameters, self._oh)
         createCmdFile(f"{folderPathScenario}/{self.senarioID}_ga_cmdLines.txt", cmdLines)
 
-
-
     # If output from running test already exsists, recreate all alltributes of TestScenario object
     def recreateTestScenario(self):
         """ Recreate observation schedules from the output cmd files, and set attributes """

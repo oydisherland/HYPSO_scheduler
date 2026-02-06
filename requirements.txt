@@ -1,0 +1,9 @@
+alns
+matplotlib
+numpy
+pandas
+pymoo
+python-dotenv
+requests
+scipy
+skyfield

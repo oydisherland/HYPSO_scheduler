@@ -1215,6 +1215,183 @@ class AnalyseTest:
         out_pdf = os.path.join(os.path.dirname(__file__), f"../testing/testing_results/paretoFrontCompared_{scenarioIndex}.pdf")
         fig.savefig(out_pdf, format='pdf', bbox_inches='tight')
         # plt.show() 
+    def plotTwoParetoFronts(self, scenarioIndex1: int, scenarioIndex2: int, runIndex1: int, runIndex2: int):
+        """ Plot the Pareto front  together with the CP and GA planners """
+        
+        #Extract the data for scenario1 and run1
+        scenario1 = self.scenarios[scenarioIndex1]
+        algDataAllRuns = scenario1.getAlgorithmDataAllRuns()
+        algData1 = algDataAllRuns[runIndex1]  
+        iterationData1, bestIndex, = algData1
+        kneePoint1 = scenario1.getAllObjectiveValues()[runIndex1]
+
+        scenario2 = self.scenarios[scenarioIndex2]
+        algDataAllRuns2 = scenario2.getAlgorithmDataAllRuns()
+        algData2 = algDataAllRuns2[runIndex2]  
+        iterationData2, bestIndex2, = algData2
+        kneePoint2 = scenario2.getAllObjectiveValues()[runIndex2]
+
+        # Get Knee point for scenario1
+        p_val1 = objectiveFunctionPriority(scenario1.getObservationSchedules()[runIndex1])
+        iq_val1 = objectiveFunctionImageQuality(scenario1.getObservationSchedules()[runIndex1], scenario1.getOh(), int(scenario1.getInputParameters().hypsoNr))
+        kneePoint1 = (p_val1, iq_val1)
+
+        # Get Knee point for scenario2
+        p_val2 = objectiveFunctionPriority(scenario2.getObservationSchedules()[runIndex2])
+        iq_val2 = objectiveFunctionImageQuality(scenario2.getObservationSchedules()[runIndex2], scenario2.getOh(), int(scenario2.getInputParameters().hypsoNr))
+        kneePoint2 = (p_val2, iq_val2)
+
+         # Calculate objective values for CP and GA planners for scenario 1
+        cp_otList1 = self.cp_observationSchedules[scenarioIndex1]
+        ga_otList1 = self.ga_observationSchedules[scenarioIndex1]
+        cp_priority1 = objectiveFunctionPriority(cp_otList1)
+        cp_imageQuality1 = objectiveFunctionImageQuality(cp_otList1, scenario1.getOh(), int(scenario1.getInputParameters().hypsoNr))
+        cpOVPoints1 = (cp_priority1, scaleIQFromDegTo100(cp_imageQuality1))
+        ga_priority1 = objectiveFunctionPriority(ga_otList1)
+        ga_imageQuality1 = objectiveFunctionImageQuality(ga_otList1, scenario1.getOh(), int(scenario1.getInputParameters().hypsoNr))
+        gaOVPoints1 = (ga_priority1, scaleIQFromDegTo100(ga_imageQuality1))
+
+        # Calculate objective values for CP and GA planners for scenario 2
+        cp_otList2 = self.cp_observationSchedules[scenarioIndex2]
+        ga_otList2 = self.ga_observationSchedules[scenarioIndex2]
+
+        cp_priority2 = objectiveFunctionPriority(cp_otList2)
+        cp_imageQuality2 = objectiveFunctionImageQuality(cp_otList2, scenario2.getOh(), int(scenario2.getInputParameters().hypsoNr))
+        cpOVPoints2 = (cp_priority2, scaleIQFromDegTo100(cp_imageQuality2))
+
+        ga_priority2 = objectiveFunctionPriority(ga_otList2)
+        ga_imageQuality2 = objectiveFunctionImageQuality(ga_otList2, scenario2.getOh(), int(scenario2.getInputParameters().hypsoNr))
+        gaOVPoints2 = (ga_priority2, scaleIQFromDegTo100(ga_imageQuality2))
+        
+        # Create the plot
+        fig, axes = plt.subplots(1, 2, figsize=(7.5, 3))
+
+        font_size = 13  # set all text to size 14
+        
+        # Create a colormap for different iterations
+        num_iterations1 = len(iterationData1)
+        num_iterations2 = len(iterationData2)
+        colors = ['#03045E', '#023E8A', '#0077B6', '#00A8E0', '#48CAE4', '#90E0EF']
+        
+        _, _, _, paretoFrontOtlists1= iterationData1[-1]
+        _, _, _, paretoFrontOtlists2= iterationData2[-1]
+        
+        # Scenario 1
+        if len(paretoFrontOtlists1) > 0:
+            ax = axes[0]
+            # Extract priorities and image qualities
+            priorities_duplicates = [objectiveFunctionPriority(otList) for otList in paretoFrontOtlists1]
+            image_qualities_duplicates = [scaleIQFromDegTo100(objectiveFunctionImageQuality(otList, scenario1.getOh(), int(scenario1.getInputParameters().hypsoNr))) for otList in paretoFrontOtlists1]
+            
+            # Remove duplicate points in the Pareto front
+            priorities, image_qualities = [], []
+            for p, iq in zip(priorities_duplicates, image_qualities_duplicates):
+                if (p, iq) not in zip(priorities, image_qualities):
+                    priorities.append(p)
+                    image_qualities.append(iq)
+
+            # Plot the Pareto front for this iteration
+            ax.scatter(priorities, image_qualities, 
+                    alpha=0.6,
+                    s=50, 
+                    label=f'Pareto Front',
+                    marker='o',
+                    facecolors= colors[2],
+                    edgecolors= colors[1],)
+            
+            # print a cirkle around the kneepoint in the final pareto front
+            iq = scaleIQFromDegTo100(kneePoint1[1])
+            ax.scatter(kneePoint1[0], iq, 
+                    facecolors='none',
+                    edgecolors=colors[3],  # circle for visibility
+                    s=200,  # Large size
+                    linewidth=3,  # Thick edge
+                    marker='o',
+                    label='Knee Point')
+            # Add CP planner point
+            ax.scatter(cpOVPoints1[0], cpOVPoints1[1], 
+                c=colors[0], 
+                alpha=0.7, 
+                edgecolors=colors[0],
+                s=100, 
+                label='Greedy2',
+                marker='s',  # Square marker
+                linewidth=1)
+            
+            # Customize the plot (use font_size for all text)
+            ax.set_xlabel('Priority', fontsize=font_size)
+            ax.set_ylabel('Image Quality [1-100]', fontsize=font_size)
+            ax.tick_params(axis='both', which='major', labelsize=font_size)
+            ax.grid(True, alpha=0.3)
+            # Adjust axis limits
+            # xmin, xmax = min(priorities), max(priorities)
+            # pad = (xmax - xmin) * 0.05
+            # ax.set_xlim(xmin - pad, xmax + pad)
+            # ymin, ymax = min(image_qualities), max(image_qualities)
+            # pad = (ymax - ymin) * 0.05
+            # ax.set_ylim(ymin - pad, ymax + pad)
+        
+        # Scenario 2
+        if len(paretoFrontOtlists1) > 0:
+            ax = axes[1]
+            # Extract priorities and image qualities
+            priorities_duplicates = [objectiveFunctionPriority(otList) for otList in paretoFrontOtlists2]
+            image_qualities_duplicates = [scaleIQFromDegTo100(objectiveFunctionImageQuality(otList, scenario2.getOh(), int(scenario2.getInputParameters().hypsoNr))) for otList in paretoFrontOtlists2]
+            
+            # Remove duplicate points in the Pareto front
+            priorities, image_qualities = [], []
+            for p, iq in zip(priorities_duplicates, image_qualities_duplicates):
+                if (p, iq) not in zip(priorities, image_qualities):
+                    priorities.append(p)
+                    image_qualities.append(iq)
+
+            # Plot the Pareto front for this iteration
+            ax.scatter(priorities, image_qualities, 
+                    alpha=0.6,
+                    s=50, 
+                    label=f'Pareto Front',
+                    marker='o',
+                    facecolors= colors[2],
+                    edgecolors= colors[1],)
+            
+            # print a cirkle around the kneepoint in the final pareto front
+            iq = scaleIQFromDegTo100(kneePoint2[1])
+            ax.scatter(kneePoint2[0], iq, 
+                    facecolors='none',
+                    edgecolors=colors[3],  # circle for visibility
+                    s=200,  # Large size
+                    linewidth=3,  # Thick edge
+                    marker='o',
+                    label='Knee Point')
+            # Add CP planner point
+            ax.scatter(cpOVPoints2[0], cpOVPoints2[1], 
+                c=colors[0], 
+                alpha=0.7, 
+                edgecolors=colors[0],
+                s=100, 
+                label='Greedy2',
+                marker='s',  # Square marker
+                linewidth=1)
+        
+            # Customize the plot (use font_size for all text)
+            ax.tick_params(axis='both', which='major', labelsize=font_size)
+            ax.grid(True, alpha=0.3)
+            ax.set_xlabel('Priority', fontsize=font_size)
+            # Adjust axis limits
+            # xmin, xmax = min(priorities), max(priorities)
+            # pad = (xmax - xmin) * 0.05
+            # ax.set_xlim(xmin - pad, xmax + pad)
+            # ymin, ymax = min(image_qualities), max(image_qualities)
+            # pad = (ymax - ymin) * 0.05
+            # ax.set_ylim(ymin - pad, ymax + pad)
+        
+        # Handle legend - only show every nth iteration if there are too many
+        handles, labels = ax.get_legend_handles_labels()
+        ax.legend(handles, labels, bbox_to_anchor=(-0.1, -0.3), loc='center', ncols=3, fontsize=14)
+        # plt.tight_layout()
+        out_pdf = os.path.join(os.path.dirname(__file__), f"../testing/testing_results/paretoFronts.pdf")
+        fig.savefig(out_pdf, format='pdf', bbox_inches='tight')
+        # plt.show() 
     def getdata(self):
         filePath = os.path.join(os.path.dirname(__file__), f"../testing/testing_results/data_tests.txt")
 
@@ -1258,7 +1435,67 @@ class AnalyseTest:
                 f.write(str(scenarioData["scenarioID"]) + " | " + str(scenarioData["captures_NA"]) + " | " + str(scenarioData["priority_NA"]) + " | " + str(scenarioData["imageQuality_NA"]) + "\n")
                 f.write(str(scenarioData["scenarioID"]) + " | " + str(scenarioData["captures_CP"]) + " | " + str(scenarioData["priority_CP"]) + " | " + str(scenarioData["imageQuality_CP"]) + "\n")
                 f.write(str(scenarioData["scenarioID"]) + " | " + str(scenarioData["captures_GA"]) + " | " + str(scenarioData["priority_GA"]) + " | " + str(scenarioData["imageQuality_GA"]) + "\n")
+    def calculateImprovement(self):
+        
+        # Get the score from each scenario and algorithm
+        naData= []
+        cpData = []
+        gaData = []
+        for scenario, cp_otList, ga_otList in zip(self.scenarios, self.cp_observationSchedules, self.ga_observationSchedules):
+            # Find sum of captures 
+            obsSchedsAllRuns = scenario.getObservationSchedules()
+            average = sum(len(obsSched) for obsSched in obsSchedsAllRuns) / len(obsSchedsAllRuns)
 
+            # Find priority and image quality 
+            # NA using average of all runs
+            obsValuesNA = scenario.getAllObjectiveValues()
+            value_priorityNA = sum(val[0] for val in obsValuesNA) / len(obsValuesNA)
+            value_imageQualityNA = sum(val[1] for val in obsValuesNA) / len(obsValuesNA)
+            value_priorityCP = objectiveFunctionPriority(cp_otList)
+            value_imageQualityCP = objectiveFunctionImageQuality(cp_otList, scenario.getOh(), int(scenario.getInputParameters().hypsoNr))
+            value_priorityGA = objectiveFunctionPriority(ga_otList)
+            value_imageQualityGA = objectiveFunctionImageQuality(ga_otList, scenario.getOh(), int(scenario.getInputParameters().hypsoNr))
+            # Scale IQ so that 0-1 maps 40 degrees to 90 degrees
+            value_imageQualityNA = round(scaleIQFromDegTo100(value_imageQualityNA), 5)
+            value_imageQualityCP = round(scaleIQFromDegTo100(value_imageQualityCP), 5)
+            value_imageQualityGA = round(scaleIQFromDegTo100(value_imageQualityGA), 5)
+
+            naData.append({
+                "captures_NA": average,
+                "priority_NA": value_priorityNA,
+                "imageQuality_NA": value_imageQualityNA
+            })
+            cpData.append({
+                "captures_CP": len(cp_otList),
+                "priority_CP": value_priorityCP,
+                "imageQuality_CP": value_imageQualityCP
+            })
+            gaData.append({
+                "captures_GA": len(ga_otList),
+                "priority_GA": value_priorityGA,
+                "imageQuality_GA": value_imageQualityGA
+            })
+        
+        # Calculate improvement percentages
+        improvementsImageQualityEurope = []
+        improvementsPriorityEurope = []
+        EuropeScenarios = [0, 1, 2, 3, 4, 5]
+        for i in EuropeScenarios:
+
+            na_priority = naData[i]["priority_NA"]
+            cp_priority = cpData[i]["priority_CP"]
+            ga_priority = gaData[i]["priority_GA"]
+            improvement_cp = ((cp_priority - na_priority) / cp_priority) * 100
+            improvement_ga = ((ga_priority - na_priority) / ga_priority) * 100
+            improvementsPriorityEurope.append((improvement_cp + improvement_ga)/2)
+            na_iq = naData[i]["imageQuality_NA"]
+            cp_iq = cpData[i]["imageQuality_CP"]
+            ga_iq = gaData[i]["imageQuality_GA"]
+            improvement_cp = ((cp_iq - na_iq) / cp_iq) * 100
+            improvement_ga = ((ga_iq - na_iq) / ga_iq) * 100
+            improvementsImageQualityEurope.append((improvement_cp + improvement_ga)/2)
+        print("Europe Scenarios Improvement in Image Quality (CP): ", sum(improvementsImageQualityEurope)/len(improvementsImageQualityEurope))
+        print("Europe Scenarios Improvement in Priority (CP): ", sum(improvementsPriorityEurope)/len(improvementsPriorityEurope))
 
 
 
@@ -1276,7 +1513,8 @@ filename27_10 = "/Users/oydisherland/Documents/OBD scheduling paper/Testing/27-1
 
 analyse = AnalyseTest(test_v2)
 # analyse.plotParetoFrontEvolution(scenarioIndex=1, runIndex=0)
-analyse.plotParetoFrontCompare(scenarioIndex=4, runIndex=0)
+# analyse.plotParetoFrontCompare(scenarioIndex=4, runIndex=0)
+# analyse.plotTwoParetoFronts(scenarioIndex1=4, scenarioIndex2=1, runIndex1=0, runIndex2=0)
 # analyse.plotObjectiveValues()
 # analyse.plotNumberOfCapturedTargets()
 # analyse.plotNumTargIQandPriority()
@@ -1286,6 +1524,7 @@ analyse.plotParetoFrontCompare(scenarioIndex=4, runIndex=0)
 # analyse.plotTargetsChosen()
 # analyse.plotOneschedule(scenarioIndex=0, runIndex=0, imageFilePath=filename27_10)
 # analyse.getdata()
+analyse.calculateImprovement()
 
 
 

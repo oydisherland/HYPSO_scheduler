@@ -29,12 +29,7 @@ targetsFilePathEurope = os.path.join(os.path.dirname(__file__),"../data_input/HY
 
 ## Define test scenarios
 scenarios = [
-    TestScenario(senarioID="e2_v2", startOH="2025-11-11T13:00:00Z", algorithmRuns=algorithmRuns),
-    TestScenario(senarioID="e4_v2", startOH="2025-11-11T13:00:00Z", algorithmRuns=algorithmRuns),
-    TestScenario(senarioID="e6_v2", startOH="2025-11-11T13:00:00Z", algorithmRuns=algorithmRuns),
-    TestScenario(senarioID="g2_v2", startOH="2025-11-11T13:00:00Z", algorithmRuns=algorithmRuns),
-    TestScenario(senarioID="g4_v2", startOH="2025-11-11T13:00:00Z", algorithmRuns=algorithmRuns),
-    TestScenario(senarioID="g6_v2", startOH="2025-11-11T13:00:00Z", algorithmRuns=algorithmRuns)
+    TestScenario(senarioID="test", startOH="2026-02-06T13:00:00Z", algorithmRuns=algorithmRuns)
 ]
 
 targetFiles = [

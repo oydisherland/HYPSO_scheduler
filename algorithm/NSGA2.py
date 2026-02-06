@@ -1,4 +1,3 @@
-from types import NoneType
 import copy
 import numpy as np
 import math
